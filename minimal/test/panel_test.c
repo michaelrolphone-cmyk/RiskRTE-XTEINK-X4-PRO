@@ -244,7 +244,7 @@ static void test_power(const char *scenario, const risc_driver_v2 *driver) {
     if (strstr(scenario, "pof")) {
         stuck_poweroff = true;
         const uint64_t began = fake_now;
-        assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_TIMEOUT && fake_now - began <= 1500u);
+        assert(power->prepare(NULL, UINT32_MAX) == RISC_DISPLAY_POWER_TIMEOUT && fake_now - began <= 1500u);
         assert(poweroffs == 1 && !deep_sleeps); assert_sleep_blocks(power, token);
         assert(power->prepare(NULL, 20) == RISC_DISPLAY_POWER_TIMEOUT && poweroffs == 1);
         stuck_poweroff = false;
@@ -300,7 +300,7 @@ static void test_power(const char *scenario, const risc_driver_v2 *driver) {
     if (strstr(scenario, "wire-budget")) {
         charge_every = 1; const uint64_t began = fake_now;
         assert(power->resume(NULL, 200) == RISC_DISPLAY_POWER_TIMEOUT);
-        assert(fake_now - began <= 360u); /* Deadline plus one <=6-byte command. */
+        assert(fake_now - began <= 362u); /* Deadline plus one <=6-byte command. */
         charge_every = 0; assert_sleep_blocks(power, token);
     }
     assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK);

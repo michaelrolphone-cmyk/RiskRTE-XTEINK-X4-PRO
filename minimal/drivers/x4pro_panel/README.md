@@ -111,7 +111,7 @@ Both methods cap total admission/readiness budget at 1500 ms. Zero is a
 non-mutating state poll. Readiness has an independent 150-iteration bound with
 real ten-ms sleeps, including under a stalled clock. A command finishes before
 checking its deadline; the maximum unchecked command group is six bytes
-(156 GPIO writes), so the deadline is cooperative rather than hard real-time.
+(162 GPIO writes), so the deadline is cooperative rather than hard real-time.
 Reset assertion/recovery use 10/10 ms for SSD1677 and 50/50 ms for UC8279.
 POF settling is 200 ms for SSD1677 and at least 1 ms for UC8279. The six owned
 pins, synchronization guard, mapped provider and dependencies remain live.
