@@ -1,11 +1,12 @@
 {
   "schema": 1,
   "system_apps": "2aa0cf63346e507525af884bbfbf6b69313442c4",
-  "utilities": "f41528d05bb0cdee8ab6ba9df563958e1e354953",
+  "utilities": "9889ee7c510fa8efeaba6cf8de8d25e42c88ae43",
   "productivity": "b949ab00155599d95ca6956bcef213fc37989ea6",
   "points_artifact_source": "08a6e41c4765fe067c8944d4391c7b8a5cfdf044",
   "points_system_apps": "2775b0b898c432825d9cb5685175c0647dd4dc30",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "23a4887f1eeb7b7ce867c0e243158b899e43f0f8",
-  "purpose": "Completed ten-app X4 test cohort; exact build receipts accompany package"
+  "purpose": "Completed ten-app X4 test cohort; exact build receipts accompany package",
+  "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda"
 }

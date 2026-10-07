@@ -64,7 +64,7 @@ cannot detect this boot failure.
 
 ## Completed product candidate
 
-Product0.1.3 selects manual crown light sleep with the explicit GPIO3 power
+Product0.1.4 selects manual crown light sleep with the explicit GPIO3 power
 provider and split navigation, Runtime0.1.45 scoped GPIO acceleration and
 cooperative UC8279 transfer. Center Home returns to the clock. A completed
 short top-right press returns to the clock from an app; on the clock it requests
