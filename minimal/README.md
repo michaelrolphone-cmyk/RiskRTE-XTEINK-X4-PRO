@@ -30,3 +30,16 @@ The four host scenarios cover malformed dependencies/configuration, normal and
 repeated lifecycle, readback failure, cleanup retry and retained claim failure.
 AddressSanitizer/UBSan and an Xtensa ordinary-provider link were checked. The ELF
 exports only `t5_driver_get`; its only libc import is `strcmp`.
+
+## Typed I2C adapter
+
+`x4pro-i2c@0.1.5` preserves the API1 prefix and tagged serialized/deadline/retained-release suffix. It uses the ordinary `platform.i2c.controller`, `platform.clock` and `platform.sync` tables plus explicit `board.power.ready` dependency. The source migration's legacy0.1.4 provider remains unchanged outside this directory.
+
+One owner-task, nonrecursive attempt admits each transaction. Admission time is deducted from the physical transfer budget, and an expired completion never returns success. Address claims are exclusive and generation-safe; failed release retains the exact claim. Failed controller close or sync cleanup retains the dependency state. There are eight claim slots,256 bytes per transfer phase and a maximum1000ms total request budget. No FreeRTOS imports or provider-BSS atomics are used.
+
+```sh
+RISCRTE_RUNTIME_ROOT=../RiscRTE RISCRTE_READER_ROOT=../T5S3-Reader \
+  SANITIZE=1 bash minimal/test/run_i2c_test.sh
+```
+
+The Runtime and Reader SDKs share byte-identical common headers. `minimal/scripts/prepare_sdk.py` composes one include directory and rejects any overlapping filename with divergent bytes, preventing duplicate pragma-once type definitions or silent ABI drift. Generated SDK copies stay in build scratch; shared headers remain maintained upstream.
