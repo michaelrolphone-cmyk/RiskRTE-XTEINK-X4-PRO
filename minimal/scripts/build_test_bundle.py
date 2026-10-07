@@ -5,14 +5,19 @@ from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
-CAPS={'runtime.retained-wake':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
+CAPS={'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
 KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
 APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
-def app_grants(name, requirements, sleep=False, desk_clock=False):
+def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False):
     if desk_clock and not sleep:raise ValueError('Desk clock requires the explicit sleep graph')
+    if sparse_clock and not desk_clock:raise ValueError('Sparse clock requires the explicit desk-clock profile')
     grants=[]
     for req in requirements:
         cap=req['capability']
+        if cap=='runtime.provider-promotion' and (name!='default' or not sparse_clock or type(req['api']) is not int or req['api']!=1):
+            raise ValueError('Provider promotion restricted to explicit sparse default Clock')
+        if cap=='runtime.realtime-control' and (name not in ('default','settings') or not sparse_clock or type(req['api']) is not int or req['api']!=1):
+            raise ValueError('Native time control restricted to explicit sparse Clock/Settings')
         if cap=='x4.power' and (name!='default' or not sleep):
             raise ValueError('Power authority restricted to explicit sleep Clock')
         if cap=='runtime.retained-wake' and (name!='default' or not desk_clock or req['api']!=1):
@@ -25,10 +30,12 @@ def app_grants(name, requirements, sleep=False, desk_clock=False):
             if grant not in grants:grants.append(grant)
     if sleep and name=='default' and not any(g['capability']=='x4.power' for g in grants):
         raise ValueError('Sleep graph requires explicit Clock power grant')
-    if len({(r['capability'],r['api']) for r in requirements})>12 or len(grants)>16:
+    if len({(r['capability'],r['api']) for r in requirements})>(16 if sparse_clock else 12) or len(grants)>16:
         raise ValueError('App policy exceeds bounded Runtime capacity')
     if desk_clock and name=='default' and not any(g['capability']=='runtime.retained-wake' for g in grants):
         raise ValueError('Desk Clock requires explicit retained-wake authority')
+    if sparse_clock and name=='default' and not all(any(g['capability']==cap for g in grants) for cap in ('runtime.realtime-control','runtime.provider-promotion')):
+        raise ValueError('Sparse Clock requires explicit native-time and foreground-promotion authority')
     return grants
 def sha(b):return hashlib.sha256(b).hexdigest()
 def encoded(d):return (json.dumps(d,sort_keys=True,indent=2)+'\n').encode()

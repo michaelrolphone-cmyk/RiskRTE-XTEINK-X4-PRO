@@ -42,6 +42,7 @@ jobs:
           python3 minimal/test/prepare_sdk_test.py
           python3 minimal/test/bundle_identity_test.py
           python3 minimal/test/app_bundle_grants_test.py
+          python3 minimal/test/sparse_app_grants_test.py
           python3 minimal/test/settings_power_profile_test.py
           python3 minimal/test/desk_clock_bundle_test.py
           python3 minimal/test/provisioning_profile_test.py
