@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "ef7bc637eda020519a0b74b6467210ebe457adfe",
-    "version": "0.1.43"
+    "commit": "57d3b9d37c633665e08ab364ac355c6da3acda21",
+    "version": "0.1.44"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "cccfa3fd9b606998c27adb03665722ea44d5358f",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "typed-driver integration checkpoint; product bundle incomplete; hardware unqualified"
+  "status": "typed-driver and six-app test bundle assembled; hardware first-frame follow-up in progress"
 }
