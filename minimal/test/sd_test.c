@@ -33,7 +33,9 @@ static uint32_t cycles;
 static unsigned calls, claims, releases, locks, unlocks, destroys, sleeps, clock_edges;
 static bool owner=true, locked, fail_create, fail_take, fail_unlock, fail_destroy;
 static bool fail_claim, fail_release, fail_read, fail_write, stuck_cycles, absent, reenter, nested;
-static bool clock_level, power_ready=true;
+static int fail_claim_pin=-1, fail_release_pin=-1, fail_write_pin=-1, fail_write_level=-1;
+static int32_t fail_hold, fail_unhold;
+static bool clock_level, power_ready=true, force_dat_busy;
 static uint64_t tokens[49];
 static bool outputs[49], levels[49], holds[49];
 static uint32_t fixture_cycles(void) { if (!stuck_cycles) cycles+=8; return cycles; }
@@ -42,7 +44,7 @@ static int token_pin(uint64_t token) { for (unsigned i=0;i<49;++i) if(tokens[i]=
 static bool gpio_claim(void *ctx,uint8_t pin,bool output,bool initial,bool pullup,uint64_t *out) {
     (void)ctx; ++calls; ++claims; assert(owner && locked && fixture_lock && out);
     assert(pin==5 || pin==40 || pin==41 || pin==42); assert(!tokens[pin]); assert(!pullup || (!output && (pin==40 || pin==42))); *out=0;
-    if(fail_claim)return false;
+    if(fail_claim || pin==fail_claim_pin)return false;
     tokens[pin]=*out=++next_token;outputs[pin]=output;levels[pin]=initial;holds[pin]=false;
     if(pin==5){wire_pin_hold(5,false);wire_pin_output(5,initial);}
     else if(output){if(pin==41){clock_level=initial;++clock_edges;}wire_pin_output(pin,initial);}
@@ -51,7 +53,7 @@ static bool gpio_claim(void *ctx,uint8_t pin,bool output,bool initial,bool pullu
 }
 static bool gpio_write(void *ctx,uint64_t token,bool level) {
     (void)ctx; ++calls; assert(owner && locked);int pin=token_pin(token);assert(outputs[pin]);
-    if(fail_write || holds[pin])return false;
+    if(fail_write || holds[pin] || (pin==fail_write_pin && (fail_write_level<0 || level==fail_write_level)))return false;
     levels[pin]=level;
     if(pin==41){clock_level=level;++clock_edges;}
     wire_pin_output((uint32_t)pin,level);return true;
@@ -59,16 +61,18 @@ static bool gpio_write(void *ctx,uint64_t token,bool level) {
 static bool gpio_read(void *ctx,uint64_t token,bool *level) {
     (void)ctx; ++calls;assert(owner && locked);int pin=token_pin(token);
     if(fail_read)return false;
-    *level=pin==41?clock_level:pin==5?levels[pin]:absent?true:wire_pin_read((uint32_t)pin);return true;
+    *level=pin==40 && force_dat_busy?false:pin==41?clock_level:pin==5?levels[pin]:absent?true:wire_pin_read((uint32_t)pin);return true;
 }
 static bool gpio_release(void *ctx,uint64_t token) {
     (void)ctx; ++calls;++releases;assert(owner && locked);int pin=token_pin(token);
-    if(fail_release || holds[pin])return false;
+    if(fail_release || holds[pin] || pin==fail_release_pin)return false;
     tokens[pin]=0;return true;
 }
 static int32_t gpio_hold(void *ctx,uint64_t token,bool hold) {
     (void)ctx;++calls;assert(owner && locked);int pin=token_pin(token);assert(pin==5 && outputs[pin]);
     if(fail_write)return RISC_DEEP_SLEEP_PLATFORM;
+    if(hold && fail_hold){if(fail_hold==RISC_DEEP_SLEEP_RETAINED)holds[pin]=true;return fail_hold;}
+    if(!hold && fail_unhold)return fail_unhold;
     holds[pin]=hold;wire_pin_hold((uint32_t)pin,hold);return 0;
 }
 static bool sync_owner(void *ctx){(void)ctx;return owner;}
@@ -88,6 +92,9 @@ static void rejected_calls(void) {
     assert(!file_seek(NULL,1,0) && !file_info(NULL,1,&size,&position) && !file_sync(NULL,1));
     assert(handle_error(NULL,1,false)==FR_LOCKED);assert(!remove_path(NULL,"/a") && !mkdir_path(NULL,"/a") && !rename_path(NULL,"/a","/b"));
     assert(!prepare_power_down(NULL) && !cancel_power_down(NULL) && !commit_power_down(NULL));
+    assert(!prepare_sleep(NULL) && !commit_sleep(NULL));
+    const int32_t sleep_result=resume_sleep(NULL);
+    assert(sleep_result==RISC_STORAGE_SLEEP_REFUSED || sleep_result==RISC_STORAGE_SLEEP_RETAINED);
     assert(!last_error_api(NULL,text,sizeof(text)) && !strcmp(text,"untouched"));assert(!quiesce());stop();assert(calls==before);
 }
 static void sleep_ms(void *ctx,uint32_t ms){(void)ctx;++sleeps;now_ms+=ms;assert(owner && locked);if(reenter && !nested){nested=true;rejected_calls();nested=false;}}
@@ -110,6 +117,142 @@ static void format(bool partitioned){
 }
 static void verify_cleanup(void){assert(quiesce());stop();assert(!fixture_lock && !gpio_api && !clock_api && !sync_api);for(unsigned i=0;i<49;++i)assert(!tokens[i]);assert(!card_bad_pin);}
 static void write_sample(void){const uint32_t file=file_open_write(NULL,"/sample.bin");assert(file);uint8_t bytes[2048];for(unsigned i=0;i<sizeof(bytes);++i)bytes[i]=(uint8_t)i;assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));assert(file_sync(NULL,file));assert(file_close(NULL,file,true));}
+static void frozen_io(void){
+    const unsigned before=calls;char byte=0,text[80];uint64_t size=0,position=0;bool directory=false;risc_storage_dirent_v1 entry;
+    assert(!refresh(NULL) && !ready(NULL) && !label(NULL,text,sizeof(text)));
+    assert(!stat_path(NULL,"/",&size,&directory) && !dir_open(NULL,"/") && !dir_next(NULL,1,&entry));
+    assert(!dir_rewind(NULL,1) && !dir_close_checked(NULL,1));dir_close(NULL,1);
+    assert(!file_open(NULL,"/sample.bin",1) && !file_open_write(NULL,"/blocked"));
+    assert(!file_open_read(NULL,"/sample.bin",&size) && !file_read(NULL,1,&byte,1) && !file_write(NULL,1,&byte,1));
+    assert(!file_seek(NULL,1,0) && !file_sync(NULL,1) && !file_info(NULL,1,&size,&position) && !file_close(NULL,1,true));
+    assert(handle_error(NULL,1,false)==FR_LOCKED);
+    assert(!mkdir_path(NULL,"/blocked") && !remove_path(NULL,"/sample.bin") && !rename_path(NULL,"/a","/b"));
+    assert(calls==before);
+}
+static void retained_sleep(void){
+    const unsigned before=calls;const uint64_t mutex=operation_mutex;
+    uint64_t saved[49];memcpy(saved,tokens,sizeof(saved));
+    assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_RETAINED);frozen_io();
+    assert(!prepare_sleep(NULL) && !commit_sleep(NULL) && !prepare_power_down(NULL));
+    assert(!cancel_power_down(NULL) && !commit_power_down(NULL) && !quiesce() && !START());
+    assert(operation_mutex==mutex && fixture_lock && !destroys && calls==before);
+    assert(!memcmp(saved,tokens,sizeof(saved)));
+}
+static void sleep_cases(const char *scenario){
+    const risc_storage_volume_api_v1 *base=(const risc_storage_volume_api_v1 *)&api;
+    const risc_storage_volume_api_v1_sleep *extension=risc_storage_volume_sleep(base);
+    assert(extension==&api && risc_storage_volume_power_commit(base)==&api.terminal);
+    assert(extension->prepare_sleep==prepare_sleep && extension->commit_sleep==commit_sleep && extension->resume_sleep==resume_sleep);
+    assert(!commit_sleep(NULL));
+    if(!strcmp(scenario,"sleep-absent")){
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_MEDIA_UNAVAILABLE && !ready(NULL));
+        assert(prepare_sleep(NULL));assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_MEDIA_UNAVAILABLE);
+        assert(prepare_sleep(NULL) && commit_sleep(NULL));frozen_io();
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_MEDIA_UNAVAILABLE && !ready(NULL));
+        assert(!card_sleep_off && !card_power_off && !holds[5]);
+        absent=false;assert(refresh(NULL) && ready(NULL));verify_cleanup();return;
+    }
+    assert(ready(NULL));
+    if(!strcmp(scenario,"sleep-busy")){
+        owner=false;assert(!prepare_sleep(NULL) && resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);owner=true;
+        assert(enter());const unsigned before=calls;assert(!prepare_sleep(NULL) && !commit_sleep(NULL));
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED && calls==before);assert(leave());
+    }
+    if(!strcmp(scenario,"sleep-handles")){
+        write_sample();uint64_t size;uint32_t handle=file_open_read(NULL,"/sample.bin",&size);assert(handle);
+        assert(!prepare_sleep(NULL) && !power_down_prepared && ready(NULL));assert(file_close(NULL,handle,true));
+        handle=file_open(NULL,"/sample.bin",RISC_STORAGE_OPEN_WRITE);assert(handle);
+        assert(!prepare_sleep(NULL) && !power_down_prepared);assert(file_close(NULL,handle,true));
+        handle=dir_open(NULL,"/");assert(handle);assert(!prepare_sleep(NULL) && !power_down_prepared);assert(dir_close_checked(NULL,handle));
+    }
+    if(!strcmp(scenario,"sleep-legacy")){
+        assert(prepare_power_down(NULL));assert(!prepare_sleep(NULL) && !commit_sleep(NULL));
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);assert(cancel_power_down(NULL));
+        assert(prepare_sleep(NULL));assert(!prepare_power_down(NULL) && !cancel_power_down(NULL) && !commit_power_down(NULL));
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY);
+        assert(prepare_power_down(NULL) && commit_power_down(NULL));
+        assert(!prepare_sleep(NULL) && !commit_sleep(NULL) && resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);
+        assert(!cancel_power_down(NULL) && !quiesce());return;
+    }
+    if(!strcmp(scenario,"sleep-sync")){
+        force_dat_busy=true;assert(!prepare_sleep(NULL));force_dat_busy=false;retained_sleep();return;
+    }
+    if(!strcmp(scenario,"sleep-prepare-unlock")){
+        fail_unlock=true;assert(!prepare_sleep(NULL));fail_unlock=false;retained_sleep();return;
+    }
+    assert(prepare_sleep(NULL) && prepare_sleep(NULL));frozen_io();assert(!quiesce());
+    assert(!prepare_power_down(NULL) && !cancel_power_down(NULL) && !commit_power_down(NULL));
+    if(!strcmp(scenario,"sleep-repeat-prepare-unlock")){
+        fail_unlock=true;assert(!prepare_sleep(NULL));fail_unlock=false;retained_sleep();return;
+    }
+    if(!strcmp(scenario,"sleep-refusal")){
+        const unsigned before=calls;assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY && calls==before);
+        assert(ready(NULL) && !card_sleep_commits);verify_cleanup();return;
+    }
+    if(!strcmp(scenario,"sleep-commit-clock"))fail_write_pin=41;
+    if(!strcmp(scenario,"sleep-commit-cmd-release"))fail_release_pin=42;
+    if(!strcmp(scenario,"sleep-commit-cmd-claim"))fail_claim_pin=42;
+    if(!strcmp(scenario,"sleep-commit-dat-release"))fail_release_pin=40;
+    if(!strcmp(scenario,"sleep-commit-dat-claim"))fail_claim_pin=40;
+    if(!strcmp(scenario,"sleep-commit-rail"))fail_write_pin=5;
+    if(!strcmp(scenario,"sleep-commit-hold"))fail_hold=RISC_DEEP_SLEEP_PLATFORM;
+    if(!strcmp(scenario,"sleep-commit-hold-retained"))fail_hold=RISC_DEEP_SLEEP_RETAINED;
+    if(!strcmp(scenario,"sleep-commit-unlock"))fail_unlock=true;
+    if(strstr(scenario,"sleep-commit-")){
+        assert(!commit_sleep(NULL));fail_unlock=false;retained_sleep();return;
+    }
+    assert(commit_sleep(NULL) && sleep_state==SLEEP_COMMITTED && !mounted && !card_ready);
+    assert(card_power_off && card_sleep_off && holds[5]);
+    const unsigned committed_calls=calls;assert(commit_sleep(NULL) && calls==committed_calls);
+    assert(!prepare_sleep(NULL) && !prepare_power_down(NULL) && !cancel_power_down(NULL) && !commit_power_down(NULL));
+    assert(!quiesce());frozen_io();
+    if(!strcmp(scenario,"sleep-busy")){
+        fail_take=true;assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);assert(calls==committed_calls);
+        fail_take=false;assert(card_power_off && card_sleep_off && !mounted);
+    }
+    if(!strcmp(scenario,"sleep-repeat-commit-unlock")){
+        fail_unlock=true;assert(!commit_sleep(NULL));fail_unlock=false;retained_sleep();return;
+    }
+    if(!strcmp(scenario,"sleep-resume-unhold"))fail_unhold=RISC_DEEP_SLEEP_PLATFORM;
+    if(!strcmp(scenario,"sleep-resume-unhold-retained"))fail_unhold=RISC_DEEP_SLEEP_RETAINED;
+    if(!strcmp(scenario,"sleep-resume-rail-off")){fail_write_pin=5;fail_write_level=1;}
+    if(!strcmp(scenario,"sleep-resume-rail-on")){fail_write_pin=5;fail_write_level=0;}
+    if(!strcmp(scenario,"sleep-resume-cmd-claim"))fail_claim_pin=42;
+    if(!strcmp(scenario,"sleep-resume-dat-claim"))fail_claim_pin=40;
+    if(!strcmp(scenario,"sleep-resume-unlock"))fail_unlock=true;
+    if(!strcmp(scenario,"sleep-resume-crc"))card_bad_crc=true;
+    if(strstr(scenario,"sleep-resume-")){
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_RETAINED);fail_unlock=false;retained_sleep();return;
+    }
+    if(!strcmp(scenario,"sleep-unformatted"))card_image[510]=0;
+    if(!strcmp(scenario,"sleep-removed"))absent=true;
+    if(!strcmp(scenario,"sleep-unformatted") || !strcmp(scenario,"sleep-removed")){
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_MEDIA_UNAVAILABLE && !ready(NULL));
+        assert(!card_power_off && !card_sleep_off && !holds[5]);
+        char byte;uint64_t size;assert(!file_open_read(NULL,"/sample.bin",&size) && !file_read(NULL,1,&byte,1));
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_MEDIA_UNAVAILABLE);
+        absent=false;card_image[510]=0x55;assert(refresh(NULL) && ready(NULL));verify_cleanup();return;
+    }
+    assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY && ready(NULL));
+    assert(!card_power_off && !card_sleep_off && !holds[5]);
+    const unsigned resumed_calls=calls;assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY && calls==resumed_calls);
+    if(!strcmp(scenario,"sleep-repeat-resume-unlock")){
+        fail_unlock=true;assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_RETAINED);fail_unlock=false;retained_sleep();return;
+    }
+    if(strcmp(scenario,"sleep-handles"))write_sample();
+    uint64_t size;uint32_t stale=file_open_read(NULL,"/sample.bin",&size);assert(stale);assert(file_close(NULL,stale,true));
+    uint32_t stale_dir=dir_open(NULL,"/");assert(stale_dir);assert(dir_close_checked(NULL,stale_dir));
+    for(unsigned cycle=0;cycle<3;++cycle){
+        assert(prepare_sleep(NULL) && commit_sleep(NULL));assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY);
+        uint32_t fresh=file_open_read(NULL,"/sample.bin",&size);assert(fresh && fresh!=stale);char byte;
+        assert(!file_read(NULL,stale,&byte,1) && !file_close(NULL,stale,true));assert(handle_error(NULL,stale,false)==FR_INVALID_OBJECT);
+        assert(file_read(NULL,fresh,&byte,1)==1 && file_close(NULL,fresh,true));
+        uint32_t fresh_dir=dir_open(NULL,"/");assert(fresh_dir && fresh_dir!=stale_dir);risc_storage_dirent_v1 entry;
+        assert(!dir_next(NULL,stale_dir,&entry) && !dir_close_checked(NULL,stale_dir));assert(handle_error(NULL,stale_dir,true)==FR_INVALID_OBJECT);
+        assert(dir_next(NULL,fresh_dir,&entry) && dir_close_checked(NULL,fresh_dir));
+    }
+    verify_cleanup();assert(START() && ready(NULL));assert(handle_error(NULL,stale,false)==FR_INVALID_OBJECT);verify_cleanup();
+}
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
@@ -124,12 +267,13 @@ int main(int argc,char **argv){
     if(!strcmp(scenario,"create-fail")){fail_create=true;assert(!START());assert(!calls && !fixture_lock && quiesce());goto done;}
     if(!strcmp(scenario,"take-fail")){fail_take=true;assert(!START());assert(!calls && operation_mutex);fail_take=false;verify_cleanup();goto done;}
     if(!strcmp(scenario,"claim-retained")){fail_claim=true;assert(!START());assert(gpio_retained && operation_mutex);fail_claim=false;assert(!quiesce());assert(!START());goto done;}
-    if(!strcmp(scenario,"absent"))absent=true;
+    if(!strcmp(scenario,"absent") || !strcmp(scenario,"sleep-absent"))absent=true;
     if(!strcmp(scenario,"unlock-fail"))fail_unlock=true;
-    if(!strcmp(scenario,"reentry"))reenter=true;
+    if(!strcmp(scenario,"reentry") || !strcmp(scenario,"sleep-reentry"))reenter=true;
     const bool result=START();
     if(!strcmp(scenario,"unlock-fail")){assert(!result && mutex_poisoned && locked);fail_unlock=false;rejected_calls();assert(!START() && !destroys);goto done;}
     assert(result);
+    if(!strncmp(scenario,"sleep-",6)){sleep_cases(scenario);goto done;}
     if(!strcmp(scenario,"absent")){assert(!ready(NULL));char text[80];assert(last_error_api(NULL,text,sizeof(text)) && !strcmp(text,"CMD8 no response"));assert(refresh(NULL));assert(now_ms==400 && clock_edges<2000);verify_cleanup();goto done;}
     assert(ready(NULL));
     if(!strcmp(scenario,"nonowner")){owner=false;rejected_calls();owner=true;verify_cleanup();goto done;}

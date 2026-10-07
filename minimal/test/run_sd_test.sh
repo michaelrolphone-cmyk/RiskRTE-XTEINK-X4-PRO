@@ -11,6 +11,10 @@ if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-s
  -I"$RISCRTE_READER_ROOT/Drivers/x4pro_board" -I"$RISCRTE_READER_ROOT" \
  "$root/minimal/test/sd_test.c" "$RISCRTE_READER_ROOT/Drivers/storage_fatfs/fatfs/ff.c" \
  "$RISCRTE_READER_ROOT/Drivers/storage_fatfs/fatfs/ffunicode.c" -o "$build/test"
-for scenario in validation absent lifetime mbr stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail; do
+for scenario in validation absent lifetime mbr stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail \
+ sleep-empty sleep-absent sleep-handles sleep-busy sleep-refusal sleep-legacy sleep-sync sleep-prepare-unlock sleep-reentry \
+ sleep-repeat-prepare-unlock sleep-repeat-commit-unlock sleep-repeat-resume-unlock \
+ sleep-commit-clock sleep-commit-cmd-release sleep-commit-cmd-claim sleep-commit-dat-release sleep-commit-dat-claim sleep-commit-rail sleep-commit-hold sleep-commit-hold-retained sleep-commit-unlock \
+ sleep-resume-unhold sleep-resume-unhold-retained sleep-resume-rail-off sleep-resume-rail-on sleep-resume-cmd-claim sleep-resume-dat-claim sleep-resume-unlock sleep-resume-crc sleep-unformatted sleep-removed; do
  ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 timeout 120s "$build/test" "$scenario"
 done
