@@ -5,10 +5,12 @@
   "productivity": "4921a4306bb11adea646d766eb7539242e0142a7",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "23a4887f1eeb7b7ce867c0e243158b899e43f0f8",
-  "purpose": "Completed sixteen-app X4 test cohort; exact build receipts accompany package",
+  "purpose": "Future desk-clock foundation; current app artifacts remain frozen until complete new Clock integration",
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
   "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
-  "settings_system_apps": "aa31d5b5affe607781720a806c1009883a4d1674"
+  "settings_system_apps": "aa31d5b5affe607781720a806c1009883a4d1674",
+  "desk_clock_system_apps": "3702b9a594196bb5cb546732a5d4aa668c88ff91",
+  "cohort_admission_watch_tools": "d2cce9f9c5119cd59e08f73f7f573d2eba91d75d"
 }

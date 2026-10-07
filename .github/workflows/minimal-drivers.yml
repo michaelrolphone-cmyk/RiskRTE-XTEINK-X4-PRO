@@ -7,20 +7,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: 2317b4fca374bb2b9cfe8dd204aa22244d1db609
+          ref: 3c39aa7ac50ecd7f6da0296a62a2d7af066f82d1
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/T5S3-Reader
-          ref: cccfa3fd9b606998c27adb03665722ea44d5358f
+          ref: aac8c06d3221139084acd0cfc64f7b0ba194a97a
           path: .shared/reader
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE-System-Apps
-          ref: a7f08a9db7342a69ef5b9bc03e3b1ea60dafbb7c
+          ref: 3702b9a594196bb5cb546732a5d4aa668c88ff91
           path: .shared/apps
       - uses: actions/setup-python@v5
         with:
@@ -33,9 +35,13 @@ jobs:
           RISCRTE_APPS_ROOT: ${{ github.workspace }}/.shared/apps
           SANITIZE: '1'
         run: |
+          bash .shared/reader/test/run_display_power_contract_test.sh
+          bash .shared/reader/test/run_touch_power_test.sh
+          bash .shared/reader/test/storage_volume/run_sleep_extension_test.sh
           python3 minimal/test/prepare_sdk_test.py
           python3 minimal/test/bundle_identity_test.py
           python3 minimal/test/app_bundle_grants_test.py
+          python3 minimal/test/settings_power_profile_test.py
           python3 minimal/test/provisioning_profile_test.py
           bash minimal/test/run_native_gpio_readback_test.sh
           bash minimal/test/run_frontlight_cpu_port_test.sh

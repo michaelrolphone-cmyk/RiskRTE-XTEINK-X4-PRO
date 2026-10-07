@@ -9,6 +9,10 @@ flags=(-std=c11 -Wall -Wextra -Werror -pedantic)
 if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer); fi
 "${CC:-cc}" "${flags[@]}" -I"$build/sdk" "$root/minimal/test/gt911_test.c" "$root/minimal/drivers/x4pro_gt911/driver.c" -o "$build/test"
 for scenario in validation source-equivalence startup fallback no-chip subscriptions events boundaries gaps overflow ack-failure read-failure owner-reentry release-retry pin-release-retry off-retry hold-retry hold-retained retire-retry destroy-retry claim-retained irq-claim-retained strap-release-retry reset-failure probe-release-retry bus-claim-retained unlock-retained; do "$build/test" "$scenario"; done
+for scenario in power-subscriptions power-owner power-neutral power-prepare-release power-off-retained power-hold-refusal power-hold-retained power-unhold-refusal power-unhold-retained power-alternate-release power-second-release power-no-chip power-claim-refusal power-bus-retained power-empty-claim power-unlock-prepare power-unlock-resume power-zero power-timeout power-clock-reverse power-clock-stalled power-clock-overrun power-expiry-matrix power-final-prepared power-final-recovered power-final-partial power-primary-ack power-custody power-prepare-expiry-matrix power-final-expiry-matrix power-first-failure; do "$build/test" "$scenario"; done
+for n in {1..7}; do "$build/test" "power-write-$n"; done
+for n in {1..4}; do "$build/test" "power-claim-$n"; "$build/test" "power-pin-release-$n"; done
+for n in {1..3}; do "$build/test" "power-transfer-$n"; done
 # Optional target check uses the same canonical SDK and production flags.
 if [[ -n "${NATIVE_DRIVER_CC:-}" ]]; then
   elf="$build/driver.elf"

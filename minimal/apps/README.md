@@ -125,3 +125,28 @@ Home and QuickActions are unchanged. The bundle validates the Settings ELF hash,
 version, clean build receipt and absence of `PORTABLE_SLEEP_SETTINGS`, rejecting
 the unsupported selector before store assembly. Other applications retain their
 exact 0.1.5 artifacts and source receipts. The 0.1.5 BIN is preserved unchanged.
+
+## Future typed deep-entry suffix
+
+x4pro-power 0.1.1 adds `X4PowerDeepV1.h`, a tagged append-only suffix after the
+unchanged light-sleep table. Older light clients and old GPIO tables remain
+usable; absent native deep support returns UNSUPPORTED without consuming the
+neutral key state. A future Clock deployment must opt in explicitly. This does
+not turn on the unsupported Settings mode selector or change the frozen image.
+
+The new call accepts only 1..86400000 ms, uses the existing private owned GPIO3
+plus timer, and applies the same owner/30 ms neutral observation and one-attempt
+consumption as light sleep. Native success never returns. A zero, unknown or
+RETAINED return fences the provider without unlocking, releasing or polling.
+Known ordinary native refusals return for checked caller rollback. The caller
+first prepares display/touch/SD/radios and stages its Runtime app-owned retained
+record. This provider does not perform those steps or claim the full graph is
+ready. A failed sleep must resume prepared peripherals before releasing grants.
+
+`run_power_test.sh` covers the original 11 light cases and 21 new deep cases,
+including process-terminal success, valid duration extrema, neutral rearm,
+legacy GPIO-prefix compatibility, missing callback, each ordinary native error,
+unknown returns, owner/clock/read failures and retained cleanup. Native CPU
+arm/rollback/RTC retention is independently tested by Runtime. Composition of
+all providers and complete Clock behavior remains an integration gate; no device
+sleep or current measurement is implied.

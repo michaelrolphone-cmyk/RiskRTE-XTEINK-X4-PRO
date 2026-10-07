@@ -1,5 +1,6 @@
 #include <RiscProviderV2.h>
 #include <RiscTouchV1.h>
+#include <RiscTouchPowerV1.h>
 #include <RiscTouchI2cV2.h>
 #include <RiscI2cBusV1.h>
 #include <RiscPlatformClockV1.h>
@@ -9,10 +10,12 @@
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const risc_driver_v2 *driver;
 static const risc_touch_api_v1 *api;
+static const risc_touch_power_api_v1 *power;
 static uint64_t serial=1,mutex,bus_token,time_ms;
 static uint8_t bus_address,good_address=0x5d,status,raw[8];
 static struct { uint64_t token; bool output,level,held; } pins[49];
@@ -20,9 +23,15 @@ static unsigned creates,takes,destroys,claims,writes,releases,holds,retires,bus_
 static bool owner=true,locked,power_ready=true,create_ok=true,unlock_ok=true,destroy_ok=true;
 static bool bus_release_ok=true,retire_ok=true,recurse,malformed_claim,ack_ok=true,read_ok=true,point_ok=true;
 static int fail_gpio_claim,fail_write_pin=-1,fail_release_pin=-1,hold_result;
+static int fail_write_call,fail_release_call,fail_bus_claim_call,fail_bus_release_call,fail_transact_call;
+static int expire_operation;
+static unsigned operations;
+static bool reverse_clock,stalled_clock,ack_reaches,empty_claim,claim_token_on_failure;
+static uint32_t sleep_overrun;
 static char trace[32768];
 static size_t trace_size;
 static void record(const char *format,...) {
+    ++operations;if((int)operations==expire_operation)time_ms+=2000;
     if(trace_size+100>=sizeof(trace))return;
     va_list args;va_start(args,format);
     int n=vsnprintf(trace+trace_size,sizeof(trace)-trace_size,format,args);va_end(args);
@@ -57,27 +66,27 @@ static bool destroy(void *context,uint64_t lock) {
 static bool gpio_claim(void *context,uint8_t pin,bool output,bool initial,bool pull_up,uint64_t *out) {
     (void)context;require_locked();assert(pin==2 || pin==4 || pin==10);assert(!pins[pin].token && !pull_up);
     ++claims;*out=0;record("c%u%c%u;",pin,output?'o':'i',initial);
-    if((int)claims==fail_gpio_claim)return false;
+    if((int)claims==fail_gpio_claim && !claim_token_on_failure)return false;
     pins[pin].output=output;pins[pin].level=initial;pins[pin].held=false;
-    *out=pins[pin].token=serial++;return true;
+    *out=pins[pin].token=serial++;return (int)claims!=fail_gpio_claim;
 }
 static bool gpio_write(void *context,uint64_t token,bool level) {
     (void)context;require_locked();unsigned pin=pin_of(token);++writes;
     assert(pins[pin].output && !pins[pin].held);record("w%u:%u;",pin,level);
-    if((int)pin==fail_write_pin)return false;
+    if((int)pin==fail_write_pin || (int)writes==fail_write_call)return false;
     pins[pin].level=level;return true;
 }
 static bool gpio_release(void *context,uint64_t token) {
     (void)context;require_locked();unsigned pin=pin_of(token);++releases;
     assert(!pins[pin].held);record("r%u;",pin);
-    if((int)pin==fail_release_pin)return false;
+    if((int)pin==fail_release_pin || (int)releases==fail_release_call)return false;
     pins[pin].token=0;return true;
 }
 static int32_t gpio_hold(void *context,uint64_t token,bool enable) {
     (void)context;require_locked();unsigned pin=pin_of(token);++holds;
-    assert(pin==2 && pins[pin].output && pins[pin].level && enable);record("h%u;",pin);
+    assert(pin==2 && pins[pin].output && pins[pin].level);record(enable?"h%u;":"H%u;",pin);
     if(hold_result)return hold_result;
-    pins[pin].held=true;return 0;
+    pins[pin].held=enable;return 0;
 }
 static bool gpio_retire(void *context,uint64_t token) {
     (void)context;require_locked();unsigned pin=pin_of(token);++retires;
@@ -93,16 +102,22 @@ static void check_reentry(void) {
     assert(!api->subscribe(NULL) && !api->unsubscribe(NULL,1));
     assert(!api->poll(NULL,1) && api->next(NULL,1,&event)==-1 && !api->snapshot(NULL,&snapshot));
     assert(snapshot.width==0xa5a5 && event.x==0xa5a5 && !driver->quiesce());
+    assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY);
+    assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_BUSY);
     driver->stop();
 }
 static bool claim_bus(void *context,uint8_t address,uint64_t *out) {
     (void)context;require_locked();assert(!bus_token && (address==0x5d || address==0x14));
-    ++bus_claims;record("b%02x;",address);*out=bus_token=serial++;bus_address=address;
+    ++bus_claims;record("b%02x;",address);*out=0;
+    if((int)bus_claims==fail_bus_claim_call)return false;
+    if(empty_claim)return true;
+    *out=bus_token=serial++;bus_address=address;
     return !malformed_claim;
 }
 static bool transact(void *context,uint64_t token,const uint8_t *tx,size_t tn,uint8_t *rx,size_t rn,uint32_t timeout) {
-    (void)context;require_locked();assert(token==bus_token && tx && timeout==20);++transacts;
-    check_reentry();assert(tn==2 || tn==3);uint16_t reg=(uint16_t)(((uint16_t)tx[0]<<8)|tx[1]);
+    (void)context;require_locked();assert(token==bus_token && tx && timeout>0 && timeout<=20);++transacts;
+    check_reentry();if((int)transacts==fail_transact_call)return false;
+    assert(tn==2 || tn==3);uint16_t reg=(uint16_t)(((uint16_t)tx[0]<<8)|tx[1]);
     if(rn) {
         assert(tn==2 && rx);record("d%04x;",reg);
         if(reg==0x8140) {
@@ -113,16 +128,16 @@ static bool transact(void *context,uint64_t token,const uint8_t *tx,size_t tn,ui
         assert(reg==0x8150 && rn==8);if(!point_ok)return false;memcpy(rx,raw,8);return true;
     }
     assert(tn==3 && !rx && reg==0x814e && tx[2]==0);record("a;");
-    if(!ack_ok)return false;
+    if(!ack_ok){if(ack_reaches)status=0;return false;}
     status=0;return true;
 }
 static bool release_bus(void *context,uint64_t token) {
     (void)context;require_locked();assert(token==bus_token);++bus_releases;record("u;");
-    if(!bus_release_ok)return false;
+    if(!bus_release_ok || (int)bus_releases==fail_bus_release_call)return false;
     bus_token=0;return true;
 }
-static uint64_t now(void *context) { (void)context;require_locked();return time_ms; }
-static void sleep_ms(void *context,uint32_t ms) { (void)context;require_locked();record("s%u;",ms);time_ms+=ms; }
+static uint64_t now(void *context) { (void)context;require_locked();if(reverse_clock)--time_ms;return time_ms; }
+static void sleep_ms(void *context,uint32_t ms) { (void)context;require_locked();record("s%u;",ms);if(!stalled_clock)time_ms+=ms+sleep_overrun; }
 static bool ready(void *context) { (void)context;assert(owner);++power_checks;return power_ready; }
 static garden_gpio_v1 gpio={.api_version=1,.struct_size=sizeof(gpio),.claim=gpio_claim,.write=gpio_write,
     .release=gpio_release,.deep_sleep_hold=gpio_hold,.retire_held_output=gpio_retire};
@@ -314,13 +329,245 @@ static void source_equivalence(void) {
     }
     compare_queue(sub);done(sub);
 }
+static void fenced(void) {
+    const unsigned old=transacts;
+    risc_touch_snapshot_v1 snap;memset(&snap,0xa5,sizeof(snap));
+    assert(!api->subscribe(NULL) && !api->poll(NULL,1) && !api->snapshot(NULL,&snap));
+    assert(snap.width==0xa5a5 && !api->unsubscribe(NULL,1));no_event(1,-1);
+    assert(transacts==old && !start());
+}
+static void retained_forever(void) {
+    const unsigned old=operations,locks=takes;
+    assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+    assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+    assert(power->prepare(NULL,0)==RISC_TOUCH_POWER_RETAINED);
+    assert(power->resume(NULL,0)==RISC_TOUCH_POWER_RETAINED);
+    assert(!driver->quiesce());driver->stop();fenced();
+    assert(operations==old && takes==locks && mutex && !destroys);
+}
+static void prepared(void) {
+    const unsigned retired_before=retires,destroyed_before=destroys;
+    assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_OK);
+    assert(!bus_token && pins[2].token && pins[2].level && pins[2].held);
+    assert(pins[4].token && pins[10].token && mutex && retires==retired_before && destroys==destroyed_before);
+    const unsigned old=operations;
+    assert(power->prepare(NULL,0)==RISC_TOUCH_POWER_OK);
+    assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_OK);
+    assert(power->resume(NULL,0)==RISC_TOUCH_POWER_BUSY);
+    assert(operations==old);fenced();
+}
+static void recovered(void) {
+    assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_OK);
+    assert(bus_token && !pins[2].level && !pins[2].held && pins[4].level && !pins[10].output);
+    const unsigned old=operations;
+    assert(power->resume(NULL,0)==RISC_TOUCH_POWER_OK && power->resume(NULL,1000)==RISC_TOUCH_POWER_OK);
+    assert(operations==old);risc_touch_snapshot_v1 snap=snapshot();
+    assert(!snap.contact_count && !snap.buttons && !snap.contacts[0].id);
+}
+static void power_tests(const char *name) {
+    assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_UNAVAILABLE);
+    assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_UNAVAILABLE);
+    assert(start());
+    if(!strcmp(name,"power-subscriptions")) {
+        uint64_t old=api->subscribe(NULL);packet(1,37,99,true);assert(api->poll(NULL,1));
+        const unsigned count=operations;const risc_touch_snapshot_v1 before=snapshot();
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY);
+        assert(power->prepare(NULL,0)==RISC_TOUCH_POWER_BUSY);
+        assert(power->resume(NULL,0)==RISC_TOUCH_POWER_OK);
+        assert(power->prepare(NULL,1001)==RISC_TOUCH_POWER_INVALID);
+        assert(power->resume(NULL,1001)==RISC_TOUCH_POWER_INVALID);
+        assert(operations==count && snapshot().sequence==before.sequence);
+        expect_event(old,RISC_TOUCH_EVENT_DOWN,37,99,1);expect_event(old,RISC_TOUCH_EVENT_BUTTON_DOWN,0,0,2);
+        assert(api->unsubscribe(NULL,old));prepared();recovered();
+        uint64_t sub=api->subscribe(NULL);assert(sub>old);no_event(old,-1);no_event(sub,0);
+        assert(!api->unsubscribe(NULL,old) && !driver->quiesce());done(sub);
+    } else if(!strcmp(name,"power-owner")) {
+        const unsigned old=operations,locks=takes;owner=false;
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY);
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_BUSY);
+        assert(operations==old && takes==locks);owner=true;
+        locked=true;assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY);locked=false;
+        prepared();recurse=true;recovered();recurse=false;done(0);
+    } else if(!strcmp(name,"power-neutral")) {
+        uint64_t old=api->subscribe(NULL);packet(1,3,4,true);assert(api->poll(NULL,1));
+        assert(api->unsubscribe(NULL,old));prepared();recovered();
+        const uint64_t sub=api->subscribe(NULL);assert(sub>old);no_event(old,-1);
+        const uint64_t sequence=snapshot().sequence;
+        for(unsigned i=0;i<10;++i) {
+            packet(1,(uint16_t)(3+i),4,true);assert(api->poll(NULL,1));no_event(sub,0);
+            risc_touch_snapshot_v1 snap=snapshot();assert(!snap.contact_count && !snap.buttons && snap.sequence==sequence);
+        }
+        packet(0,0,0,true);assert(api->poll(NULL,1));no_event(sub,0);
+        packet(1,1,1,false);assert(api->poll(NULL,1));no_event(sub,0);
+        status=0;assert(api->poll(NULL,1));no_event(sub,0);
+        packet(0,0,0,false);read_ok=false;assert(!api->poll(NULL,1));read_ok=true;
+        ack_ok=false;ack_reaches=true;assert(!api->poll(NULL,1) && !status);no_event(sub,0);
+        ack_ok=true;assert(api->poll(NULL,1));packet(1,17,29,true);assert(api->poll(NULL,1));no_event(sub,0);
+        packet(2,0,0,false);assert(!api->poll(NULL,1));no_event(sub,-1);
+        packet(1,480,0,false);assert(!api->poll(NULL,1));no_event(sub,-1);
+        packet(1,5,6,true);point_ok=false;assert(!api->poll(NULL,1));point_ok=true;
+        assert(api->poll(NULL,1));no_event(sub,0);
+        packet(0,0,0,false);assert(api->poll(NULL,1));no_event(sub,0);
+        const uint64_t fresh=snapshot().sequence;
+        packet(1,17,29,true);assert(api->poll(NULL,1));
+        expect_event(sub,RISC_TOUCH_EVENT_DOWN,17,29,fresh+1);expect_event(sub,RISC_TOUCH_EVENT_BUTTON_DOWN,0,0,fresh+2);
+        done(sub);
+    } else if(!strcmp(name,"power-prepare-release")) {
+        const uint64_t saved=bus_token;const unsigned old=writes;bus_release_ok=false;
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_PLATFORM);
+        assert(bus_token==saved && writes==old && !pins[2].level);fenced();
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && bus_token==saved && writes==old);
+        bus_release_ok=true;recovered();done(0);
+    } else if(!strcmp(name,"power-off-retained")) {
+        fail_write_pin=2;assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+        assert(!bus_token && !holds && pins[2].token && pins[4].token && pins[10].token);
+        fail_write_pin=-1;retained_forever();
+    } else if(!strcmp(name,"power-hold-refusal")) {
+        hold_result=RISC_DEEP_SLEEP_PLATFORM;
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && !bus_token && pins[2].level && !pins[2].held);
+        fenced();hold_result=0;recovered();done(0);
+    } else if(!strcmp(name,"power-hold-retained")) {
+        hold_result=RISC_DEEP_SLEEP_RETAINED;assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+        hold_result=0;retained_forever();
+    } else if(!strcmp(name,"power-unhold-retained") || !strcmp(name,"power-unhold-refusal")) {
+        prepared();hold_result=!strcmp(name,"power-unhold-refusal")?RISC_DEEP_SLEEP_PLATFORM:RISC_DEEP_SLEEP_RETAINED;
+        const unsigned old=writes;assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+        assert(pins[2].held && writes==old);hold_result=0;retained_forever();
+    } else if(!strncmp(name,"power-write-",12)) {
+        unsigned which=(unsigned)atoi(name+12);assert(which>=1 && which<=7);
+        prepared();good_address=0x14;fail_write_call=(int)writes+(int)which;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+        assert((int)writes==fail_write_call && pins[2].token && pins[4].token && pins[10].token);
+        fail_write_call=0;retained_forever();
+    } else if((!strncmp(name,"power-claim-",12) && name[12]>='1' && name[12]<='4')) {
+        unsigned which=(unsigned)atoi(name+12);assert(which>=1 && which<=4);
+        prepared();good_address=0x14;fail_gpio_claim=(int)claims+(int)which;
+        claim_token_on_failure=which%2==0;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_RETAINED);
+        assert((int)claims==fail_gpio_claim && pins[2].token && pins[4].token);
+        assert((pins[10].token!=0)==claim_token_on_failure);fail_gpio_claim=0;retained_forever();
+    } else if(!strncmp(name,"power-pin-release-",18)) {
+        unsigned which=(unsigned)atoi(name+18);assert(which>=1 && which<=4);
+        prepared();good_address=0x14;fail_release_call=(int)releases+(int)which;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM);
+        const uint64_t saved=pins[10].token;const unsigned old=claims;assert(saved);fenced();
+        fail_release_pin=10;assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM);
+        assert(pins[10].token==saved && claims==old);fail_release_call=0;fail_release_pin=-1;recovered();done(0);
+    } else if(!strcmp(name,"power-alternate-release")) {
+        prepared();good_address=0x14;bus_release_ok=false;
+        const unsigned old=bus_claims;assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM);
+        uint64_t saved=bus_token;assert(saved && bus_address==0x5d && bus_claims==old+1);
+        const unsigned old_writes=writes;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM);
+        assert(bus_token==saved && bus_claims==old+1 && writes==old_writes);
+        bus_release_ok=true;recovered();assert(bus_address==0x14 && bus_claims==old+2);done(0);
+    } else if(!strcmp(name,"power-second-release")) {
+        prepared();good_address=0;fail_bus_release_call=(int)bus_releases+2;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && bus_token && bus_address==0x14);
+        uint64_t saved=bus_token;unsigned old=bus_claims;bus_release_ok=false;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && bus_token==saved && bus_claims==old);
+        bus_release_ok=true;fail_bus_release_call=0;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && !bus_token && bus_claims==old);
+        good_address=0x5d;recovered();done(0);
+    } else if(!strcmp(name,"power-primary-ack")) {
+        prepared();fail_transact_call=(int)transacts+2;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && !bus_token);
+        fenced();fail_transact_call=0;recovered();done(0);
+    } else if(!strcmp(name,"power-custody")) {
+        const uint64_t power_token=pins[2].token,reset_token=pins[4].token;
+        uint64_t old_bus=bus_token;
+        for(unsigned i=0;i<16;++i) {
+            prepared();recovered();
+            assert(pins[2].token==power_token && pins[4].token==reset_token && bus_token>old_bus);
+            old_bus=bus_token;
+        }
+        done(0);
+    } else if(!strcmp(name,"power-no-chip")) {
+        prepared();good_address=0;const unsigned old=bus_claims;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && !bus_token && bus_claims==old+2);fenced();
+        good_address=0x5d;recovered();done(0);
+    } else if(!strcmp(name,"power-claim-refusal")) {
+        prepared();good_address=0x14;fail_bus_claim_call=(int)bus_claims+1;recovered();assert(bus_address==0x14);done(0);
+    } else if(!strcmp(name,"power-bus-retained") || !strcmp(name,"power-empty-claim")) {
+        prepared();malformed_claim=!strcmp(name,"power-bus-retained");empty_claim=!malformed_claim;
+        unsigned old=transacts;assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_RETAINED && transacts==old);
+        malformed_claim=empty_claim=false;retained_forever();
+    } else if(!strncmp(name,"power-transfer-",15)) {
+        unsigned which=(unsigned)atoi(name+15);assert(which>=1 && which<=3);
+        prepared();good_address=0x14;fail_transact_call=(int)transacts+(int)which;
+        int32_t result=power->resume(NULL,1000);
+        assert(result==(which==1?RISC_TOUCH_POWER_OK:RISC_TOUCH_POWER_PLATFORM));
+        if(which!=1){assert(!bus_token);fenced();fail_transact_call=0;recovered();}done(0);
+    } else if(!strcmp(name,"power-unlock-prepare") || !strcmp(name,"power-unlock-resume")) {
+        if(!strcmp(name,"power-unlock-resume"))prepared();
+        unlock_ok=false;assert((!strcmp(name,"power-unlock-resume")?power->resume(NULL,1000):power->prepare(NULL,1000))==RISC_TOUCH_POWER_RETAINED);
+        unlock_ok=true;assert(locked);retained_forever();
+    } else if(!strcmp(name,"power-zero")) {
+        unsigned old=operations;assert(power->prepare(NULL,0)==RISC_TOUCH_POWER_BUSY);
+        assert(power->resume(NULL,0)==RISC_TOUCH_POWER_OK && operations==old);
+        prepared();recovered();prepared();done(0);
+    } else if(!strcmp(name,"power-timeout")) {
+        prepared();assert(power->resume(NULL,49)==RISC_TOUCH_POWER_TIMEOUT);
+        assert(!pins[2].held && !pins[2].level && !bus_token);fenced();
+        unsigned old=operations;assert(power->resume(NULL,0)==RISC_TOUCH_POWER_BUSY && operations==old);
+        prepared();recovered();done(0);
+    } else if(!strcmp(name,"power-clock-reverse")) {
+        prepared();reverse_clock=true;unsigned old=operations;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_TIMEOUT && operations==old);
+        reverse_clock=false;fenced();recovered();done(0);
+    } else if(!strcmp(name,"power-clock-stalled")) {
+        prepared();stalled_clock=true;uint64_t old=time_ms;
+        assert(power->resume(NULL,100)==RISC_TOUCH_POWER_TIMEOUT && time_ms==old);
+        fenced();stalled_clock=false;recovered();done(0);
+    } else if(!strcmp(name,"power-clock-overrun")) {
+        prepared();sleep_overrun=1000;assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_TIMEOUT);
+        sleep_overrun=0;fenced();recovered();done(0);
+    } else if(!strcmp(name,"power-expiry-matrix") || !strcmp(name,"power-final-expiry-matrix")) {
+        /* Each injected late clock reading covers a different completed GPIO,
+         * hold, wait, claim, transfer or release stage on both addresses. */
+        for(unsigned which=1;which<=33;++which) {
+            prepared();good_address=0x14;expire_operation=(int)operations+(int)which;
+            int32_t result=power->resume(NULL,1000);
+            assert(result==RISC_TOUCH_POWER_TIMEOUT || result==RISC_TOUCH_POWER_OK);
+            expire_operation=0;
+            if(result){fenced();assert(power->prepare(NULL,0)==RISC_TOUCH_POWER_BUSY);
+                if(!strcmp(name,"power-expiry-matrix"))recovered();}
+            done(0);good_address=0x5d;if(which<33)assert(start());
+        }
+    } else if(!strcmp(name,"power-prepare-expiry-matrix")) {
+        for(unsigned which=1;which<=3;++which) {
+            expire_operation=(int)operations+(int)which;
+            assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_TIMEOUT);
+            expire_operation=0;fenced();recovered();done(0);if(which<3)assert(start());
+        }
+    } else if(!strcmp(name,"power-first-failure")) {
+        prepared();good_address=0x14;bus_release_ok=false;
+        expire_operation=(int)operations+17;
+        const uint64_t before=time_ms;
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_PLATFORM && time_ms-before>1000);
+        expire_operation=0;bus_release_ok=true;recovered();done(0);
+    } else if(!strcmp(name,"power-final-prepared")) {
+        prepared();fail_release_pin=10;uint64_t saved=pins[10].token;
+        assert(!driver->quiesce() && pins[10].token==saved && pins[2].held);
+        assert(power->resume(NULL,1000)==RISC_TOUCH_POWER_UNAVAILABLE);
+        fail_release_pin=-1;done(0);
+    } else if(!strcmp(name,"power-final-recovered")) {
+        prepared();recovered();retire_ok=false;
+        assert(!driver->quiesce() && pins[2].token && pins[2].held && !bus_token);
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_UNAVAILABLE);retire_ok=true;done(0);
+    } else if(!strcmp(name,"power-final-partial")) {
+        prepared();assert(power->resume(NULL,70)==RISC_TOUCH_POWER_TIMEOUT);fenced();done(0);
+    } else assert(!"Unknown power scenario");
+}
 int main(int argc,char **argv) {
     assert(argc==2);driver=t5_driver_get(2);assert(driver && !t5_driver_get(1));api=driver->capability;
     assert(!strcmp(driver->driver_id,"x4pro-gt911") && !strcmp(driver->capability_id,"input.touch.raw"));
-    assert(api->api_version==1 && api->struct_size==sizeof(*api));
+    assert(api->api_version==1 && api->struct_size==sizeof(risc_touch_power_api_v1));
+    power=risc_touch_power(api);assert(power);
     risc_touch_snapshot_v1 out;memset(&out,0xa5,sizeof(out));
     assert(!api->subscribe(NULL) && !api->snapshot(NULL,&out) && !api->poll(NULL,1) && out.width==0xa5a5);
-    if(!strcmp(argv[1],"validation"))validation();
+    if(!strncmp(argv[1],"power-",6))power_tests(argv[1]);
+    else if(!strcmp(argv[1],"validation"))validation();
     else if(!strcmp(argv[1],"source-equivalence"))source_equivalence();
     else if(!strcmp(argv[1],"startup")) {
         pins[2].held=true;assert(start());

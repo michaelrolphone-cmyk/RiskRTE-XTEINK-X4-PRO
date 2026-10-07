@@ -13,6 +13,7 @@ static bool light_ok=true;static uint16_t light_level,light_max;
 static bool fake_light(void*c,uint16_t n,uint16_t max){(void)c;light_level=n;light_max=max;return light_ok;}
 static bool probe_pullup=true;
 static bool power_ok = true, fail_claim, fail_read, fail_write, fail_release, fail_hold;
+static bool fail_unhold, hold_retained, frozen_clock, stuck_reset;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
 static bool async_model;
@@ -55,7 +56,7 @@ static uint64_t fake_time(void *c) {
     return fake_now;
 }
 static void fake_sleep(void *c, uint32_t ms) {
-    (void)c; fake_now += ms;
+    (void)c; if (!frozen_clock) fake_now += ms;
     if (reenter && display) {
         risc_display_surface_v1 s = {0};
         assert(!display->acquire(NULL, RISC_DISPLAY_FORMAT_MONO1, &s));
@@ -118,6 +119,7 @@ static bool fake_write(void *c, uint64_t token, bool level) {
             bits = shift = 0;
         }
     }
+    if (pin == 14 && level && !pads[pin].level && !stuck_reset) phase = IDLE;
     pads[pin].level = level; return true;
 }
 static bool fake_read(void *c, uint64_t token, bool *out) {
@@ -143,9 +145,10 @@ static bool fake_release(void *c, uint64_t token) {
 }
 static int32_t fake_hold(void *c, uint64_t token, bool enable) {
     (void)c; unsigned pin = find_pin(token); ++holds;
-    assert(pin == 14 && owner && lock_held && pads[pin].output && pads[pin].level && enable);
+    assert(pin == 14 && owner && lock_held && pads[pin].output && pads[pin].level);
+    if (hold_retained || (!enable && fail_unhold)) return RISC_DEEP_SLEEP_RETAINED;
     if (fail_hold) return RISC_DEEP_SLEEP_PLATFORM;
-    pads[pin].held = true; return 0;
+    pads[pin].held = enable; return 0;
 }
 #ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
 static bool fake_retire(void *c, uint64_t token) {
@@ -180,10 +183,157 @@ static void complete(uint64_t token) {
             assert(display->present_status(NULL,token,&status));
             if (status.state == RISC_DISPLAY_PRESENT_COMPLETE || status.state == RISC_DISPLAY_PRESENT_FAILED) break;
             assert(!t5_driver_get(2)->quiesce());
+            const risc_display_output_api_v1_power *power = risc_display_output_power(display);
+            assert(power && power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_BUSY);
             ++fake_now; /* Host scheduler/input opportunity between each slice. */
         }
     } else assert(display->wait_present(NULL, token, 20000, &status));
     assert(status.state == RISC_DISPLAY_PRESENT_COMPLETE);
+}
+static void assert_sleep_blocks(const risc_display_output_api_v1_power *power, uint64_t old_token) {
+    risc_display_surface_v1 other = {0}; risc_display_present_status_v1 status = {0};
+    uint64_t token = 99;
+    const unsigned before = writes;
+    assert(!display->acquire(NULL, RISC_DISPLAY_FORMAT_MONO1, &other));
+    assert(!display->submit(NULL, frame_serial, NULL, 0, NULL, &token) && !token);
+    assert(!display->wait_present(NULL, old_token, 100, &status));
+    assert(!display->present_status(NULL, old_token, &status));
+    assert(!power->history.seed_previous(NULL, frame_serial));
+    assert(writes == before);
+}
+static void test_power(const char *scenario, const risc_driver_v2 *driver) {
+    const risc_display_output_api_v1_power *power = risc_display_output_power(display);
+    assert(power && risc_display_output_history(display) == &power->history);
+    assert(power->resume(NULL, 0) == RISC_DISPLAY_POWER_OK);
+    assert(power->prepare(NULL, 0) == RISC_DISPLAY_POWER_BUSY && !poweroffs);
+    risc_display_surface_v1 surface = {0}; uint64_t token = 0;
+    assert(display->acquire(NULL, RISC_DISPLAY_FORMAT_MONO1, &surface));
+    assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_BUSY && !poweroffs);
+    const uint64_t stale_frame = surface.frame;
+    memset(surface.pixels, 0x69, surface.size_bytes);
+    assert(display->submit(NULL, surface.frame, NULL, 0, NULL, &token));
+    assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_BUSY && !poweroffs);
+    complete(token);
+    const unsigned visible_refreshes = refreshes, original_claims = claims, original_releases = releases;
+    if (strstr(scenario, "owner")) {
+        const unsigned before = writes; owner = false;
+        assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_UNAVAILABLE);
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_UNAVAILABLE);
+        owner = true; assert(writes == before);
+        lock_held = true; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_BUSY); lock_held = false;
+        admission_cost = 21; assert(power->prepare(NULL, 20) == RISC_DISPLAY_POWER_TIMEOUT && !poweroffs); admission_cost = 0;
+    }
+    if (strstr(scenario, "clock")) {
+        bad_clock = true; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_PLATFORM); bad_clock = false;
+        rollback_clock = true; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_PLATFORM); rollback_clock = false;
+        ++fake_now; assert(!poweroffs);
+    }
+    if (strstr(scenario, "-sleep-gpio")) {
+        fail_write = true; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED);
+        fail_write = false; assert(!driver->quiesce());
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED); return;
+    }
+    if (strstr(scenario, "read")) {
+        fail_read = true; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED);
+        fail_read = false; assert(!driver->quiesce()); return;
+    }
+    if (strstr(scenario, "unlock")) {
+        unlock_ok = false; assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED);
+        assert(!driver->quiesce()); return;
+    }
+    if (strstr(scenario, "pof")) {
+        stuck_poweroff = true;
+        const uint64_t began = fake_now;
+        assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_TIMEOUT && fake_now - began <= 1500u);
+        assert(poweroffs == 1 && !deep_sleeps); assert_sleep_blocks(power, token);
+        assert(power->prepare(NULL, 20) == RISC_DISPLAY_POWER_TIMEOUT && poweroffs == 1);
+        stuck_poweroff = false;
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+        assert(!reset_held && !shutdown_stage && !previous_seeded && !deep_sleeps);
+    }
+    if (strstr(scenario, "frozen")) {
+        frozen_clock = stuck_poweroff = true;
+        assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_TIMEOUT && poweroffs == 1);
+        frozen_clock = stuck_poweroff = false;
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+    }
+    if (strstr(scenario, "-sleep-hold")) {
+        fail_hold = true;
+        if (strstr(scenario, "retained")) hold_retained = true;
+        assert(power->prepare(NULL, 1500) == (hold_retained ? RISC_DISPLAY_POWER_RETAINED : RISC_DISPLAY_POWER_PLATFORM));
+        assert(poweroffs == 1 && deep_sleeps == 1);
+        fail_hold = false;
+        if (hold_retained) { assert(!driver->quiesce()); return; }
+        if (strstr(scenario, "retry")) {
+            assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_OK && poweroffs == 1 && deep_sleeps == 1);
+        } else assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+    }
+    assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+    assert(reset_held && pads[14].held && pads[14].token && lock_exists);
+    assert(claims == original_claims && releases == original_releases && refreshes == visible_refreshes);
+    const unsigned sent_poweroffs = poweroffs, sent_sleeps = deep_sleeps, before = writes;
+    assert(power->prepare(NULL, 0) == RISC_DISPLAY_POWER_OK);
+    assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_OK && writes == before);
+    assert_sleep_blocks(power, token);
+    assert(power->resume(NULL, 0) == RISC_DISPLAY_POWER_BUSY && writes == before);
+    if (strstr(scenario, "unhold")) {
+        fail_unhold = !strstr(scenario, "platform");
+        fail_hold = !fail_unhold;
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED && reset_held);
+        fail_unhold = fail_hold = false; assert(!driver->quiesce());
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED); return;
+    }
+    if (strstr(scenario, "resume-timeout")) {
+        assert(power->resume(NULL, 1) == RISC_DISPLAY_POWER_TIMEOUT && shutdown_stage == 5u);
+        assert_sleep_blocks(power, token);
+        assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_BUSY && !driver->quiesce());
+    }
+    if (strstr(scenario, "resume-gpio")) {
+        fail_write = true; assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_RETAINED);
+        fail_write = false; assert(!driver->quiesce()); return;
+    }
+    if (strstr(scenario, "resume-busy")) {
+        stuck_reset = stuck_poweroff = true; phase = POF;
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_TIMEOUT);
+        stuck_reset = stuck_poweroff = false; assert_sleep_blocks(power, token);
+    }
+    if (strstr(scenario, "wire-budget")) {
+        charge_every = 1; const uint64_t began = fake_now;
+        assert(power->resume(NULL, 200) == RISC_DISPLAY_POWER_TIMEOUT);
+        assert(fake_now - began <= 360u); /* Deadline plus one <=6-byte command. */
+        charge_every = 0; assert_sleep_blocks(power, token);
+    }
+    assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+    assert(!reset_held && !pads[14].held && started && !shutdown_stage && !previous_seeded);
+    assert(poweroffs == sent_poweroffs && deep_sleeps == sent_sleeps && refreshes == visible_refreshes);
+    const unsigned resumed_writes = writes;
+    assert(power->resume(NULL, 0) == RISC_DISPLAY_POWER_OK);
+    assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_OK && writes == resumed_writes);
+    for (size_t i = 0; i < FRAME_BYTES; ++i) assert(frame[i] == 0x69);
+    assert(display->acquire(NULL, RISC_DISPLAY_FORMAT_MONO1, &surface));
+    assert(surface.frame != stale_frame && !power->history.seed_previous(NULL, stale_frame));
+    assert(!display->submit(NULL, stale_frame, NULL, 0, NULL, &token));
+    assert(power->history.seed_previous(NULL, surface.frame));
+    memset(surface.pixels, 0x96, surface.size_bytes);
+    const risc_display_rect_v1 damage = {0,0,8,1};
+    assert(display->submit(NULL, surface.frame, &damage, 1, NULL, &token)); complete(token);
+    assert(old_pixel == (uint8_t)~0x69 && new_pixel == (uint8_t)~0x96);
+    assert(power->prepare(NULL, 1500) == RISC_DISPLAY_POWER_OK);
+    const unsigned final_pof = poweroffs, final_sleep = deep_sleeps;
+#ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
+    if (strstr(scenario, "retire")) {
+        retire_ok = false; assert(!driver->quiesce() && reset_held && shutdown_stage == 3u); retire_ok = true;
+        assert(poweroffs == final_pof && deep_sleeps == final_sleep);
+    }
+    if (strstr(scenario, "release")) {
+        fail_release = true; assert(!driver->quiesce() && shutdown_stage == 4u); fail_release = false;
+        assert(power->resume(NULL, 1500) == RISC_DISPLAY_POWER_UNAVAILABLE);
+    }
+    assert(driver->quiesce() && !lock_exists && retired_outputs == 1);
+    assert(driver->quiesce() && poweroffs == final_pof && deep_sleeps == final_sleep);
+#else
+    assert(!driver->quiesce() && poweroffs == final_pof && deep_sleeps == final_sleep);
+#endif
 }
 int main(int argc, char **argv) {
     assert(argc == 2);
@@ -244,6 +394,7 @@ int main(int argc, char **argv) {
         assert(!!(info.flags&RISC_DISPLAY_INFO_ASYNC_PRESENT)==(chip==PROBE_UC8279));
         risc_display_surface_v1 surface={0}; uint64_t token=0; risc_display_present_status_v1 status={0};
         assert(!display->present_status(NULL,0,&status));
+        if (strstr(scenario, "-sleep-")) { test_power(scenario, driver); goto done; }
         queue(&surface,&token); assert(!driver->quiesce());
         unsigned before=writes; assert(!display->wait_present(NULL,token,20000,NULL) && writes==before);
         assert(display->wait_present(NULL,token,0,&status) && status.state==RISC_DISPLAY_PRESENT_QUEUED && writes==before);
@@ -340,5 +491,6 @@ int main(int argc, char **argv) {
 #endif
         }
     }
+done:
     printf("x4 ordinary panel %s: PASS (async slices=%u) wire=%016llx\n",scenario,async_calls,(unsigned long long)wire_hash); return 0;
 }
