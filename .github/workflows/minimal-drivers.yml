@@ -28,6 +28,7 @@ jobs:
           SANITIZE: '1'
         run: |
           python3 minimal/test/prepare_sdk_test.py
+          python3 minimal/test/bundle_identity_test.py
           python3 minimal/test/provisioning_profile_test.py
           bash minimal/test/run_native_gpio_readback_test.sh
           bash minimal/test/run_frontlight_cpu_port_test.sh

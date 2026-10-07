@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Compose an offline NEW-device X4 test image; never opens hardware."""
-import argparse, hashlib, importlib.util, json, shutil, subprocess, sys, zipfile
+import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zipfile
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage
 ROOT=Path(__file__).resolve().parents[2]
@@ -8,6 +8,21 @@ APPS=('default','springboard','file_browser','ble_scanner','points_in_time','set
 CAPS={'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0}
 def sha(b):return hashlib.sha256(b).hexdigest()
 def encoded(d):return (json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
+def cohort_identity(product,native,firmware,revision):
+    if set(product)!={'schema','product','version','source_repo'} or product['schema']!=1:
+        raise ValueError('Invalid X4 product identity')
+    if not re.fullmatch(r'[a-z][a-z0-9-]*',product['product']) or not re.fullmatch(r'\d+\.\d+\.\d+',product['version']):
+        raise ValueError('Invalid product/version')
+    if not re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',product['source_repo']) or '..' in product['source_repo'] or not re.fullmatch(r'[0-9a-f]{40}',revision):
+        raise ValueError('Invalid product source custody')
+    if native['layout']!='riscrte-paired-appdata-v2' or native['store_abi']!=2 or not re.fullmatch(r'\d+\.\d+\.\d+',native['firmware_version']):
+        raise ValueError('Invalid native cohort layout/version')
+    asset=native['assets']['firmware.bin']
+    if not 32<=len(firmware)<=0x260000 or asset['bytes']!=len(firmware) or asset['sha256']!=sha(firmware):
+        raise ValueError('Native firmware differs from candidate receipt')
+    return {'schema':'riscrte.cohort','schema_version':1,'product':product['product'],'version':product['version'],
+            'source_repo':product['source_repo'],'source_revision':revision,'runtime_version':native['firmware_version'],
+            'layout':native['layout'],'store_abi':2,'firmware_size':len(firmware),'firmware_sha256':sha(firmware)}
 def load_module(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 def build(a):
@@ -50,6 +65,9 @@ def build(a):
         for notice in src.glob('LICENSE*'):
             (licenses/name).mkdir(exist_ok=True);shutil.copyfile(notice,licenses/name/notice.name)
     boot['app_capabilities']=policies;(store/'boot.json').write_bytes(encoded(boot));(store/'board.json').write_bytes(encoded(board))
+    fw=(a.native/'firmware.bin').read_bytes()
+    cohort=cohort_identity(json.loads((ROOT/'minimal/product.json').read_text()),custody['runtime'],fw,custody['x4_source'])
+    (store/'cohort.json').write_bytes(encoded(cohort));custody['cohort']=cohort
     files={p.relative_to(store).as_posix():p.read_bytes() for p in store.rglob('*') if p.is_file()}
     if any(len('/'+n)>=32 for n in files):raise ValueError('SPIFFS object name exceeds 31 bytes')
     sys.path.insert(0,str(a.watch/'scripts'))
@@ -57,7 +75,7 @@ def build(a):
         from check_runtime_store_admission import admit_cohort
         custody['store_admission']=admit_cohort(a.runtime,(a.native/'firmware.elf').read_bytes(),files,files)
     native=load_module('x4_native_candidate',a.runtime/'scripts/paired_bank_images.py')
-    fw=(a.native/'firmware.bin').read_bytes();loader=(a.native/'bootloader.bin').read_bytes();table=(a.native/'partitions.bin').read_bytes();data=(a.native/'appdata.bin').read_bytes()
+    loader=(a.native/'bootloader.bin').read_bytes();table=(a.native/'partitions.bin').read_bytes();data=(a.native/'appdata.bin').read_bytes()
     if sha(loader)!=native.BOOTLOADER_SHA256 or len(data)!=0x80000:raise ValueError('Native first-install inputs differ')
     image=out/'bootfs.bin';subprocess.run([str(a.mkspiffs),'-c',str(store),'-p','256','-b','4096','-s',str(0x510000),str(image)],check=True)
     filesystem=image.read_bytes()
@@ -74,6 +92,9 @@ def build(a):
     custody['native_partitions']=[{'offset':at,'bytes':len(blob),'sha256':sha(blob)} for at,blob in parts]
     (out/'build-custody.json').write_bytes(encoded(custody))
     (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; swipe any direction to Springboard; File Browser, Bluetooth Scanner, Points in Time and Settings. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
+    if not a.skip_extended_checks:
+        readme=out/'README.txt'
+        readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
     archive=out.with_suffix('.zip')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         for p in sorted(out.rglob('*')):
