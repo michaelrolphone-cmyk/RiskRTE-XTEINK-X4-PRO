@@ -115,3 +115,13 @@ three invalid ownership graphs pass the real Runtime zero-I/O preflight.
 All11 provider packages, including both navigation selections, and sleep Clock
 compile with the pinned Xtensa8.4 toolchain. The full packaged store admission
 and final image custody are recorded with the candidate, not inferred here.
+
+## Qualified light-only Settings profile
+
+Product 0.1.6 builds Settings 1.3.4 without `--sleep-settings`. The generic
+Light/Deep/Hybrid preference is not meaningful to this X4 hook and must remain
+hidden until a provider consumes those modes. Crown manual light sleep, alarms,
+Home and QuickActions are unchanged. The bundle validates the Settings ELF hash,
+version, clean build receipt and absence of `PORTABLE_SLEEP_SETTINGS`, rejecting
+the unsupported selector before store assembly. Other applications retain their
+exact 0.1.5 artifacts and source receipts. The 0.1.5 BIN is preserved unchanged.

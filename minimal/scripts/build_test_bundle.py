@@ -40,6 +40,19 @@ def cohort_identity(product,native,firmware,revision):
     return {'schema':'riscrte.cohort','schema_version':1,'product':product['product'],'version':product['version'],
             'source_repo':product['source_repo'],'source_revision':revision,'runtime_version':native['firmware_version'],
             'layout':native['layout'],'store_abi':2,'firmware_size':len(firmware),'firmware_sha256':sha(firmware)}
+def validate_settings_profile(manifest,blob,record):
+    # The selected X4 power hook supports manual light sleep only. A generic
+    # Light/Deep/Hybrid preference would promise modes this deployment ignores.
+    if record.get('working_tree_dirty') is not False or record.get('version')!=manifest['version']:
+        raise ValueError('Settings build receipt identity is unverified')
+    if record.get('sha256')!=sha(blob) or record.get('size_bytes')!=len(blob):
+        raise ValueError('Settings ELF differs from its build receipt')
+    flags=record.get('build_defines')
+    if not isinstance(flags,list) or not all(isinstance(flag,str) for flag in flags):
+        raise ValueError('Settings feature selection is missing')
+    if any(flag.split('=')[0]=='-DPORTABLE_SLEEP_SETTINGS' for flag in flags):
+        raise ValueError('X4 manual-light profile cannot expose deep/hybrid preferences')
+    return {'manual_light_sleep':True,'sleep_mode_selector':False}
 def load_module(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 def build(a):
@@ -84,6 +97,7 @@ def build(a):
     for name in APPS:
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
+        if name=='settings':custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()))
         # The shared adapter exposes battery telemetry only with explicit grants.
         if not any(r['capability']=='board.battery' for r in m['requires']):m['requires'].append({'capability':'board.battery','api':1})
         requirements=[]
@@ -131,7 +145,7 @@ def build(a):
     custody['image']={'name':filename,'bytes':len(full),'sha256':sha(full)};custody['store_files']={n:{'bytes':len(b),'sha256':sha(b)} for n,b in sorted(files.items())};custody['extended_checks_skipped']=a.skip_extended_checks
     custody['native_partitions']=[{'offset':at,'bytes':len(blob),'sha256':sha(blob)} for at,blob in parts]
     (out/'build-custody.json').write_bytes(encoded(custody))
-    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; top-edge swipe down opens QuickActions, other clock swipes open Springboard; File Browser, Bluetooth Scanner with sensor details, Points in Time, Settings, Calculator, Stopwatch, Countdown, Timecard, Battery, Alarms, Wi-Fi, Bluetooth Touchpad, Bluetooth Buttons and RF Spectrogram. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution. Center Home returns to Clock. The top-right short press returns to Clock from an app and requests manual light sleep from Clock; GPIO3 wakes it. Deep/hybrid/idle/touch wake is not implemented. QuickActions radio toggles remain unselected; use Wi-Fi Settings and Bluetooth Scanner Enable BT before HID pairing. OTA/App Store are omitted because their service still selects the Watch feed. Deep-sleep desk clock is pending.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
+    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; top-edge swipe down opens QuickActions, other clock swipes open Springboard; File Browser, Bluetooth Scanner with sensor details, Points in Time, Settings, Calculator, Stopwatch, Countdown, Timecard, Battery, Alarms, Wi-Fi, Bluetooth Touchpad, Bluetooth Buttons and RF Spectrogram. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution. Center Home returns to Clock. The top-right short press returns to Clock from an app and requests manual light sleep from Clock; GPIO3 wakes it. Deep/hybrid/idle/touch wake is not implemented; unsupported sleep mode preferences are hidden in Settings. QuickActions radio toggles remain unselected; use Wi-Fi Settings and Bluetooth Scanner Enable BT before HID pairing. OTA/App Store are omitted because their service still selects the Watch feed. Deep-sleep desk clock is pending.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))

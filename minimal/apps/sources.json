@@ -9,5 +9,6 @@
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
-  "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb"
+  "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
+  "settings_system_apps": "aa31d5b5affe607781720a806c1009883a4d1674"
 }
