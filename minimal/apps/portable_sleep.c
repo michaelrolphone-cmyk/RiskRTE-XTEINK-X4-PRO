@@ -15,7 +15,11 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
                             const risc_battery_gauge_api_v1 *gauge,const alarm_service_v1 *alarms) {
     (void)gauge;
     risc_runtime_capability_v1 grant={.struct_size=sizeof(grant)};
+#if defined(PORTABLE_DESK_CLOCK) && defined(PORTABLE_DESK_CLOCK_SPARSE_START)
+    if(!rt->acquire(X4_POWER_CAPABILITY,1,17,&grant))return -2;
+#else
     if(!rt->acquire(X4_POWER_CAPABILITY,1,17,&grant))return 0;
+#endif
     const x4_power_v1 *power=grant.api;
     int result=0;
     if(!power || power->api_version!=1 || power->struct_size<sizeof(*power) ||
@@ -63,7 +67,11 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
 #endif
        100))result=-1;
 done:
+#if defined(PORTABLE_DESK_CLOCK) && defined(PORTABLE_DESK_CLOCK_SPARSE_START)
+    if(!rt->release(&grant))return -2;
+#else
     if(!rt->release(&grant))return -1;
+#endif
     return result;
 }
 
@@ -96,6 +104,9 @@ typedef struct {
     const portable_bluetooth_control_v1 *bluetooth;
     bool dark, panel_touched, touch_touched, storage_touched, retained;
     uint32_t alarm_duration_ms, alarm_sampled_at;
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    bool timer_only;
+#endif
     bool record_staged;
     risc_retained_wake_record_v1 staged_value;
 } x4_desk_sleep;
@@ -111,7 +122,12 @@ static bool desk_wake_valid(const risc_retained_wake_api_v1 *wake) {
 int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_record *out) {
     if(!out || !desk_runtime_valid(rt))return 0;
     risc_runtime_capability_v1 grant={.struct_size=sizeof(grant)};
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    /* Demand-start failure can retain provider cleanup without a token. */
+    if(!rt->acquire(RISC_RETAINED_WAKE_CAPABILITY,1,0,&grant))return -2;
+#else
     if(!rt->acquire(RISC_RETAINED_WAKE_CAPABILITY,1,0,&grant))return 0;
+#endif
     const risc_retained_wake_api_v1 *wake=grant.api;
     portable_desk_record record={0};int valid=0;
     if(desk_wake_valid(wake)) {
@@ -119,6 +135,12 @@ int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_re
         uint32_t cause=RISC_BOOT_POWER_ON;
         int32_t rc=wake->read(wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
                              PORTABLE_DESK_CLOCK_RECORD_SCHEMA,&value,&cause);
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+        /* CONTEXT may indicate retained native custody. Unknown outcomes also
+         * give no authority to release, clear, yield or try another provider. */
+        if(rc!=RISC_RETAINED_WAKE_OK && rc!=RISC_RETAINED_WAKE_ABSENT &&
+           rc!=RISC_RETAINED_WAKE_MISMATCH && rc!=RISC_RETAINED_WAKE_INVALID)return -2;
+#endif
         valid=rc==RISC_RETAINED_WAKE_OK && cause==RISC_BOOT_DEEP_TIMER &&
             value.struct_size>=sizeof(value) && value.type==PORTABLE_DESK_CLOCK_RECORD_TYPE &&
             value.schema_version==PORTABLE_DESK_CLOCK_RECORD_SCHEMA &&
@@ -161,6 +183,9 @@ static int desk_resume(void *context) {
     }
     if(s->dark) {
         if(!s->display->set_brightness(s->display->context,
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+            s->timer_only?0:
+#endif
 #ifdef PORTABLE_QUICK_ACTIONS
             (uint16_t)portable_quick_brightness(),
 #else
@@ -222,6 +247,24 @@ static int desk_alarm_prepare(x4_desk_sleep *s) {
     }
     return 1;
 }
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+/* Timer reconstruction never starts optional providers in order to stop them.
+ * The already-borrowed alarm service, existing panel and owned key suffice. */
+static int desk_prepare_timer(void *context) {
+    x4_desk_sleep *s=context;
+    int alarm=desk_alarm_prepare(s);
+    if(alarm!=1)return alarm==-2?-2:desk_refuse(s);
+    if(desk_cancelled(s))return desk_refuse(s);
+    s->dark=true;
+    if(!s->display->set_brightness(s->display->context,0,100))return desk_refuse(s);
+    if(desk_cancelled(s))return desk_refuse(s);
+    s->panel_touched=true;
+    int32_t rc=s->panel->prepare(s->display->context,RISC_DISPLAY_POWER_MAX_BUDGET_MS);
+    if(rc==RISC_DISPLAY_POWER_RETAINED || rc>0 || rc<RISC_DISPLAY_POWER_PLATFORM)return desk_retain(s);
+    if(rc!=RISC_DISPLAY_POWER_OK || desk_cancelled(s))return desk_refuse(s);
+    return 1;
+}
+#endif
 static int desk_prepare(void *context) {
     x4_desk_sleep *s=context;
     if(desk_cancelled(s))return desk_refuse(s);
@@ -267,7 +310,17 @@ static int desk_stage(void *context,const portable_desk_record *record) {
     /* A confirmed completed image is staged while no provider pad holds exist.
      * Nothing is committed to RTC until the native terminal-entry boundary. */
     s->record_staged=true;
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    int32_t rc=s->wake->stage(s->wake->context,&value);
+    if(rc!=RISC_RETAINED_WAKE_OK) {
+        /* INVALID is a clean argument refusal. No other non-OK stage outcome
+         * proves storage-safe custody, so do not even attempt clear/release. */
+        if(rc!=RISC_RETAINED_WAKE_INVALID)return desk_retain(s);
+        return desk_refuse(s);
+    }
+#else
     if(s->wake->stage(s->wake->context,&value)!=RISC_RETAINED_WAKE_OK)return desk_refuse(s);
+#endif
     s->staged_value=value;return 1;
 }
 static int desk_stage_enter(void *context,const portable_desk_record *record,
@@ -309,9 +362,53 @@ static int desk_neutral(x4_desk_sleep *s) {
     }
     return 0;
 }
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+static int desk_timer_sleep(const risc_runtime_api_v1 *rt,const risc_display_output_api_v1 *display,
+                            const alarm_service_v1 *alarms) {
+    if(!display || display->api_version!=RISC_DISPLAY_OUTPUT_API_V1 ||
+       display->struct_size<sizeof(*display) || !display->set_brightness ||
+       !alarms || alarms->api_version!=ALARM_SERVICE_API_V1 ||
+       alarms->struct_size<sizeof(*alarms) || !alarms->prepare_sleep || !alarms->step || !alarms->status) {
+        portable_desk_clock_refused();return 0;
+    }
+    const char *names[]={X4_POWER_CAPABILITY,RISC_DISPLAY_OUTPUT_CAPABILITY,RISC_RETAINED_WAKE_CAPABILITY};
+    const uint64_t instances[]={17,3,0};
+    risc_runtime_capability_v1 grants[3]={0};unsigned acquired=0;
+    x4_desk_sleep state={.rt=rt,.display=display,.alarms=alarms,.timer_only=true};
+    bool ran=false;int result=0;
+    for(;acquired<3;++acquired) {
+        grants[acquired].struct_size=sizeof(grants[acquired]);
+        /* False can conceal retained failed-start cleanup even if the output
+         * is empty. Preserve earlier grants and do no further provider I/O. */
+        if(!rt->acquire(names[acquired],1,instances[acquired],&grants[acquired]))return -2;
+    }
+    state.power=x4_power_deep(grants[0].api);
+    state.panel=risc_display_output_power(grants[1].api);
+    state.wake=grants[2].api;
+    if(!state.power || !state.power->power.read_key || !state.panel ||
+       grants[1].api!=display || !desk_wake_valid(state.wake))goto release;
+    result=desk_neutral(&state);
+    if(result==-2)return -2;
+    if(result!=1)goto release;
+    const portable_desk_sleep_ops ops={.context=&state,.cancelled=desk_cancelled,
+        .stage=desk_stage,.prepare=desk_prepare_timer,.resume=desk_resume,.stage_enter=desk_stage_enter};
+    ran=true;result=portable_desk_clock_run(rt,&ops);
+    if(result==-2 || state.retained)return -2;
+    if(desk_resume(&state)!=1)return -2;
+    result=0;
+release:
+    while(acquired)if(!rt->release(&grants[--acquired]))return -2;
+    if(!ran)portable_desk_clock_refused();
+    return result;
+}
+#endif
 int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_output_api_v1 *display,
                             const risc_battery_gauge_api_v1 *gauge,const alarm_service_v1 *alarms) {
     if(!desk_runtime_valid(rt) || !rt->health || !rt->yield_ms)return 0;
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    /* Pure adapter state, set only after validated timer-record admission. */
+    if(portable_desk_adapter_timer_only())return desk_timer_sleep(rt,display,alarms);
+#endif
     risc_runtime_capability_v1 prefs={.struct_size=sizeof(prefs)};
     unsigned mode=PORTABLE_SLEEP_LIGHT;
     if(rt->acquire("storage.key-value",1,PORTABLE_SLEEP_STORE_INSTANCE,&prefs)) {
@@ -319,6 +416,9 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
                                          PORTABLE_SLEEP_LIGHT,&mode);
         if(!rt->release(&prefs))return -2;
     }
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    else return -2; /* Unobservable failed-start cleanup is not a clean miss. */
+#endif
     if(mode!=PORTABLE_SLEEP_DEEP)return portable_x4_light_sleep(rt,display,gauge,alarms);
     if(!display || display->api_version!=RISC_DISPLAY_OUTPUT_API_V1 ||
        display->struct_size<sizeof(*display) || !display->set_brightness ||
@@ -333,7 +433,11 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     x4_desk_sleep state={.rt=rt,.display=display,.alarms=alarms};int result=0;bool ran=false;
     for(;acquired<7;++acquired) {
         grants[acquired].struct_size=sizeof(grants[acquired]);
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+        if(!rt->acquire(names[acquired],1,instances[acquired],&grants[acquired]))return -2;
+#else
         if(!rt->acquire(names[acquired],1,instances[acquired],&grants[acquired]))goto release;
+#endif
     }
     state.power=x4_power_deep(grants[0].api);
     state.panel=risc_display_output_power(grants[1].api);
