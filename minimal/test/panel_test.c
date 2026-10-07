@@ -11,6 +11,7 @@ static uint64_t fake_now = 100, next_pin_token = 10, admission_cost;
 static bool owner = true, lock_exists, lock_held, unlock_ok = true, destroy_ok = true;
 static bool light_ok=true;static uint16_t light_level,light_max;
 static bool fake_light(void*c,uint16_t n,uint16_t max){(void)c;light_level=n;light_max=max;return light_ok;}
+static bool probe_pullup=true;
 static bool power_ok = true, fail_claim, fail_read, fail_write, fail_release, fail_hold;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
@@ -64,7 +65,7 @@ static unsigned find_pin(uint64_t token) {
 static bool fake_claim(void *c, uint8_t pin, bool output, bool level, bool pullup, uint64_t *out) {
     (void)c; *out = 0; ++claims; assert(owner && lock_held);
     assert(pin == 6 || pin == 11 || pin == 12 || pin == 13 || pin == 14 || pin == 18);
-    if (fail_claim || (!scoped_bus && (pin == 11 || pin == 12 || pin == 13))) return false;
+    if ((!probe_pullup && pullup) || fail_claim || (!scoped_bus && (pin == 11 || pin == 12 || pin == 13))) return false;
     assert(!pads[pin].token && !(output && pullup));
     pads[pin].token = next_pin_token++; pads[pin].output = output;
     pads[pin].pullup = pullup; pads[pin].level = level; pads[pin].held = false; *out = pads[pin].token;
@@ -196,6 +197,10 @@ int main(int argc, char **argv) {
         power_ok=false; assert(!driver->start(deps,6)); power_ok=true;
         deps[4]=deps[0]; assert(!driver->start(deps,6));
         assert(!claims && !lock_exists && driver->quiesce());
+    } else if (!strcmp(scenario,"pullup-retained")) {
+        probe_pullup=false;assert(!driver->start(deps,6));assert(!driver->quiesce());
+        char error[112];const risc_driver_diagnostics_v2 *d=(const risc_driver_diagnostics_v2*)driver;
+        assert(d->last_error(error,sizeof(error)) && strstr(error,"cause=gpio operation retained"));
     } else if (!strcmp(scenario,"claim-retained") || !strcmp(scenario,"scope-retained")) {
         fail_claim=!strcmp(scenario,"claim-retained"); scoped_bus=strcmp(scenario,"scope-retained")!=0;
         assert(!driver->start(deps,6)); assert(!driver->quiesce()); driver->stop(); assert(!driver->start(deps,6));

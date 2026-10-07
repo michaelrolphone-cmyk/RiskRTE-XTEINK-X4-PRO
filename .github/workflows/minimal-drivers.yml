@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: 5129d967b7287466be5fe00aa8aac7237b1f7611
+          ref: ef7bc637eda020519a0b74b6467210ebe457adfe
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
@@ -30,6 +30,7 @@ jobs:
           python3 minimal/test/prepare_sdk_test.py
           python3 minimal/test/provisioning_profile_test.py
           bash minimal/test/run_native_gpio_readback_test.sh
+          bash minimal/test/run_frontlight_cpu_port_test.sh
           for driver in board_power i2c panel frontlight buttons rtc sd battery gt911; do
             bash minimal/test/run_${driver}_test.sh
           done

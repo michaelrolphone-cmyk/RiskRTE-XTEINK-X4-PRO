@@ -25,6 +25,17 @@ static bool leave(void) {
     if (!sync_api->unlock(sync_api->context, mutex)) { retained = true; return false; }
     return true;
 }
+static bool claim(unsigned channel) {
+    if (tokens[channel]) return true;
+    /* CPU stages LOW before enabling output/unholding its retained pad. A
+     * fresh same-scope token is required after every successful retirement. */
+    if (!gpio->claim(gpio->context, light_pins[channel], true, false, false, &tokens[channel]) || !tokens[channel]) {
+        retained = true;
+        return false;
+    }
+    held[channel] = false;
+    return true;
+}
 static bool hold(unsigned channel, bool enable) {
     if (held[channel] == enable) return true;
     const int32_t result = gpio->deep_sleep_hold(gpio->context, tokens[channel], enable);
@@ -36,10 +47,19 @@ static bool hold(unsigned channel, bool enable) {
 static bool pins_off(void) {
     bool okay = true;
     for (unsigned i = 0; i < 2; ++i) {
-        if (!tokens[i] || held[i]) continue; /* Every established hold is LOW. */
+        if (!tokens[i]) continue; /* Already in CPU boot custody. */
         /* Successful write cancels PWM before enabling static sleep retention.
          * Never unhold a pad to turn it off, nor retire a failed safe write. */
-        if (!gpio->write(gpio->context, tokens[i], false) || !hold(i, true)) okay = false;
+        if (!held[i] && (!gpio->write(gpio->context, tokens[i], false) || !hold(i, true))) {
+            okay = false;
+            continue;
+        }
+        /* Every established hold is LOW. Normal off/start must transfer it to
+         * CPU custody too: a live held token fences Runtime app handoff. A
+         * refusal retains the exact claim/hold for a later cleanup retry. */
+        if (!gpio->retire_held_output(gpio->context, tokens[i])) { okay = false; continue; }
+        tokens[i] = 0;
+        held[i] = false;
     }
     if (okay) duty = 0;
     return okay;
@@ -62,7 +82,7 @@ static bool set_level(void *context, uint16_t requested, uint16_t maximum) {
     else for (unsigned i = 0; i < 2 && okay; ++i) {
         /* A held pad's underlying latch is already LOW. Release that hold
          * before the requested output, never before staging a safe LOW. */
-        okay = hold(i, false);
+        okay = claim(i) && hold(i, false);
         if (okay) okay = next == DUTY_FULL ? gpio->write(gpio->context, tokens[i], true) :
             gpio->pwm(gpio->context, tokens[i], PWM_HZ, next, DUTY_FULL);
     }
@@ -115,12 +135,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (!enter()) return false;
     bool okay = true;
     for (unsigned i = 0; i < 2; ++i) {
-        /* CPU stages this LOW before enabling output/unholding a previous
-         * generation's retained pad. Claim failures keep dependencies pinned. */
-        if (!gpio->claim(gpio->context, light_pins[i], true, false, false, &tokens[i]) || !tokens[i]) {
-            retained = true; okay = false; break;
-        }
-        held[i] = false;
+        if (!claim(i)) { okay = false; break; }
     }
     if (!pins_off()) okay = false;
     started = okay;
@@ -132,13 +147,6 @@ static bool quiesce(void) {
     if (!enter()) return false;
     closing = true; started = false;
     bool okay = pins_off();
-    if (okay) for (unsigned i = 0; i < 2; ++i) {
-        if (!tokens[i]) continue;
-        /* Accepted quiescence transfers the held LOW to CPU boot custody.
-         * A false result keeps the exact claim/hold and dependencies for retry. */
-        if (!gpio->retire_held_output(gpio->context, tokens[i])) { okay = false; continue; }
-        tokens[i] = 0; held[i] = false;
-    }
     if (!leave() || !okay) return false;
     if (!sync_api->destroy(sync_api->context, mutex)) return false;
     mutex = 0; gpio = NULL; sync_api = NULL; duty = 0;

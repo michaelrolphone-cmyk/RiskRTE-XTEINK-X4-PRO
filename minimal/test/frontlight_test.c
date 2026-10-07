@@ -100,6 +100,10 @@ static void check_level(uint16_t expected) {
 static void check_dark(void) {
     for(unsigned i=0;i<2;++i) assert(pads[i].held && !pads[i].high && !pads[i].pwm);
 }
+static void check_custody(void) {
+    check_dark();
+    assert(!pads[0].token && !pads[1].token);
+}
 static void check_clean(void) {
     assert(!lock_token && !locked && !pads[0].token && !pads[1].token && !releases);
     check_dark();
@@ -132,16 +136,20 @@ int main(int argc, char **argv) {
         create_ok=false; assert(!start() && !claims && driver->quiesce());
         create_ok=true; assert(start() && driver->quiesce()); check_clean();
     } else if (!strcmp(argv[1],"lifecycle")) {
-        assert(start()); check_dark(); check_level(0); assert(!pwms && !start());
+        assert(start()); check_custody(); check_level(0); assert(!pwms && !start());
+        assert(claims==2 && writes==2 && holds==2 && retires==2);
         assert(!api->set_level(NULL,0,0) && !api->set_level(NULL,2,1));
         assert(!api->get_level(NULL,NULL,&maximum) && !api->get_level(NULL,&value,NULL));
         assert(api->set_level(NULL,1,2)); check_level(512);
+        assert(claims==4 && holds==2 && retires==2); /* Fresh claim stages LOW before unhold. */
         for(unsigned i=0;i<2;++i) assert(pads[i].pwm && pads[i].duty==512 && !pads[i].held);
         assert(api->set_level(NULL,1,1)); check_level(1024);
         for(unsigned i=0;i<2;++i) assert(!pads[i].pwm && pads[i].high && !pads[i].held);
-        assert(api->set_level(NULL,0,1)); check_level(0); check_dark();
-        unsigned old_writes=writes,old_holds=holds;
-        assert(api->set_level(NULL,0,65535) && writes==old_writes && holds==old_holds);
+        assert(api->set_level(NULL,0,1)); check_level(0); check_custody();
+        assert(claims==4 && holds==4 && retires==4); /* Off never unholds. */
+        unsigned old_writes=writes,old_holds=holds,old_retires=retires,old_claims=claims;
+        assert(api->set_level(NULL,0,65535) && writes==old_writes && holds==old_holds &&
+            retires==old_retires && claims==old_claims);
         recurse=true; assert(api->set_level(NULL,1,3)); recurse=false; check_level(341);
         unsigned old_takes=takes; owner=false;
         assert(!api->set_level(NULL,1,1) && !api->get_level(NULL,&value,&maximum) && !driver->quiesce());
@@ -149,7 +157,7 @@ int main(int argc, char **argv) {
         assert(driver->quiesce()); check_clean(); driver->stop();
         old_holds=holds; assert(driver->quiesce() && holds==old_holds);
         assert(!api->set_level(NULL,1,1) && !api->get_level(NULL,&value,&maximum));
-        assert(start()); check_dark(); check_level(0); assert(driver->quiesce()); check_clean();
+        assert(start()); check_custody(); check_level(0); assert(driver->quiesce()); check_clean();
     } else if (!strcmp(argv[1],"ratios")) {
         assert(start());
         const uint16_t maxima[]={1,2,3,255,256,1024,65535};
@@ -159,7 +167,7 @@ int main(int argc, char **argv) {
             if(n<maxima[m] && expected>=1024) expected=1023;
             assert(api->set_level(NULL,(uint16_t)n,maxima[m])); check_level((uint16_t)expected);
             for(unsigned i=0;i<2;++i) {
-                if(!n) assert(pads[i].held && !pads[i].high && !pads[i].pwm);
+                if(!n) assert(!pads[i].token && pads[i].held && !pads[i].high && !pads[i].pwm);
                 else if(n==maxima[m]) assert(pads[i].high && !pads[i].pwm && !pads[i].held);
                 else assert(pads[i].pwm && pads[i].duty==expected && !pads[i].held);
             }
@@ -174,16 +182,17 @@ int main(int argc, char **argv) {
         fail_retire=-1; assert(driver->quiesce() && writes==old_writes && holds==old_holds); check_clean();
     } else if (!strcmp(argv[1],"write-retry")) {
         assert(start() && api->set_level(NULL,1,1)); uint64_t saved=pads[1].token; fail_write=1;
-        assert(!driver->quiesce() && !retires && pads[1].token==saved && pads[1].high);
+        assert(!driver->quiesce() && retires==3 && !pads[0].token && pads[1].token==saved && pads[1].high);
         assert(!api->get_level(NULL,&value,&maximum)); fail_write=-1;
         assert(driver->quiesce()); check_clean();
     } else if (!strcmp(argv[1],"hold-retry")) {
         fail_hold=1; assert(!start() && pads[0].held && !pads[1].held && lock_token);
-        assert(!driver->quiesce() && !retires); fail_hold=-1;
+        assert(!pads[0].token && pads[1].token && retires==1);
+        assert(!driver->quiesce() && retires==1); fail_hold=-1;
         assert(driver->quiesce()); check_clean();
     } else if (!strcmp(argv[1],"pwm-failure")) {
         assert(start()); fail_pwm=1;
-        assert(!api->set_level(NULL,1,2)); check_dark(); assert(!api->get_level(NULL,&value,&maximum));
+        assert(!api->set_level(NULL,1,2)); check_custody(); assert(!api->get_level(NULL,&value,&maximum));
         assert(!api->set_level(NULL,1,1)); fail_pwm=-1;
         assert(driver->quiesce()); check_clean();
     } else if (!strcmp(argv[1],"destroy-retry")) {
@@ -193,16 +202,42 @@ int main(int argc, char **argv) {
         destroy_ok=true; assert(driver->quiesce() && writes==old_writes && retires==old_retires); check_clean();
     } else if (!strcmp(argv[1],"claim-retained")) {
         fail_claim=1; assert(!start() && claims==2); check_dark();
-        assert(!driver->quiesce() && !retires && lock_token && pads[0].token);
+        assert(!driver->quiesce() && retires==1 && lock_token && !pads[0].token);
         fail_claim=-1; driver->stop(); assert(!start() && claims==2);
     } else if (!strcmp(argv[1],"unlock-retained")) {
         assert(start()); unlock_ok=false; assert(!api->set_level(NULL,0,1)); check_dark();
         assert(!driver->quiesce() && !api->get_level(NULL,&value,&maximum));
-        unlock_ok=true; driver->stop(); assert(!start() && locked && lock_token && !destroys && !retires);
+        unlock_ok=true; driver->stop(); assert(!start() && locked && lock_token && !destroys && retires==2);
     } else if (!strcmp(argv[1],"hold-retained")) {
-        assert(start()); fail_hold=1; hold_error=RISC_DEEP_SLEEP_RETAINED;
-        assert(!api->set_level(NULL,1,2)); check_dark();
-        fail_hold=-1; assert(!driver->quiesce() && !retires); driver->stop(); assert(!start());
+        assert(start() && api->set_level(NULL,1,2)); fail_hold=1; hold_error=RISC_DEEP_SLEEP_RETAINED;
+        uint64_t saved=pads[1].token;
+        assert(!api->set_level(NULL,0,1) && retires==3 && !pads[0].token && pads[1].token==saved);
+        assert(!pads[1].high && !pads[1].pwm && !pads[1].held);
+        fail_hold=-1; assert(!driver->quiesce() && retires==3); driver->stop(); assert(!start());
+    } else if (!strcmp(argv[1],"retire-start-retry")) {
+        fail_retire=1; assert(!start()); check_dark();
+        uint64_t saved=pads[1].token;
+        assert(!pads[0].token && saved && retires==2 && lock_token);
+        assert(!api->set_level(NULL,1,1) && !api->get_level(NULL,&value,&maximum));
+        assert(!driver->quiesce() && pads[1].token==saved && retires==3);
+        unsigned old_writes=writes,old_holds=holds;
+        fail_retire=-1; assert(driver->quiesce() && writes==old_writes && holds==old_holds); check_clean();
+        assert(start()); check_custody(); assert(driver->quiesce()); check_clean();
+    } else if (!strcmp(argv[1],"retire-off-retry")) {
+        assert(start() && api->set_level(NULL,1,2));
+        uint64_t saved=pads[1].token; fail_retire=1;
+        assert(!api->set_level(NULL,0,1)); check_dark();
+        assert(!pads[0].token && pads[1].token==saved && lock_token);
+        assert(!api->set_level(NULL,1,1) && !api->get_level(NULL,&value,&maximum));
+        unsigned old_writes=writes,old_holds=holds,old_claims=claims;
+        assert(!driver->quiesce() && pads[1].token==saved);
+        fail_retire=-1; assert(driver->quiesce() && writes==old_writes && holds==old_holds && claims==old_claims);
+        check_clean();
+    } else if (!strcmp(argv[1],"relight-claim-retained")) {
+        assert(start()); fail_claim=1;
+        assert(!api->set_level(NULL,1,2) && claims==4); check_custody();
+        assert(!driver->quiesce() && !api->get_level(NULL,&value,&maximum) && retires==3 && lock_token);
+        fail_claim=-1; assert(!api->set_level(NULL,1,1) && !start() && claims==4);
     } else assert(!"Unknown scenario");
     printf("X4 ordinary frontlight PASS: %s\n",argv[1]);
 }

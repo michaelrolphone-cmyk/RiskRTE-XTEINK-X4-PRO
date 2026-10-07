@@ -87,6 +87,7 @@ static uint64_t frame_serial, token_serial, pending_token;
 static char last_error_text[64];
 
 static void fail(const char *text) {
+    if(last_error_text[0])return; // Preserve the first failure through cleanup.
     size_t i = 0;
     while (text[i] && i + 1u < sizeof(last_error_text)) { last_error_text[i] = text[i]; ++i; }
     last_error_text[i] = 0;
@@ -684,6 +685,7 @@ static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected)
 }
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (gpio || sync_api || mutex || started || retained || !deps || count != 6) return false;
+    last_error_text[0]=0;
     const risc_hardware_device_v1 *hardware = NULL;
     const garden_gpio_v1 *candidate = NULL;
     const risc_platform_clock_api_v1 *clock = NULL;
@@ -835,8 +837,11 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
+    append(destination, capacity, &used, "v=0.1.17 cause=");
+    append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
+    append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
-    append(destination, capacity, &used, " v=0.1.15 token=");
+    append(destination, capacity, &used, " token=");
     append_u(destination, capacity, &used, pending_token);
     append(destination, capacity, &used, " state=");
     append_u(destination, capacity, &used, present_state);
