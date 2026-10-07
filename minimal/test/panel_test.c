@@ -15,6 +15,10 @@ static bool probe_pullup=true;
 static bool power_ok = true, fail_claim, fail_read, fail_write, fail_release, fail_hold;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
+static bool async_model;
+static uint64_t phase_until;
+static unsigned async_calls;
+static uint64_t wire_hash=UINT64_C(1469598103934665603);
 #ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
 static bool retire_ok = true;
 static unsigned retired_outputs;
@@ -45,6 +49,8 @@ static bool fake_destroy(void *c, uint64_t token) {
 }
 static uint64_t fake_time(void *c) {
     (void)c; if (bad_clock) return UINT64_MAX;
+    if (async_model && fake_now >= phase_until &&
+        (phase == PON || (phase == REFRESH && !stuck_refresh))) phase = IDLE;
     if (rollback_clock) return --fake_now;
     return fake_now;
 }
@@ -81,6 +87,7 @@ static void model_command(uint8_t cmd) {
         ++refreshes; phase = absent_busy ? IDLE : REFRESH;
     }
     if (chip == PROBE_UC8279 && cmd == 0x04) phase = PON;
+    if (phase == PON || phase == REFRESH) phase_until = fake_now + 3u;
     if (chip == PROBE_UC8279 && cmd == 0x00) assert(phase != PON);
     if ((chip == PROBE_UC8279 && cmd == 0x07) || (chip == PROBE_SSD && cmd == 0x10)) ++deep_sleeps;
 }
@@ -102,6 +109,7 @@ static bool fake_write(void *c, uint64_t token, bool level) {
     assert(owner && lock_held && pads[pin].output && !pads[pin].held);
     if (charge_every && writes % charge_every == 0) ++fake_now;
     if (fail_write) return false;
+    wire_hash=(wire_hash ^ (uint64_t)(pin*2u+(level?1u:0u)))*UINT64_C(1099511628211);
     if (pin == 13 && !level && pads[pin].level) { shift = bits = 0; }
     if (pin == 12 && level && !pads[12].level && !pads[13].level && pads[11].output) {
         shift = (uint8_t)((shift << 1) | pads[11].level);
@@ -160,12 +168,27 @@ static void queue(risc_display_surface_v1 *surface, uint64_t *token) {
 }
 static void complete(uint64_t token) {
     risc_display_present_status_v1 status = {0};
-    assert(display->wait_present(NULL, token, 20000, &status));
+    if (async_model) {
+        for (unsigned n = 0; n < 11000u; ++n) {
+            const unsigned before = writes;
+            const uint32_t old_bytes = present_state == PRESENT_QUEUED ? 0u : bytes_sent;
+            const risc_driver_poll_v2 *d = (const risc_driver_poll_v2*)t5_driver_get(2);
+            assert(d->streams.driver.struct_size == sizeof(*d) && !d->streams.bind_streams);
+            d->poll(8); ++async_calls;
+            assert(!lock_held && writes-before <= 512u*24u+1000u);
+            assert(bytes_sent-old_bytes <= 512u);
+            assert(display->present_status(NULL,token,&status));
+            if (status.state == RISC_DISPLAY_PRESENT_COMPLETE || status.state == RISC_DISPLAY_PRESENT_FAILED) break;
+            assert(!t5_driver_get(2)->quiesce());
+            ++fake_now; /* Host scheduler/input opportunity between each slice. */
+        }
+    } else assert(display->wait_present(NULL, token, 20000, &status));
     assert(status.state == RISC_DISPLAY_PRESENT_COMPLETE);
 }
 int main(int argc, char **argv) {
     assert(argc == 2);
     const char *scenario = argv[1];
+    async_model = strstr(scenario,"async") != NULL;
     if (!strncmp(scenario, "uc", 2) || !strcmp(scenario, "mismatch") || !strcmp(scenario, "unstable-probe")) chip = PROBE_UC8279;
     garden_gpio_v1 native = {.api_version=1,.struct_size=sizeof(native),.claim=fake_claim,.write=fake_write,.read=fake_read,.release=fake_release,.deep_sleep_hold=fake_hold};
 #ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
@@ -218,13 +241,24 @@ int main(int argc, char **argv) {
         risc_display_info_v1 info={0}; assert(display->get_info(NULL,&info));
         assert(info.width==800 && info.height==480 && info.preferred_format==RISC_DISPLAY_FORMAT_MONO1);
         assert(info.flags&RISC_DISPLAY_INFO_BRIGHTNESS);
+        assert(!!(info.flags&RISC_DISPLAY_INFO_ASYNC_PRESENT)==(chip==PROBE_UC8279));
         risc_display_surface_v1 surface={0}; uint64_t token=0; risc_display_present_status_v1 status={0};
         assert(!display->present_status(NULL,0,&status));
         queue(&surface,&token); assert(!driver->quiesce());
         unsigned before=writes; assert(!display->wait_present(NULL,token,20000,NULL) && writes==before);
         assert(display->wait_present(NULL,token,0,&status) && status.state==RISC_DISPLAY_PRESENT_QUEUED && writes==before);
         display->release(NULL,surface.frame); assert(!display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
-        if (!strcmp(scenario,"foreign-owner")) {
+        if (!strcmp(scenario,"uc-async-retained")) {
+            const risc_driver_poll_v2 *d=(const risc_driver_poll_v2*)driver;
+            d->poll(8);assert(present_state==PRESENT_ACTIVE && bytes_sent && bytes_sent<=512u);
+            const unsigned writes_before=writes;owner=false;d->poll(8);assert(writes==writes_before);owner=true;
+            fail_write=true;d->poll(8);assert(present_state==PRESENT_FAILED && !driver->quiesce());
+        } else if (!strcmp(scenario,"uc-async-deadline")) {
+            const risc_driver_poll_v2 *d=(const risc_driver_poll_v2*)driver;
+            d->poll(8);assert(present_state==PRESENT_ACTIVE);
+            fake_now=async_deadline;d->poll(8);assert(present_state==PRESENT_FAILED && !refreshes);
+            const unsigned writes_before=writes;d->poll(8);assert(writes==writes_before);
+        } else if (!strcmp(scenario,"foreign-owner")) {
             owner=false;
             assert(!display->present_status(NULL,token,&status) && !display->wait_present(NULL,token,500,&status) && !driver->quiesce());
             assert(writes==before); owner=true; complete(token);
@@ -306,5 +340,5 @@ int main(int argc, char **argv) {
 #endif
         }
     }
-    printf("x4 ordinary panel %s: PASS\n",scenario); return 0;
+    printf("x4 ordinary panel %s: PASS (async slices=%u) wire=%016llx\n",scenario,async_calls,(unsigned long long)wire_hash); return 0;
 }

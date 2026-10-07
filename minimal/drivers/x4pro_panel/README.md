@@ -1,10 +1,20 @@
 # X4 panel ordinary-provider adapter
 
-`x4pro-panel@0.1.18` ports the source-preserved panel implementation to ordinary
+`x4pro-panel@0.1.19` ports the source-preserved panel implementation to ordinary
 `hardware.device`, device-scoped `platform.gpio`, `platform.clock`,
 `platform.sync` and `board.power.ready` dependencies. It imports no privileged
 CPU entry points and performs no MMIO. The original `Drivers/x4pro_panel` is
 unchanged.
+
+UC8279 now advertises asynchronous presentation and uses the ordinary provider
+poll suffix. Each owner-task callback sends at most 512 bytes, checks time every
+eight bytes, and respects the supplied maximum eight-millisecond scheduling
+budget. BUSY and power-on waits return to the Runtime instead of sleeping inside
+the frame transfer. A fixed ten-second operation deadline still fails closed.
+The existing synchronous wait entry remains compatible; SSD1677 retains its
+original path. No RTOS task, interrupt, or privileged import is added. Full and
+partial UC frames emit the same GPIO-edge stream as the synchronous reference.
+This does not change the controller waveform or claim a measured hardware speed.
 
 ## Explicit controller selection
 
