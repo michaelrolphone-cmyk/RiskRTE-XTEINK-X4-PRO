@@ -312,7 +312,16 @@ static bool commit_sleep_rails(void) {
     x4pro_pin_hold(X4PRO_PIN_SD_PWR, true);
     return !gpio_fault;
 }
+static bool resume_sleep_media(void) {
+    /* init_card releases the owned GPIO5 hold, cycles active-low power with
+     * bounded settle delays, and reopens FatFs. No media is distinct from
+     * uncertain rail/hold custody; the helper checks mounted/io_failed too. */
+    (void)init_card();
+    return !gpio_fault && !gpio_retained && pins[0].token && !pins[0].held;
+}
 #define STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN commit_sleep_rails
+#define STORAGE_VOLUME_TRY_RESUME_POWER_DOWN resume_sleep_media
+#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained))
 #define STORAGE_VOLUME_EXTERNAL_GUARD
 #define STORAGE_VOLUME_GUARD_ENTER guard_enter
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave
@@ -361,6 +370,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (!enter_lifecycle()) return false;
     x4pro_pin_output(X4PRO_PIN_SD_CLK, false);
     power_down_prepared = power_down_committed = false;
+    sleep_state = SLEEP_ACTIVE;
     started = true;
     mounted = card_ready = io_failed = false;
     error[0] = 0;
@@ -386,7 +396,7 @@ static bool quiesce(void) {
     if (!valid_task()) return false;
     if (!quiescing) {
         if (!enter_lifecycle()) return false;
-        if (has_handles() || power_down_committed) { (void)leave(); return false; }
+        if (has_handles() || power_down_committed || sleep_state != SLEEP_ACTIVE) { (void)leave(); return false; }
         /* Shutdown failures preserve exact remaining tokens and dependencies. */
         (void)f_mount(NULL, "", 0);
         mounted = card_ready = false;
