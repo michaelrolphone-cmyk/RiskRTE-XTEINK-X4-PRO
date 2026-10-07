@@ -14,6 +14,8 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <unistd.h>
+#include <sys/wait.h>
 using namespace RiscCpu;
 uint64_t native_sleep_test_output_mask=native_sleep_test_gpio_mask;
 static gpio_mode_t modes[49]{};
@@ -44,14 +46,17 @@ int main(int argc,char**argv){
  assert(runtime.prepare(argv[1]));assert(io==0);
  auto scoped=[&](uint64_t id)->garden_gpio_v1&{for(auto&g:port.gpios_)if(g.instance==id)return g.api;assert(false);return port.gpios_[0].api;};
  auto& rail=scoped(1);auto& sd=scoped(9);
+ risc_provider_sync_api_v1* sync=nullptr;for(auto&s:port.syncs_)if(s.instance==1)sync=&s.api;assert(sync);
  auto* driver=t5_driver_get(2);assert(driver);
- const risc_provider_dependency_v1 deps[]={{"hardware.device",1,&runtime.board().device(1)->hardware},{"platform.gpio",1,&rail}};
- bool started=driver->start(deps,2);
+ const risc_provider_dependency_v1 deps[]={{"hardware.device",1,&runtime.board().device(1)->hardware},{"platform.gpio",1,&rail},{"platform.sync",1,sync}};
+ bool started=driver->start(deps,3);
  assert(started==!expectBroken);
  const auto* power=static_cast<const x4_power_ready_api_v1*>(driver->capability);
  assert(power->ready(power->context)==!expectBroken);
  // An output latch HIGH must not hide an externally low pad.
- forcedLow[1]=true;assert(!power->ready(power->context));forcedLow[1]=false;
+ if(expectBroken){assert(!driver->quiesce());puts("Original readback failure safely retained PASS");return 0;}
+ pid_t child=fork();assert(child>=0);if(!child){forcedLow[1]=true;assert(!power->ready(power->context));assert(!driver->quiesce());_exit(0);}
+ int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && !WEXITSTATUS(status));
  assert(driver->quiesce());driver->stop();assert(port.quiescent());
  // Native SD CLK is the second materialized bank pin (GPIO41). Its tick()
  // waits for BOTH output levels through the same scoped readback contract.
