@@ -79,6 +79,11 @@ static uint64_t transfer_yielded_ms;
 static unsigned transfer_work;
 static uint8_t present_state;
 static bool transfer_started;
+enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PLANE13, UC_ASYNC_PLANE10,
+       UC_ASYNC_SETUP, UC_ASYNC_PON, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE };
+static uint8_t async_stage;
+static uint32_t async_offset;
+static uint64_t async_deadline, async_not_before;
 static bool started, held, pins_ready;
 static uint8_t shutdown_stage;
 static int controller;
@@ -457,6 +462,99 @@ static bool transfer_frame(uint64_t deadline_ms) {
     command(0x20);
     return wait_idle(deadline_ms);
 }
+/* Runtime calls this ordinary poll suffix on the existing serialized owner.
+ * Keep every GPIO edge/command from the synchronous UC path, but return between
+ * bounded chunks so app input can be sampled while a frame is in flight. */
+static void poll_present(uint32_t budget_ms) {
+    if (!budget_ms || controller != PROBE_UC8279 || !started || shutdown_stage ||
+        (present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
+    uint64_t now = 0;
+    if (!sample_now(&now)) goto failed;
+    if (present_state == PRESENT_QUEUED) {
+        if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
+        wait_start_ms = transfer_start_ms = now; wait_budget_ms = 10000u;
+        transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
+        bytes_sent = 0; reason = "none"; transfer_started = true;
+        async_stage = UC_ASYNC_PRE; async_offset = 0; async_deadline = now + 10000u;
+        present_state = PRESENT_ACTIVE;
+    }
+    if (now >= async_deadline) { set_reason("async present deadline"); goto failed; }
+    const uint64_t slice_end = now + (budget_ms > 8u ? 8u : budget_ms);
+    unsigned work = 0;
+    do {
+        if (!sample_now(&now)) goto failed;
+        if (now >= async_deadline) { set_reason("async present deadline"); goto failed; }
+        if (async_stage == UC_ASYNC_PRE) {
+            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            command(0x13); panel_pin_level(X4PRO_PIN_EPD_DC, true);
+            panel_pin_level(X4PRO_PIN_EPD_CS, false); async_stage = UC_ASYNC_PLANE13;
+        } else if (async_stage == UC_ASYNC_PLANE13 || async_stage == UC_ASYNC_PLANE10) {
+            /* Check time every eight bytes, with an independent 512-byte cap
+             * even when the monotonic clock has coarse resolution. */
+            for (unsigned n = 0; n < 8u && async_offset < 60000u; ++n) {
+                const bool white = async_stage == UC_ASYNC_PLANE10;
+                const uint8_t *pixels = white && partial_update ? previous_frame : frame;
+                const uint8_t value = ((white && !partial_update) || async_offset < 12000u) ?
+                    0xFFu : (uint8_t)~pixels[async_offset - 12000u];
+                spi_byte(value); ++async_offset; ++bytes_sent; ++work;
+            }
+            if (async_offset == 60000u) {
+                panel_pin_level(X4PRO_PIN_EPD_CS, true);
+                if (async_stage == UC_ASYNC_PLANE13) {
+                    command(0x10); panel_pin_level(X4PRO_PIN_EPD_DC, true);
+                    panel_pin_level(X4PRO_PIN_EPD_CS, false);
+                    async_stage = UC_ASYNC_PLANE10; async_offset = 0;
+                } else {
+                    if (!sample_now(&transfer_end_ms)) goto failed;
+                    async_stage = UC_ASYNC_SETUP;
+                }
+            }
+        } else if (async_stage == UC_ASYNC_SETUP) {
+            command(0x50); data1(partial_update ? 0xD7 : 0x97);
+            command(0xE0); data1(0x02); command(0xE5); data1(partial_update ? 0x5A : 0x1E);
+            if (partial_update) { command(0x03); data1(0x20); command(0xE1); data1(0x02); }
+            if (!sample_now(&refresh_ms)) goto failed;
+            command(0x04); async_not_before = refresh_ms + 1u; async_stage = UC_ASYNC_PON;
+            break;
+        } else if (async_stage == UC_ASYNC_PON) {
+            if (now < async_not_before || !panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            async_stage = UC_ASYNC_REFRESH;
+        } else if (async_stage == UC_ASYNC_REFRESH) {
+            if (partial_update) {
+                const uint16_t right = (uint16_t)(update_area.x + update_area.width - 1u);
+                const uint16_t top = (uint16_t)update_area.y + 120u;
+                const uint16_t bottom = top + (uint16_t)update_area.height - 1u;
+                command(0x91); command(0x90);
+                data1((uint16_t)update_area.x >> 8); data1((uint16_t)update_area.x & 0xF8u);
+                data1(right >> 8); data1(right | 7u); data1(top >> 8); data1(top & 255u);
+                data1(bottom >> 8); data1(bottom & 255u); data1(0x01);
+            }
+            command(0x00); data1(0x17); data1(0x4D);
+            busy_before = panel_pin_read(X4PRO_PIN_EPD_BUSY) ? 1u : 0u;
+            if (!busy_before) { set_reason("busy already active"); goto failed; }
+            command(0x12); async_stage = UC_ASYNC_ASSERT;
+        } else if (async_stage == UC_ASYNC_ASSERT) {
+            if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            if (!sample_now(&busy_assert_ms)) goto failed;
+            async_stage = UC_ASYNC_DONE;
+        } else if (async_stage == UC_ASYNC_DONE) {
+            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            if (!sample_now(&busy_done_ms)) goto failed;
+            if (partial_update) command(0x92);
+            if (io_failed) goto failed;
+            present_state = PRESENT_COMPLETE; held = false; previous_seeded = false;
+            async_stage = UC_ASYNC_NONE; reason = "complete"; break;
+        } else { set_reason("invalid async state"); goto failed; }
+        if (io_failed) goto failed;
+        if (!sample_now(&now)) goto failed;
+    } while (now < slice_end && work < 512u);
+    if (io_failed) goto failed;
+    (void)leave(); return;
+failed:
+    panel_pin_level(X4PRO_PIN_EPD_CS, true);
+    present_state = PRESENT_FAILED; held = false; async_stage = UC_ASYNC_NONE;
+    (void)leave();
+}
 static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     (void)context;
     if (!out) return false;
@@ -469,6 +567,7 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->preferred_format = RISC_DISPLAY_FORMAT_MONO1;
     out->supported_rotations = RISC_DISPLAY_ROTATION_0;
     out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE | RISC_DISPLAY_INFO_QUIESCE_SLEEP;
+    if (controller == PROBE_UC8279) out->flags |= RISC_DISPLAY_INFO_ASYNC_PRESENT;
     out->damage_x_alignment = 8;
     out->damage_width_alignment = 8;
     out->damage_y_alignment = 1;
@@ -524,6 +623,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     previous_seeded = false; // Consumed by this one admitted submission.
     present_state = PRESENT_QUEUED;
     transfer_started = false;
+    async_stage = UC_ASYNC_NONE;
     if (token_out) *token_out = pending_token;
     return true;
 }
@@ -837,7 +937,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.17 cause=");
+    append(destination, capacity, &used, "v=0.1.18 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
@@ -865,13 +965,13 @@ static bool last_error(char *destination, size_t capacity) {
     append(destination, capacity, &used, probe_text);
     return used > 0;
 }
-static const risc_driver_diagnostics_v2 driver = {
-    { RISC_PROVIDER_DRIVER_ABI_V2, sizeof(risc_driver_diagnostics_v2), "x4pro-panel",
+static const risc_driver_poll_v2 driver = {
+    {{ RISC_PROVIDER_DRIVER_ABI_V2, sizeof(risc_driver_poll_v2), "x4pro-panel",
       "display.output", 1, &api, start, stop, quiesce },
-    last_error
+    last_error, NULL}, poll_present
 };
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return 0;
-    return &driver.base;
+    return &driver.streams.driver;
 }
