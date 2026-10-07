@@ -1,12 +1,12 @@
 # X4 native one-bit SD ordinary provider
 
-`x4pro-sd@0.2.4` adapts the X4 native CLK/CMD/DAT0 transport to scoped
+`x4pro-sd@0.2.5` adapts the X4 native CLK/CMD/DAT0 transport to scoped
 `platform.gpio@1`, `platform.clock@1` and `platform.sync@1`, with explicit
 `board.power.ready@1` admission. It is not SPI and imports no firmware SD,
 FreeRTOS, task identity, MMIO or filesystem service.
 
 The hardware envelope must select compatible `xteink,x4-pro-sd-native1`, revision
-`unspecified`, config `gpio.bank@1`, and exactly `[5,41,42,40,-1,-1,-1,-1]`.
+`unspecified`, config `gpio.bank@1`, and exactly `[5,41,42,40]` (count4, canonical zero-filled unused ABI slots).
 Bank active-high is 1, pull-up authority is 1 and all timing/reserved fields are 0. Channel
 order is power, CLK, CMD, DAT0. The native protocol owns GPIO5's active-low power
 sequence and CMD/DAT0 direction changes and pull-ups. No generic bus identity is

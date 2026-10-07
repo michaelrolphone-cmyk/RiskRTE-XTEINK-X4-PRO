@@ -1,6 +1,6 @@
 # X4 panel ordinary-provider adapter
 
-`x4pro-panel@0.1.15` ports the source-preserved panel implementation to ordinary
+`x4pro-panel@0.1.16` ports the source-preserved panel implementation to ordinary
 `hardware.device`, device-scoped `platform.gpio`, `platform.clock`,
 `platform.sync` and `board.power.ready` dependencies. It imports no privileged
 CPU entry points and performs no MMIO. The original `Drivers/x4pro_panel` is
@@ -81,3 +81,8 @@ relative pointer checker. Build with `-O2 -fno-ivopts -fPIC -mtext-section-liter
 exports only `t5_driver_get` and imports only `strcmp` and `memset`.
 
 No device was accessed, flashed, probed or physically qualified by this port.
+
+The display brightness method delegates to its explicitly bound
+`display.frontlight@1` provider; it never claims that provider's pins. Failed
+frontlight writes propagate failure. Unused panel-power ABI slots are canonical
+zeroes from Runtime's materializer, not handwritten -1 sentinels.

@@ -9,6 +9,8 @@ enum { IDLE, REFRESH, PON, POF, RAM };
 static struct { uint64_t token; bool output, pullup, level, held; } pads[49];
 static uint64_t fake_now = 100, next_pin_token = 10, admission_cost;
 static bool owner = true, lock_exists, lock_held, unlock_ok = true, destroy_ok = true;
+static bool light_ok=true;static uint16_t light_level,light_max;
+static bool fake_light(void*c,uint16_t n,uint16_t max){(void)c;light_level=n;light_max=max;return light_ok;}
 static bool power_ok = true, fail_claim, fail_read, fail_write, fail_release, fail_hold;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
@@ -172,35 +174,41 @@ int main(int argc, char **argv) {
     const risc_platform_clock_api_v1 clock = {1,sizeof(clock),NULL,fake_time,fake_sleep};
     const risc_provider_sync_api_v1 sync = {1,sizeof(sync),NULL,fake_owner,fake_create,fake_lock,fake_unlock,fake_destroy};
     const x4_power_ready_api_v1 power = {1,sizeof(power),NULL,fake_ready};
+    const risc_frontlight_api_v1 light={1,sizeof(light),NULL,fake_light,NULL};
     risc_hw_spi_display_v1 config = {
         .struct_size=sizeof(config),.bus={.struct_size=sizeof(config.bus),.kind=1,.instance_id=101,.controller=0,.frequency_hz=1000000,.sclk=12,.mosi=11,.miso=-1,.sda=-1,.scl=-1},
         .width=800,.height=480,.offset_y=chip==PROBE_UC8279?120:0,.cs=13,.dc=18,.reset=14,.backlight=-1,.busy=6,
-        .busy_active_high=chip==PROBE_SSD,.power_pins={-1,-1,-1,-1},.reset_assert_ms=chip==PROBE_UC8279?50:10,.reset_recovery_ms=chip==PROBE_UC8279?50:10};
+        .busy_active_high=chip==PROBE_SSD,.power_pins={0,0,0,0},.reset_assert_ms=chip==PROBE_UC8279?50:10,.reset_recovery_ms=chip==PROBE_UC8279?50:10};
+    const char *materialized=getenv(chip==PROBE_UC8279?"X4_PANEL_TYPED_CONFIG_UC":"X4_PANEL_TYPED_CONFIG_SSD");
+    if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&config,1,sizeof(config),f)==sizeof(config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     risc_hardware_device_v1 device = {1,sizeof(device),2,chip==PROBE_UC8279?"ultrachip,uc8279":"solomon-systech,ssd1677","unspecified","display.spi",1,sizeof(config),&config};
-    risc_provider_dependency_v1 deps[] = {{"hardware.device",1,&device},{"platform.gpio",1,&native},{"platform.clock",1,&clock},{"platform.sync",1,&sync},{"board.power.ready",1,&power}};
+    risc_provider_dependency_v1 deps[] = {{"hardware.device",1,&device},{"platform.gpio",1,&native},{"platform.clock",1,&clock},{"platform.sync",1,&sync},{"board.power.ready",1,&power},{"display.frontlight",1,&light}};
     const risc_driver_v2 *driver = t5_driver_get(2); assert(driver && !t5_driver_get(1)); display = driver->capability;
     if (!strcmp(scenario,"validation")) {
-        assert(!driver->start(NULL,5) && !driver->start(deps,4));
-        config.width=480; assert(!driver->start(deps,5)); config.width=800;
-        config.bus.mosi=1; assert(!driver->start(deps,5)); config.bus.mosi=11;
-        config.offset_y=120; assert(!driver->start(deps,5)); config.offset_y=0;
-        config.busy_active_high=0; assert(!driver->start(deps,5)); config.busy_active_high=1;
-        config.power_count=1; assert(!driver->start(deps,5)); config.power_count=0;
-        native.struct_size=offsetof(garden_gpio_v1,deep_sleep_hold); assert(!driver->start(deps,5)); native.struct_size=sizeof(native);
-        owner=false; assert(!driver->start(deps,5)); owner=true;
-        power_ok=false; assert(!driver->start(deps,5)); power_ok=true;
-        deps[4]=deps[0]; assert(!driver->start(deps,5));
+        assert(!driver->start(NULL,6) && !driver->start(deps,4));
+        config.width=480; assert(!driver->start(deps,6)); config.width=800;
+        config.bus.mosi=1; assert(!driver->start(deps,6)); config.bus.mosi=11;
+        config.offset_y=120; assert(!driver->start(deps,6)); config.offset_y=0;
+        config.busy_active_high=0; assert(!driver->start(deps,6)); config.busy_active_high=1;
+        config.power_count=1; assert(!driver->start(deps,6)); config.power_count=0;
+        native.struct_size=offsetof(garden_gpio_v1,deep_sleep_hold); assert(!driver->start(deps,6)); native.struct_size=sizeof(native);
+        owner=false; assert(!driver->start(deps,6)); owner=true;
+        power_ok=false; assert(!driver->start(deps,6)); power_ok=true;
+        deps[4]=deps[0]; assert(!driver->start(deps,6));
         assert(!claims && !lock_exists && driver->quiesce());
     } else if (!strcmp(scenario,"claim-retained") || !strcmp(scenario,"scope-retained")) {
         fail_claim=!strcmp(scenario,"claim-retained"); scoped_bus=strcmp(scenario,"scope-retained")!=0;
-        assert(!driver->start(deps,5)); assert(!driver->quiesce()); driver->stop(); assert(!driver->start(deps,5));
+        assert(!driver->start(deps,6)); assert(!driver->quiesce()); driver->stop(); assert(!driver->start(deps,6));
     } else if (!strcmp(scenario,"ambiguous") || !strcmp(scenario,"mismatch") || !strcmp(scenario,"unstable-probe")) {
         ambiguous=!strcmp(scenario,"ambiguous"); unstable_probe=!strcmp(scenario,"unstable-probe");
         if (!strcmp(scenario,"mismatch")) {device.compatible="solomon-systech,ssd1677";config.offset_y=0;config.busy_active_high=1;config.reset_assert_ms=config.reset_recovery_ms=10;}
-        assert(!driver->start(deps,5)); assert(!refreshes && !driver->quiesce());
+        assert(!driver->start(deps,6)); assert(!refreshes && !driver->quiesce());
     } else {
-        assert(driver->start(deps,5)); assert(!driver->start(deps,5));
+        assert(driver->start(deps,6)); assert(!driver->start(deps,6));
         assert(claims==(chip==PROBE_SSD?10u:14u));
+        assert(!display->set_brightness(NULL,1,0));assert(!display->set_brightness(NULL,101,100));
+        assert(display->set_brightness(NULL,40,100) && light_level==40 && light_max==100);
+        light_ok=false;assert(!display->set_brightness(NULL,50,100));light_ok=true;
         assert(probe_reads==(chip==PROBE_SSD?1u:2u));
         risc_display_info_v1 info={0}; assert(display->get_info(NULL,&info));
         assert(info.width==800 && info.height==480 && info.preferred_format==RISC_DISPLAY_FORMAT_MONO1);
@@ -281,14 +289,14 @@ int main(int argc, char **argv) {
                 for (unsigned pin=0;pin<49;++pin) assert(!pads[pin].token);
                 assert(driver->quiesce() && poweroffs==1 && deep_sleeps==1);
                 const unsigned old_writes=writes; driver->stop(); assert(writes==old_writes);
-                assert(driver->start(deps,5));
+                assert(driver->start(deps,6));
                 assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
                 display->release(NULL,surface.frame); assert(driver->quiesce());
             }
 #else
             assert(!driver->quiesce()); assert(poweroffs==1 && deep_sleeps==1 && reset_held && pads[14].held);
             assert(!driver->quiesce() && poweroffs==1 && deep_sleeps==1);
-            driver->stop(); assert(!driver->start(deps,5));
+            driver->stop(); assert(!driver->start(deps,6));
 #endif
         }
     }

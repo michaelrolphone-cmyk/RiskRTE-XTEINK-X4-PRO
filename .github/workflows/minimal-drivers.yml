@@ -1,5 +1,7 @@
 name: Typed minimal X4 drivers
 on: [push, pull_request, workflow_dispatch]
+env:
+  PLATFORMIO_SETTING_ENABLE_TELEMETRY: "No"
 jobs:
   host-target:
     runs-on: ubuntu-latest
@@ -8,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: 54292706667a3dfca1b90f11e81247c4c87f2f69
+          ref: e63913f4a1d1451a61f18b86f8ca883a7f94f8c4
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
@@ -26,9 +28,10 @@ jobs:
           SANITIZE: '1'
         run: |
           python3 minimal/test/prepare_sdk_test.py
-          for driver in board_power i2c panel frontlight buttons rtc sd battery; do
+          for driver in board_power i2c panel frontlight buttons rtc sd battery gt911; do
             bash minimal/test/run_${driver}_test.sh
           done
+          bash minimal/test/run_profile_test.sh
       - name: Install pinned target compiler
         run: pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
       - name: Build and validate ordinary Xtensa providers

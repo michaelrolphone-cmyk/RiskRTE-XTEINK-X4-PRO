@@ -5,9 +5,10 @@ migration. Its ordinary providers run on the shared headless RiscRTE through
 exact typed capability tables. Original migrated `Drivers/` remain unchanged.
 
 `sources.lock.json` pins the provisioning/sync/GPIO Runtime candidate and the
-one-file shared FatFs helper candidate. Eight providers are implemented:
-board power, I2C, panel, frontlight, buttons, RTC, SD and battery. GT911, the
-complete board/profile graph and the default application bundle remain pending.
+one-file shared FatFs helper candidate. Nine providers are implemented:
+board power, I2C, panel, frontlight, buttons, RTC, SD, battery and GT911. Two
+explicit panel variants have real JSON/graph admission coverage. The complete
+application/service bundle and provisioning integration remain pending.
 Do not treat this checkpoint as a bootable or hardware-qualified product.
 
 The board-power provider establishes the peripheral rail; panel candidates
@@ -23,7 +24,7 @@ Check out the immutable Runtime and shared-source commits from the lock, then:
 ```sh
 export RISCRTE_RUNTIME_ROOT=/path/to/RiscRTE
 export RISCRTE_READER_ROOT=/path/to/T5S3-Reader
-for d in board_power i2c panel frontlight buttons rtc sd battery; do
+for d in board_power i2c panel frontlight buttons rtc sd battery gt911; do
   SANITIZE=1 bash minimal/test/run_${d}_test.sh
 done
 python3 minimal/scripts/build_drivers.py \

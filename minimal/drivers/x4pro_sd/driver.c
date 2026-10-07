@@ -351,7 +351,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (config->struct_size != sizeof(*config) || config->count != 4 || config->active_high != 1 ||
         config->pull_up != 1 || config->reserved || config->debounce_us || config->long_press_us || config->click_min_us) return false;
     for (unsigned i=0; i<RISC_HW_MAX_CHANNELS; ++i)
-        if (config->pins[i] != (i<4 ? pin_numbers[i] : -1)) return false;
+        if (config->pins[i] != (i<4 ? pin_numbers[i] : 0)) return false;
     if (!sync->is_owner(sync->context) || !power->ready(power->context)) return false;
     gpio_api = gpio; clock_api = clock; sync_api = sync;
     quiescing = quiesced = gpio_fault = false;

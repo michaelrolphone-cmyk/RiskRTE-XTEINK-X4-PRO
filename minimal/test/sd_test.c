@@ -95,7 +95,7 @@ static const garden_gpio_v1 fixture_gpio={.api_version=1,.struct_size=sizeof(fix
 static const risc_provider_sync_api_v1 fixture_sync={1,sizeof(fixture_sync),NULL,sync_owner,sync_create,sync_take,sync_unlock,sync_destroy};
 static const risc_platform_clock_api_v1 fixture_clock={1,sizeof(fixture_clock),NULL,monotonic,sleep_ms};
 static const x4_power_ready_api_v1 fixture_power={1,sizeof(fixture_power),NULL,power_is_ready};
-static risc_hw_gpio_bank_v1 fixture_config={sizeof(fixture_config),4,1,1,0,{5,41,42,40,-1,-1,-1,-1},0,0,0};
+static risc_hw_gpio_bank_v1 fixture_config={sizeof(fixture_config),4,1,1,0,{5,41,42,40,0,0,0,0},0,0,0};
 static const risc_hardware_device_v1 fixture_hardware={1,sizeof(fixture_hardware),55,"xteink,x4-pro-sd-native1","unspecified","gpio.bank",1,sizeof(fixture_config),&fixture_config};
 static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&fixture_hardware},{"platform.gpio",1,&fixture_gpio},{"platform.clock",1,&fixture_clock},{"platform.sync",1,&fixture_sync},{"board.power.ready",1,&fixture_power}};
 #define START() start(deps,sizeof(deps)/sizeof(deps[0]))
@@ -112,10 +112,12 @@ static void verify_cleanup(void){assert(quiesce());stop();assert(!fixture_lock &
 static void write_sample(void){const uint32_t file=file_open_write(NULL,"/sample.bin");assert(file);uint8_t bytes[2048];for(unsigned i=0;i<sizeof(bytes);++i)bytes[i]=(uint8_t)i;assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));assert(file_sync(NULL,file));assert(file_close(NULL,file,true));}
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
+    const char*materialized=getenv("X4_SD_TYPED_CONFIG");
+    if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver && !t5_driver_get(1));
     if(!strcmp(scenario,"validation")){
         assert(!start(NULL,0));const void *saved=deps[0].api;deps[0].api=NULL;assert(!START());deps[0].api=saved;
-        fixture_config.pins[3]=39;assert(!START());fixture_config.pins[3]=40;fixture_config.pins[7]=0;assert(!START());fixture_config.pins[7]=-1;
+        fixture_config.pins[3]=39;assert(!START());fixture_config.pins[3]=40;fixture_config.pins[7]=-1;assert(!START());fixture_config.pins[7]=0;
         power_ready=false;assert(!START());power_ready=true;owner=false;assert(!START());owner=true;
         assert(!calls && !fixture_lock && quiesce());goto done;
     }

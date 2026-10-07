@@ -1,17 +1,59 @@
 {
-  "type": "driver", "id": "x4pro-panel", "version": "0.1.15",
-  "driver_abi": 2, "architecture": "xtensa-esp32s3", "file_name": "driver.elf",
+  "type": "driver",
+  "id": "x4pro-panel",
+  "version": "0.1.16",
+  "driver_abi": 2,
+  "architecture": "xtensa-esp32s3",
+  "file_name": "driver.elf",
   "requires": [
-    {"capability": "hardware.device", "api": 1},
-    {"capability": "platform.gpio", "api": 1},
-    {"capability": "platform.clock", "api": 1},
-    {"capability": "platform.sync", "api": 1},
-    {"capability": "board.power.ready", "api": 1}
+    {
+      "capability": "hardware.device",
+      "api": 1
+    },
+    {
+      "capability": "platform.gpio",
+      "api": 1
+    },
+    {
+      "capability": "platform.clock",
+      "api": 1
+    },
+    {
+      "capability": "platform.sync",
+      "api": 1
+    },
+    {
+      "capability": "board.power.ready",
+      "api": 1
+    },
+    {
+      "capability": "display.frontlight",
+      "api": 1
+    }
   ],
-  "provides": [{"capability": "display.output", "api": 1}],
+  "provides": [
+    {
+      "capability": "display.output",
+      "api": 1
+    }
+  ],
   "hardware_compatibility": [
-    {"compatible": "solomon-systech,ssd1677", "revisions": ["unspecified"], "config_type": "display.spi", "config_version": 1},
-    {"compatible": "ultrachip,uc8279", "revisions": ["unspecified"], "config_type": "display.spi", "config_version": 1}
+    {
+      "compatible": "solomon-systech,ssd1677",
+      "revisions": [
+        "unspecified"
+      ],
+      "config_type": "display.spi",
+      "config_version": 1
+    },
+    {
+      "compatible": "ultrachip,uc8279",
+      "revisions": [
+        "unspecified"
+      ],
+      "config_type": "display.spi",
+      "config_version": 1
+    }
   ],
   "physical_verification": "pending"
 }

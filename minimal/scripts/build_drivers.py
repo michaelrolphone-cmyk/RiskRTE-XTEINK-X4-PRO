@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-PROVIDERS = ('board_power', 'i2c', 'panel', 'frontlight', 'buttons', 'rtc', 'sd', 'battery')
+PROVIDERS = ('board_power', 'i2c', 'panel', 'frontlight', 'buttons', 'rtc', 'sd', 'battery', 'gt911')
 IMPORTS = {'strcmp', 'memcpy', 'memmove', 'memset', 'memcmp', 'strlen', 'strchr'}
 
 

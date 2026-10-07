@@ -6,6 +6,7 @@
 #include "RiscPlatformClockV1.h"
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
+#include <RiscFrontlightV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
 #include <string.h>
 #include <stddef.h>
@@ -17,6 +18,7 @@
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_CS, X4PRO_PIN_EPD_SCLK,
        X4PRO_PIN_EPD_MOSI, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
+static const risc_frontlight_api_v1 *frontlight;
 static const risc_provider_sync_api_v1 *sync_api;
 static const risc_hw_spi_display_v1 *configuration;
 static uint64_t pin_tokens[PANEL_PINS], mutex;
@@ -569,8 +571,9 @@ static bool wait_present_impl(void *context, risc_display_present_token_v1 token
     return present_status_impl(context, token, out);
 }
 static bool set_brightness_impl(void *context, uint16_t level, uint16_t maximum) {
-    (void)context; (void)level; (void)maximum;
-    return false;
+    (void)context;
+    return started && !shutdown_stage && maximum && level<=maximum && frontlight &&
+        frontlight->set_level(frontlight->context, level, maximum);
 }
 static bool seed_previous_impl(void *context, risc_display_frame_v1 frame_id) {
     (void)context;
@@ -676,16 +679,17 @@ static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected)
         c->reset_assert_ms != (*expected == PROBE_UC8279 ? 50u : 10u) ||
         c->reset_recovery_ms != (*expected == PROBE_UC8279 ? 50u : 10u)) return false;
     for (size_t i = 0; i < RISC_HW_MAX_POWER_PINS; ++i)
-        if (c->power_pins[i] != -1 || c->power_active_high[i]) return false;
+        if (c->power_pins[i] != 0 || c->power_active_high[i]) return false;
     return true;
 }
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
-    if (gpio || sync_api || mutex || started || retained || !deps || count != 5) return false;
+    if (gpio || sync_api || mutex || started || retained || !deps || count != 6) return false;
     const risc_hardware_device_v1 *hardware = NULL;
     const garden_gpio_v1 *candidate = NULL;
     const risc_platform_clock_api_v1 *clock = NULL;
     const risc_provider_sync_api_v1 *sync = NULL;
     const x4_power_ready_api_v1 *power = NULL;
+    const risc_frontlight_api_v1 *light = NULL;
     for (size_t i = 0; i < count; ++i) {
         if (!deps[i].capability_id || deps[i].api_version != 1 || !deps[i].api) return false;
         const char *name = deps[i].capability_id;
@@ -694,6 +698,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         else if (!strcmp(name, "platform.clock") && !clock) clock = deps[i].api;
         else if (!strcmp(name, RISC_PROVIDER_SYNC_CAPABILITY) && !sync) sync = deps[i].api;
         else if (!strcmp(name, X4_POWER_READY_CAPABILITY) && !power) power = deps[i].api;
+        else if (!strcmp(name, "display.frontlight") && !light) light = deps[i].api;
         else return false;
     }
     int expected = 0;
@@ -704,12 +709,13 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         !sync || sync->api_version != 1 || sync->struct_size < sizeof(*sync) || !sync->is_owner ||
         !sync->create || !sync->try_lock || !sync->unlock || !sync->destroy ||
         !power || power->api_version != 1 || power->struct_size < sizeof(*power) || !power->ready ||
+        !light || light->api_version!=1 || light->struct_size<sizeof(*light) || !light->set_level ||
         !sync->is_owner(sync->context) || !power->ready(power->context)) return false;
     const uint64_t now = clock->monotonic_ms(clock->context);
     if (now == UINT64_MAX || now > UINT64_MAX - 2000u) return false;
-    gpio = candidate; clock_api = clock; sync_api = sync; configuration = hardware->config;
+    frontlight = light; gpio = candidate; clock_api = clock; sync_api = sync; configuration = hardware->config;
     if (!sync_api->create(sync_api->context, &mutex) || !mutex) {
-        gpio = NULL; clock_api = NULL; sync_api = NULL; configuration = NULL; return false;
+        frontlight = NULL; gpio = NULL; clock_api = NULL; sync_api = NULL; configuration = NULL; return false;
     }
     if (!enter()) return false;
     physical_pins[X4PRO_PIN_EPD_BUSY] = (uint8_t)configuration->busy;
@@ -806,7 +812,7 @@ static bool quiesce(void) {
     }
     if (!leave()) return false;
     if (!sync_api->destroy(sync_api->context, mutex)) return false;
-    mutex = 0; gpio = NULL; clock_api = NULL; sync_api = NULL; configuration = NULL;
+    mutex = 0; frontlight = NULL; gpio = NULL; clock_api = NULL; sync_api = NULL; configuration = NULL;
     started = pins_ready = reset_held = false; controller = 0;
     return true;
 }
