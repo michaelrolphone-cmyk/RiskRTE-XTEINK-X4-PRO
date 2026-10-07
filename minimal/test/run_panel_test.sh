@@ -14,6 +14,11 @@ if grep -q '^#define GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE' "$build/sdk/GardenP
 else
   echo 'Retirement suffix absent: successful unload and retirement retry checks NOT RUN'
 fi
+for chip in ssd uc; do
+  for case in cycle owner clock gpio read unlock pof frozen hold-retry hold-resume hold-retained unhold unhold-platform resume-timeout resume-gpio resume-busy wire-budget retire release; do
+    scenarios+=("$chip-sleep-$case")
+  done
+done
 uc_wire=''
 for scenario in "${scenarios[@]}"; do
   result="$("$build/test" "$scenario")";echo "$result"

@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "foundation": "cdb7145f1cec59b766f73883e461ca001f1d56d6",
+  "runtime": "3c39aa7ac50ecd7f6da0296a62a2d7af066f82d1",
+  "reader": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "legacy_light_clock_apps": "3702b9a594196bb5cb546732a5d4aa668c88ff91",
+  "compiler": "xtensa-esp32s3-elf-gcc 8.4.0 (crosstool-NG esp-2021r2-patch5)",
+  "hardware_tested": false,
+  "current_measured": false,
+  "host_suites": [
+    "board_power",
+    "i2c",
+    "panel",
+    "frontlight",
+    "buttons",
+    "rtc",
+    "sd",
+    "battery",
+    "gt911",
+    "power",
+    "power_navigation",
+    "clock_sleep",
+    "native_gpio_readback",
+    "board_keepalive_cpu",
+    "frontlight_cpu_port",
+    "profile",
+    "app_bundle_grants",
+    "bundle_identity",
+    "prepare_sdk",
+    "provisioning_profile",
+    "settings_power_profile",
+    "sleep_profile"
+  ],
+  "sanitized_suites": [
+    "board_power",
+    "i2c",
+    "panel",
+    "frontlight",
+    "buttons",
+    "rtc",
+    "sd",
+    "battery",
+    "gt911",
+    "power",
+    "power_navigation",
+    "clock_sleep",
+    "native_gpio_readback",
+    "board_keepalive_cpu",
+    "frontlight_cpu_port",
+    "profile"
+  ],
+  "sanitizers": "AddressSanitizer, UndefinedBehaviorSanitizer; ASAN_OPTIONS=detect_leaks=0 (ptrace environment cannot run LeakSanitizer)",
+  "target_provider_count": 11,
+  "affected_target_products": [
+    {
+      "id": "x4pro-board-power",
+      "version": "0.1.2",
+      "bytes": 8428,
+      "sha256": "4077a6c8d0b6c8299815a462dbf62a2d1e8a3ae84304f250285fd13eec16535f",
+      "imports": [
+        "strcmp"
+      ],
+      "source_sha256": "2d7c3c0a4cc2c155969db15e57145ed7f5af453f6b9879b3a7479788f18c14d4",
+      "local_source_hashes": {
+        "minimal/drivers/x4pro_board_power/driver.c": "2d7c3c0a4cc2c155969db15e57145ed7f5af453f6b9879b3a7479788f18c14d4",
+        "minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
+        "minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h": "794e3bbc65191bd29bedd4b6afa69c83366b01d6d7cdb65201397406b9a0a5b7"
+      }
+    },
+    {
+      "id": "x4pro-power",
+      "version": "0.1.2",
+      "bytes": 8216,
+      "sha256": "b2c63d87d57f5570b24c3e6a69acef218fd75a9174d448e17677c74feb654a8e",
+      "imports": [
+        "strcmp"
+      ],
+      "source_sha256": "f8f497b393a14f3e1d1e432d1bbedad1ba0d6f00ecc9d1a8aed45c1d739f9e28",
+      "local_source_hashes": {
+        "minimal/drivers/x4pro_power/driver.c": "f8f497b393a14f3e1d1e432d1bbedad1ba0d6f00ecc9d1a8aed45c1d739f9e28",
+        "minimal/drivers/x4pro_power/X4PowerV1.h": "ba4696466768e45bd5a3b675a280a195c1015576630a57022477cab05f09027f",
+        "minimal/drivers/x4pro_power/X4PowerDeepV1.h": "61690e17fe81558c692b8029b21af284e782370a96bb9ff890de81d2ef9b50a9",
+        "minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
+        "minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h": "794e3bbc65191bd29bedd4b6afa69c83366b01d6d7cdb65201397406b9a0a5b7"
+      }
+    }
+  ],
+  "scope": "Host/native-shim ordering, ownership, refusal and retained cleanup; no physical wake/current claim."
+}

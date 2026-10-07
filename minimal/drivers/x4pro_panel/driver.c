@@ -3,6 +3,7 @@
  * GPIO1 is the recovered peripheral-enable name and is not driven here.
  * Touch power GPIO2 and SD power GPIO5 stay untouched. */
 #include "RiscDisplayOutputV1.h"
+#include "RiscDisplayOutputPowerV1.h"
 #include "RiscPlatformClockV1.h"
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
@@ -85,7 +86,9 @@ static uint8_t async_stage;
 static uint32_t async_offset;
 static uint64_t async_deadline, async_not_before;
 static bool started, held, pins_ready;
+/* 0 awake, 1 POF sent, 2 POF observed, 3 DSLP sent, 4 retired, 5 resuming. */
 static uint8_t shutdown_stage;
+static uint64_t shutdown_not_before;
 static int controller;
 enum { PRESENT_NONE = 0, PRESENT_QUEUED = 1, PRESENT_ACTIVE = 2, PRESENT_COMPLETE = 3, PRESENT_FAILED = 5 };
 static uint64_t frame_serial, token_serial, pending_token;
@@ -630,14 +633,14 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
 }
 static bool present_status_impl(void *context, risc_display_present_token_v1 token, risc_display_present_status_v1 *out) {
     (void)context;
-    if (!out || !token || token != pending_token) return false;
+    if (shutdown_stage || !out || !token || token != pending_token) return false;
     *out = (risc_display_present_status_v1){0};
     out->state = present_state;
     return true;
 }
 static bool wait_present_impl(void *context, risc_display_present_token_v1 token, uint32_t timeout_ms,
                          risc_display_present_status_v1 *out) {
-    if (!out || !token || token != pending_token) return false;
+    if (shutdown_stage || !out || !token || token != pending_token) return false;
     if (present_state == PRESENT_QUEUED && timeout_ms > 0 && !transfer_started) {
         uint64_t now = 0;
         wait_budget_ms = timeout_ms;
@@ -733,7 +736,7 @@ static bool wait_present(void *c, risc_display_present_token_v1 token, uint32_t 
     const uint64_t began = now_ms();
     if (!enter()) return false;
     bool ok = false;
-    if (!out || !token || token != pending_token) { (void)leave(); return false; }
+    if (shutdown_stage || !out || !token || token != pending_token) { (void)leave(); return false; }
     const uint64_t admitted = now_ms();
     if (ms && present_state == PRESENT_QUEUED &&
         (began == UINT64_MAX || admitted == UINT64_MAX || admitted < began ||
@@ -754,10 +757,13 @@ static bool seed_previous(void *c, risc_display_frame_v1 id) {
     if (!enter()) return false;
     const bool ok = seed_previous_impl(c, id); return leave() && ok;
 }
-static const risc_display_output_api_v1_history api = {
-    { RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
-      present_status, wait_present, set_brightness },
-    RISC_DISPLAY_HISTORY_TAG, 1u, seed_previous
+static int32_t power_prepare(void *context, uint32_t timeout_ms);
+static int32_t power_resume(void *context, uint32_t timeout_ms);
+static const risc_display_output_api_v1_power api = {
+    {{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
+       present_status, wait_present, set_brightness },
+     RISC_DISPLAY_HISTORY_TAG, 1u, seed_previous},
+    RISC_DISPLAY_POWER_TAG, 1u, power_prepare, power_resume
 };
 /* Typed lifecycle. */
 static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected) {
@@ -842,53 +848,190 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     operation_deadline = 0;
     return leave() && started;
 }
+/* Each operation has a total owner-admission deadline, at most 1500 ms and
+ * 150 ten-ms readiness polls. Single commands are finite (at most 6 bytes),
+ * completed before deadline sampling so retries never replay partial POF/DSLP.
+ * No pixels are sent and no display refresh is triggered by this lifecycle. */
+static int32_t power_checkpoint(uint64_t deadline) {
+    uint64_t now = 0;
+    if (retained || io_failed) return RISC_DISPLAY_POWER_RETAINED;
+    if (!sample_now(&now)) return RISC_DISPLAY_POWER_PLATFORM;
+    if (now >= deadline) { set_reason("panel power deadline"); return RISC_DISPLAY_POWER_TIMEOUT; }
+    return RISC_DISPLAY_POWER_OK;
+}
+static int32_t power_delay(uint64_t deadline, uint32_t ms) {
+    int32_t result = power_checkpoint(deadline);
+    if (result) return result;
+    const uint64_t remaining = deadline - last_sample_ms;
+    if (remaining <= ms) {
+        sleep_ms((uint32_t)remaining);
+        set_reason("panel power deadline");
+        return retained ? RISC_DISPLAY_POWER_RETAINED : RISC_DISPLAY_POWER_TIMEOUT;
+    }
+    sleep_ms(ms);
+    return power_checkpoint(deadline);
+}
+static int32_t power_ready(uint64_t deadline) {
+    for (unsigned checks = 0; checks < 150u; ++checks) {
+        int32_t result = power_checkpoint(deadline);
+        if (result) return result;
+        const bool busy = controller == PROBE_UC8279 ? !panel_pin_read(X4PRO_PIN_EPD_BUSY)
+                                                   : panel_pin_read(X4PRO_PIN_EPD_BUSY);
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        if (!busy && last_sample_ms >= shutdown_not_before) return power_checkpoint(deadline);
+        result = power_delay(deadline, 10u);
+        if (result) return result;
+    }
+    set_reason("panel power readiness bound");
+    return RISC_DISPLAY_POWER_TIMEOUT;
+}
+static int32_t prepare_power_impl(uint64_t deadline) {
+    if (held || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE || shutdown_stage == 5u)
+        return RISC_DISPLAY_POWER_BUSY;
+    if (!pins_ready || (!started && !shutdown_stage) || shutdown_stage == 4u ||
+        (controller != PROBE_SSD && controller != PROBE_UC8279)) return RISC_DISPLAY_POWER_UNAVAILABLE;
+    if (shutdown_stage == 3u && reset_held) return RISC_DISPLAY_POWER_OK;
+    int32_t result = power_checkpoint(deadline);
+    if (result) return result;
+    if (shutdown_stage == 0u) {
+        const bool busy = controller == PROBE_UC8279 ? !panel_pin_read(X4PRO_PIN_EPD_BUSY)
+                                                   : panel_pin_read(X4PRO_PIN_EPD_BUSY);
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        if (busy) return RISC_DISPLAY_POWER_BUSY;
+        if (controller == PROBE_UC8279) command(0x02);
+        else { command(0x3C); data1(0x80); command(0x22); data1(0x03); command(0x20); }
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        shutdown_stage = 1u; started = false; previous_seeded = false;
+        /* Start settling after the completed command, not before its GPIO I/O. */
+        result = power_checkpoint(deadline);
+        shutdown_not_before = last_sample_ms + (controller == PROBE_UC8279 ? 1u : 200u);
+        if (result) return result;
+    }
+    if (shutdown_stage == 1u) {
+        result = power_ready(deadline);
+        if (result) return result;
+        shutdown_stage = 2u;
+    }
+    if (shutdown_stage == 2u) {
+        result = power_checkpoint(deadline);
+        if (result) return result;
+        if (controller == PROBE_UC8279) { command(0x07); data1(0xA5); }
+        else { command(0x10); data1(0x03); }
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        shutdown_stage = 3u;
+    }
+    result = power_checkpoint(deadline);
+    if (result) return result;
+    if (!reset_held) {
+        panel_pin_output(X4PRO_PIN_EPD_RST, true);
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        const int32_t held_result = gpio->deep_sleep_hold(gpio->context, pin_tokens[X4PRO_PIN_EPD_RST], true);
+        if (held_result) {
+            if (held_result == RISC_DEEP_SLEEP_RETAINED) retained = true;
+            set_reason("reset hold failed");
+            return retained ? RISC_DISPLAY_POWER_RETAINED : RISC_DISPLAY_POWER_PLATFORM;
+        }
+        reset_held = true;
+    }
+    return power_checkpoint(deadline);
+}
+static int32_t power_command(uint64_t deadline, uint8_t cmd, const uint8_t *data, size_t count) {
+    int32_t result = power_checkpoint(deadline);
+    if (result) return result;
+    command(cmd);
+    for (size_t i = 0; i < count; ++i) data1(data[i]);
+    return power_checkpoint(deadline);
+}
+/* All uses below are compile-time bounded to five data bytes per command. */
+#define RESUME_SEND(cmd, ...) do { \
+    const uint8_t data[] = {__VA_ARGS__}; \
+    result = power_command(deadline, cmd, data, sizeof(data)); \
+    if (result) return result; \
+} while (0)
+static int32_t resume_power_impl(uint64_t deadline) {
+    if (!pins_ready || shutdown_stage == 4u) return RISC_DISPLAY_POWER_UNAVAILABLE;
+    if (!shutdown_stage) return started ? RISC_DISPLAY_POWER_OK : RISC_DISPLAY_POWER_UNAVAILABLE;
+    int32_t result = power_checkpoint(deadline);
+    if (result) return result;
+    if (reset_held) {
+        /* A failed disable is uncertain even if a platform returns a weaker
+         * error than RETAINED. Never write/release a possibly held output. */
+        if (gpio->deep_sleep_hold(gpio->context, pin_tokens[X4PRO_PIN_EPD_RST], false)) {
+            retained = true; set_reason("reset unhold retained"); return RISC_DISPLAY_POWER_RETAINED;
+        }
+        reset_held = false;
+    }
+    shutdown_stage = 5u; started = false; previous_seeded = false;
+    shutdown_not_before = 0;
+    /* The same controller register setup as initial start, but without probe,
+     * frame clear, PON or refresh. RESET recovers partial POF/DSLP/refusals. */
+    panel_pin_output(X4PRO_PIN_EPD_RST, false);
+    result = power_delay(deadline, controller == PROBE_UC8279 ? 50u : 10u);
+    if (result) return result;
+    panel_pin_output(X4PRO_PIN_EPD_RST, true);
+    result = power_delay(deadline, controller == PROBE_UC8279 ? 50u : 10u);
+    if (result) return result;
+    if (controller == PROBE_UC8279) {
+        result = power_ready(deadline); if (result) return result;
+        RESUME_SEND(0x00, 0x37, 0x4D);
+        RESUME_SEND(0x61, 0x03, 0x20, 0x02, 0x58);
+        RESUME_SEND(0x65, 0, 0, 0, 0);
+        RESUME_SEND(0x03, 0x20); RESUME_SEND(0x30, 0x0E); RESUME_SEND(0xE1, 0x02);
+    } else {
+        result = power_command(deadline, 0x12, NULL, 0); if (result) return result;
+        result = power_delay(deadline, 10u); if (result) return result;
+        result = power_ready(deadline); if (result) return result;
+        RESUME_SEND(0x18, 0x80);
+        RESUME_SEND(0x0C, 0xAE, 0xC7, 0xC3, 0xC0, 0x80);
+        RESUME_SEND(0x01, 0xDF, 0x01, 0x02);
+        RESUME_SEND(0x3C, 0x80); RESUME_SEND(0x11, 0x01);
+        RESUME_SEND(0x44, 0x00, 0x00, 0x1F, 0x03);
+        RESUME_SEND(0x45, 0xDF, 0x01, 0x00, 0x00);
+        result = power_ready(deadline); if (result) return result;
+        RESUME_SEND(0x4E, 0, 0); RESUME_SEND(0x4F, 0xDF, 0x01);
+        RESUME_SEND(0x46, 0xF7);
+        result = power_ready(deadline); if (result) return result;
+        RESUME_SEND(0x47, 0xF7);
+    }
+    result = power_ready(deadline);
+    if (result) return result;
+    started = true; shutdown_stage = 0; pending_token = 0; present_state = PRESENT_NONE;
+    partial_update = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
+    return RISC_DISPLAY_POWER_OK;
+}
+#undef RESUME_SEND
+static int32_t power_call(bool resume, uint32_t timeout_ms) {
+    if (!sync_api || !clock_api || !mutex || !sync_api->is_owner(sync_api->context))
+        return RISC_DISPLAY_POWER_UNAVAILABLE;
+    if (retained) return RISC_DISPLAY_POWER_RETAINED;
+    const uint64_t began = now_ms();
+    if (began == UINT64_MAX || began < last_sample_ms) return RISC_DISPLAY_POWER_PLATFORM;
+    const uint32_t budget = timeout_ms > RISC_DISPLAY_POWER_MAX_BUDGET_MS ? RISC_DISPLAY_POWER_MAX_BUDGET_MS : timeout_ms;
+    if (began > UINT64_MAX - RISC_DISPLAY_POWER_MAX_BUDGET_MS) return RISC_DISPLAY_POWER_PLATFORM;
+    if (!enter()) return RISC_DISPLAY_POWER_BUSY;
+    int32_t result;
+    if (!timeout_ms) {
+        result = (resume ? started && !shutdown_stage : shutdown_stage == 3u && reset_held) ?
+            RISC_DISPLAY_POWER_OK : RISC_DISPLAY_POWER_BUSY;
+    } else {
+        result = power_checkpoint(began + budget);
+        if (!result) result = resume ? resume_power_impl(began + budget) : prepare_power_impl(began + budget);
+    }
+    return leave() ? result : RISC_DISPLAY_POWER_RETAINED;
+}
+static int32_t power_prepare(void *context, uint32_t timeout_ms) {
+    (void)context; return power_call(false, timeout_ms);
+}
+static int32_t power_resume(void *context, uint32_t timeout_ms) {
+    (void)context; return power_call(true, timeout_ms);
+}
 static bool quiesce_impl(void) {
     if (shutdown_stage == 4u) return true;
     if (held || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE) return false;
     if (!pins_ready) return true;
-    if (!clock_api || (controller != PROBE_SSD && controller != PROBE_UC8279)) return false;
     const uint64_t began = now_ms();
-    if (began == UINT64_MAX || began < last_sample_ms || began > UINT64_MAX - 1500u) return false;
-    const uint64_t deadline = began + 1500u;
-    if (shutdown_stage == 0u) {
-        const bool busy = controller == PROBE_UC8279 ? !panel_pin_read(X4PRO_PIN_EPD_BUSY)
-                                                   : panel_pin_read(X4PRO_PIN_EPD_BUSY);
-        if (io_failed || busy) return false;
-        if (controller == PROBE_UC8279) command(0x02);
-        else { command(0x3C); data1(0x80); command(0x22); data1(0x03); command(0x20); }
-        if (io_failed) return false;
-        shutdown_stage = 1u;
-        sleep_ms(controller == PROBE_UC8279 ? 1u : 200u);
-    }
-    if (shutdown_stage == 1u) {
-        for (unsigned checks = 0; checks < 150u; ++checks) {
-            uint64_t now = 0;
-            if (!sample_now(&now) || now < began || now >= deadline) return false;
-            const bool busy = controller == PROBE_UC8279 ? !panel_pin_read(X4PRO_PIN_EPD_BUSY)
-                                                       : panel_pin_read(X4PRO_PIN_EPD_BUSY);
-            if (io_failed) return false;
-            if (!busy) { shutdown_stage = 2u; break; }
-            sleep_ms(10u);
-        }
-        if (shutdown_stage != 2u) return false;
-    }
-    if (shutdown_stage == 2u) {
-        if (controller == PROBE_UC8279) { command(0x07); data1(0xA5); }
-        else { command(0x10); data1(0x03); }
-        if (io_failed) return false;
-        shutdown_stage = 3u;
-    }
-    if (!reset_held) {
-        panel_pin_output(X4PRO_PIN_EPD_RST, true);
-        if (io_failed) return false;
-        const int32_t result = gpio->deep_sleep_hold(gpio->context, pin_tokens[X4PRO_PIN_EPD_RST], true);
-        if (result) {
-            if (result == RISC_DEEP_SLEEP_RETAINED) retained = true;
-            set_reason("reset hold failed"); return false;
-        }
-        reset_held = true;
-    }
-    started = false;
+    if (began == UINT64_MAX || began < last_sample_ms || began > UINT64_MAX - RISC_DISPLAY_POWER_MAX_BUDGET_MS) return false;
+    if (prepare_power_impl(began + RISC_DISPLAY_POWER_MAX_BUDGET_MS)) return false;
     /* Ordinary release intentionally cannot dispose of a held output. Only
      * an explicit Runtime retirement suffix may take over its safe pad state. */
 #ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
@@ -938,7 +1081,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.19 cause=");
+    append(destination, capacity, &used, "v=0.1.20 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
@@ -946,6 +1089,8 @@ static bool last_error(char *destination, size_t capacity) {
     append_u(destination, capacity, &used, pending_token);
     append(destination, capacity, &used, " state=");
     append_u(destination, capacity, &used, present_state);
+    append(destination, capacity, &used, " power=");
+    append_u(destination, capacity, &used, shutdown_stage);
     append(destination, capacity, &used, " reason=");
     append(destination, capacity, &used, reason);
     append(destination, capacity, &used, " budget=");

@@ -12,7 +12,7 @@ class SleepProfile(unittest.TestCase):
    for i in range(1,10):
     if i!=6:self.assertEqual(old[i],new[i])
    self.assertEqual(old[6]['config']['pins'],[0,7,3]);self.assertEqual(new[6]['config']['pins'],[0,7])
-   self.assertEqual(new[6]['bindings'],{'x4.power':17});self.assertEqual(new[17]['config']['pins'],[3])
+   self.assertEqual(new[6]['bindings'],{'x4.power':17});self.assertEqual(new[17]['config']['pins'],[3]);self.assertEqual(new[17]['bindings'],{'board.power.ready':1})
    self.assertEqual(selections(True)['buttons'],(6,'buttons','power_buttons'))
  def test_authority(self):
   nav=[{'capability':'input.navigation','api':1}];power=[{'capability':'x4.power','api':1}]

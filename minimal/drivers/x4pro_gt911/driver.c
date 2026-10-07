@@ -5,6 +5,7 @@
 #include <RiscI2cBusV1.h>
 #include <RiscPlatformClockV1.h>
 #include <RiscTouchV1.h>
+#include <RiscTouchPowerV1.h>
 #include <RiscTouchI2cV2.h>
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
@@ -22,7 +23,20 @@ static uint64_t token, token_serial = 1, sequence;
 static risc_touch_snapshot_v1 state;
 static risc_touch_event_v1 events[RISC_TOUCH_QUEUE_LENGTH];
 static uint8_t head, queued;
-static bool started, closing, gap, held, retained;
+static bool started, closing, gap, held, retained, neutral_gate;
+/* Each fallible operation has its own persisted stage. No returned failure can
+ * forget an owned pin/claim or repeat an already completed hold transition. */
+enum power_stage {
+    POWER_ACTIVE, PREP_RELEASE, PREP_OFF, PREP_HOLD, POWER_PREPARED,
+    RESUME_UNHOLD, RESUME_ON, RESUME_POWER_WAIT, RESUME_IRQ_RELEASE,
+    RESUME_IRQ_OUTPUT, RESUME_RESET_LOW, RESUME_RESET_WAIT, RESUME_RESET_HIGH,
+    RESUME_RESET_RECOVERY, RESUME_IRQ_WRITE, RESUME_IRQ_WAIT,
+    RESUME_IRQ_INPUT_RELEASE, RESUME_IRQ_INPUT, RESUME_READY_WAIT,
+    RESUME_CLAIM, RESUME_ID, RESUME_ACK, RESUME_REJECT_RELEASE, RESUME_DONE
+};
+static enum power_stage power_stage;
+static bool alternate;
+typedef struct { uint64_t first, last; uint32_t limit, charged; } power_budget;
 static char error_text[64];
 
 static void fail(const char *s) {
@@ -113,7 +127,7 @@ static uint64_t subscribe(void *context) {
     (void)context;
     if (!enter()) return 0;
     uint64_t result = 0;
-    if (started && !closing && !token && token_serial != UINT64_MAX) {
+    if (started && !closing && power_stage == POWER_ACTIVE && !token && token_serial != UINT64_MAX) {
         result = token = token_serial++; head = queued = 0; gap = false;
     }
     return leave() ? result : 0;
@@ -145,6 +159,14 @@ static bool poll_locked(void) {
         }
     }
     const uint64_t when = now_ms();
+    if (neutral_gate) {
+        /* No stale DOWN, MOVE, UP or Home edge, including an ambiguous ACK.
+         * Only an acknowledged READY all-neutral report rearms input. */
+        state.timestamp_ms = when;
+        if (!write_reg(STATUS, 0)) { fail("gt911 neutral acknowledge"); return false; }
+        if (!contacts && !(status & 0x10u)) neutral_gate = false;
+        return true;
+    }
     if (state.contact_count && !contacts)
         emit(RISC_TOUCH_EVENT_UP, 1, state.contacts[0].x, state.contacts[0].y, when);
     else if (!state.contact_count && contacts)
@@ -167,7 +189,7 @@ static bool poll_locked(void) {
 static bool poll(void *context, size_t max_reports) {
     (void)context;
     if (!max_reports || max_reports > 16u || !enter()) return false;
-    const bool okay = started && !closing && poll_locked();
+    const bool okay = started && !closing && power_stage == POWER_ACTIVE && poll_locked();
     return leave() && okay;
 }
 static int32_t next(void *context, uint64_t sub, risc_touch_event_v1 *out) {
@@ -175,7 +197,7 @@ static int32_t next(void *context, uint64_t sub, risc_touch_event_v1 *out) {
     if (!out || !enter()) return -1;
     int32_t result = -1;
     risc_touch_event_v1 event = {0};
-    if (started && !closing && token && sub == token) {
+    if (started && !closing && power_stage == POWER_ACTIVE && token && sub == token) {
         if (gap) { gap = false; head = queued = 0; }
         else if (!queued) result = 0;
         else {
@@ -190,7 +212,7 @@ static int32_t next(void *context, uint64_t sub, risc_touch_event_v1 *out) {
 static bool snapshot(void *context, risc_touch_snapshot_v1 *out) {
     (void)context;
     if (!out || !enter()) return false;
-    const bool okay = started && !closing;
+    const bool okay = started && !closing && power_stage == POWER_ACTIVE;
     const risc_touch_snapshot_v1 copy = state;
     if (!leave() || !okay) return false;
     *out = copy; return true;
@@ -242,7 +264,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         config->reserved[0] || config->reserved[1] || config->reserved[2] ||
         !sync->is_owner(sync->context) || !power->ready(power->context)) return false;
     bus = candidate_bus; clock_api = clock; gpio = pins; sync_api = sync;
-    closing = false; error_text[0] = 0;
+    closing = false; power_stage = POWER_ACTIVE; neutral_gate = false; error_text[0] = 0;
     if (!sync_api->create(sync_api->context, &mutex) || !mutex) {
         if (mutex) retained = true;
         else { bus = NULL; clock_api = NULL; gpio = NULL; sync_api = NULL; }
@@ -260,6 +282,210 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         state.timestamp_ms = now_ms(); sequence = 0; head = queued = 0; gap = false; started = true;
     }
     return leave() && okay;
+}
+/* Budget accounting also charges the maximum issued waits/transfers, so a
+ * stalled clock cannot authorize unbounded work. No dynamic retry loop exists.
+ * Individual scoped GPIO/claim/release calls are nonblocking. Scheduler latency
+ * and the one mandatory unlock may overrun; expiry never reports success. */
+static uint32_t remaining(power_budget *budget) {
+    const uint64_t current = now_ms();
+    if (current < budget->last) { fail("gt911 power clock"); return 0; }
+    budget->last = current;
+    const uint64_t elapsed = current - budget->first;
+    const uint64_t used = elapsed > budget->charged ? elapsed : budget->charged;
+    return used < budget->limit ? budget->limit - (uint32_t)used : 0;
+}
+static bool power_write(uint64_t pin, bool level) {
+    if (gpio->write(gpio->context, pin, level)) return true;
+    fail("gt911 power write retained"); retained = true; return false;
+}
+static int32_t power_finish(int32_t result) {
+    if (!leave() || retained) return RISC_TOUCH_POWER_RETAINED;
+    return result;
+}
+static int32_t prepare_locked(power_budget *budget) {
+    if (power_stage == POWER_ACTIVE) {
+        power_stage = PREP_RELEASE;
+        invalidate();
+        memset(state.contacts, 0, sizeof(state.contacts));
+        neutral_gate = true;
+    } else if (power_stage > POWER_PREPARED) {
+        /* Cancellation of a partially resumed provider closes the same exact
+         * candidate claim before touching GPIO. No resource is abandoned. */
+        power_stage = PREP_RELEASE;
+    }
+    for (;;) {
+        if (!remaining(budget)) return RISC_TOUCH_POWER_TIMEOUT;
+        switch (power_stage) {
+        case PREP_RELEASE:
+            if (claim) {
+                if (!bus->release_device(bus->context, claim)) {
+                    fail("gt911 prepare release pending"); return RISC_TOUCH_POWER_PLATFORM;
+                }
+                claim = 0;
+            }
+            power_stage = PREP_OFF;
+            break;
+        case PREP_OFF:
+            if (!held && !power_write(power_pin, true)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = PREP_HOLD;
+            break;
+        case PREP_HOLD:
+            if (!held) {
+                const int32_t result = gpio->deep_sleep_hold(gpio->context, power_pin, true);
+                if (result == RISC_DEEP_SLEEP_RETAINED) {
+                    fail("gt911 prepare hold retained"); retained = true;
+                    return RISC_TOUCH_POWER_RETAINED;
+                }
+                if (result) { fail("gt911 prepare hold"); return RISC_TOUCH_POWER_PLATFORM; }
+                held = true;
+            }
+            power_stage = POWER_PREPARED;
+            break;
+        case POWER_PREPARED: return RISC_TOUCH_POWER_OK;
+        default: return RISC_TOUCH_POWER_UNAVAILABLE;
+        }
+    }
+}
+static int32_t power_prepare(void *context, uint32_t timeout_ms) {
+    (void)context;
+    if (retained) return RISC_TOUCH_POWER_RETAINED;
+    if (timeout_ms > RISC_TOUCH_POWER_MAX_BUDGET_MS) return RISC_TOUCH_POWER_INVALID;
+    if (!mutex) return RISC_TOUCH_POWER_UNAVAILABLE;
+    if (!enter()) return RISC_TOUCH_POWER_BUSY;
+    if (!started || closing) return power_finish(RISC_TOUCH_POWER_UNAVAILABLE);
+    /* A rejected prepare cannot invalidate events or retire a subscriber. */
+    if (token) return power_finish(RISC_TOUCH_POWER_BUSY);
+    if (!timeout_ms) return power_finish(power_stage == POWER_PREPARED ?
+        RISC_TOUCH_POWER_OK : RISC_TOUCH_POWER_BUSY);
+    const uint64_t current = now_ms();
+    power_budget budget = {current, current, timeout_ms, 0};
+    return power_finish(prepare_locked(&budget));
+}
+static int32_t resume_locked(power_budget *budget) {
+    if (power_stage < POWER_PREPARED) {
+        const int32_t result = prepare_locked(budget);
+        if (result) return result;
+    }
+    if (power_stage == POWER_PREPARED) { power_stage = RESUME_UNHOLD; alternate = false; }
+    for (;;) {
+        const uint32_t left = remaining(budget);
+        if (!left) return RISC_TOUCH_POWER_TIMEOUT;
+        uint32_t delay = 0;
+        switch (power_stage) {
+        case RESUME_UNHOLD:
+            /* Any failed disable is uncertain, even if a backend incorrectly
+             * supplies an ordinary refusal. Never power a potentially held pad. */
+            if (gpio->deep_sleep_hold(gpio->context, power_pin, false)) {
+                fail("gt911 unhold retained"); retained = true; return RISC_TOUCH_POWER_RETAINED;
+            }
+            held = false; power_stage = RESUME_ON;
+            break;
+        case RESUME_ON:
+            if (!power_write(power_pin, false)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_POWER_WAIT;
+            break;
+        case RESUME_POWER_WAIT: delay = 50; break;
+        case RESUME_IRQ_RELEASE:
+            if (!release_pin(&irq_pin)) return RISC_TOUCH_POWER_PLATFORM;
+            power_stage = RESUME_IRQ_OUTPUT;
+            break;
+        case RESUME_IRQ_OUTPUT:
+            if (!claim_pin(10, true, alternate, &irq_pin)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_RESET_LOW;
+            break;
+        case RESUME_RESET_LOW:
+            if (!power_write(reset_pin, false)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_RESET_WAIT;
+            break;
+        case RESUME_RESET_WAIT: delay = 10; break;
+        case RESUME_RESET_HIGH:
+            if (!power_write(reset_pin, true)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_RESET_RECOVERY;
+            break;
+        case RESUME_RESET_RECOVERY: delay = 10; break;
+        case RESUME_IRQ_WRITE:
+            if (!power_write(irq_pin, alternate)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_IRQ_WAIT;
+            break;
+        case RESUME_IRQ_WAIT: delay = 50; break;
+        case RESUME_IRQ_INPUT_RELEASE:
+            if (!release_pin(&irq_pin)) return RISC_TOUCH_POWER_PLATFORM;
+            power_stage = RESUME_IRQ_INPUT;
+            break;
+        case RESUME_IRQ_INPUT:
+            if (!claim_pin(10, false, false, &irq_pin)) return RISC_TOUCH_POWER_RETAINED;
+            power_stage = RESUME_READY_WAIT;
+            break;
+        case RESUME_READY_WAIT: delay = 50; break;
+        case RESUME_CLAIM: {
+            uint64_t candidate = 0;
+            const bool acquired = bus->claim_device(bus->context, alternate ? 0x14 : 0x5d, &candidate);
+            if (!acquired || !candidate) {
+                if (candidate || acquired) {
+                    claim = candidate; retained = true; fail("gt911 resume claim retained");
+                    return RISC_TOUCH_POWER_RETAINED;
+                }
+                power_stage = RESUME_REJECT_RELEASE;
+            } else { claim = candidate; power_stage = RESUME_ID; }
+            break;
+        }
+        case RESUME_ID: {
+            uint8_t id[4] = {0};
+            const uint8_t reg[2] = {0x81, 0x40};
+            const uint32_t transfer_ms = left < 20u ? left : 20u;
+            const bool okay = bus->transact(bus->context, claim, reg, 2, id, sizeof(id), transfer_ms);
+            budget->charged += transfer_ms;
+            power_stage = okay && id[0] == '9' && id[1] == '1' && id[2] == '1' ?
+                RESUME_ACK : RESUME_REJECT_RELEASE;
+            break;
+        }
+        case RESUME_ACK: {
+            const uint8_t ack[3] = {0x81, 0x4e, 0};
+            const uint32_t transfer_ms = left < 20u ? left : 20u;
+            const bool okay = bus->transact(bus->context, claim, ack, 3, NULL, 0, transfer_ms);
+            budget->charged += transfer_ms;
+            power_stage = okay ? RESUME_DONE : RESUME_REJECT_RELEASE;
+            break;
+        }
+        case RESUME_REJECT_RELEASE:
+            if (claim) {
+                if (!bus->release_device(bus->context, claim)) {
+                    fail("gt911 resume release pending"); return RISC_TOUCH_POWER_PLATFORM;
+                }
+                claim = 0;
+            }
+            power_stage = RESUME_IRQ_RELEASE;
+            if (alternate) {
+                alternate = false; fail("gt911 resume probe"); return RISC_TOUCH_POWER_PLATFORM;
+            }
+            alternate = true;
+            break;
+        case RESUME_DONE:
+            power_stage = POWER_ACTIVE;
+            error_text[0] = 0;
+            return RISC_TOUCH_POWER_OK;
+        default: return RISC_TOUCH_POWER_UNAVAILABLE;
+        }
+        if (delay) {
+            if (delay > left) return RISC_TOUCH_POWER_TIMEOUT;
+            sleep_ms(delay); budget->charged += delay;
+            power_stage = (enum power_stage)(power_stage + 1);
+        }
+    }
+}
+static int32_t power_resume(void *context, uint32_t timeout_ms) {
+    (void)context;
+    if (retained) return RISC_TOUCH_POWER_RETAINED;
+    if (timeout_ms > RISC_TOUCH_POWER_MAX_BUDGET_MS) return RISC_TOUCH_POWER_INVALID;
+    if (!mutex) return RISC_TOUCH_POWER_UNAVAILABLE;
+    if (!enter()) return RISC_TOUCH_POWER_BUSY;
+    if (!started || closing) return power_finish(RISC_TOUCH_POWER_UNAVAILABLE);
+    if (power_stage == POWER_ACTIVE) return power_finish(RISC_TOUCH_POWER_OK);
+    if (!timeout_ms) return power_finish(RISC_TOUCH_POWER_BUSY);
+    const uint64_t current = now_ms();
+    power_budget budget = {current, current, timeout_ms, 0};
+    return power_finish(resume_locked(&budget));
 }
 static bool quiesce(void) {
     if (retained) return false;
@@ -303,7 +529,10 @@ static bool last_error(char *dst, size_t cap) {
     while (error_text[i] && i + 1u < cap) { dst[i] = error_text[i]; ++i; }
     dst[i] = 0; return true;
 }
-static const risc_touch_api_v1 api = {1, sizeof(api), NULL, subscribe, unsubscribe, poll, next, snapshot};
+static const risc_touch_power_api_v1 api = {
+    {1, sizeof(api), NULL, subscribe, unsubscribe, poll, next, snapshot},
+    RISC_TOUCH_POWER_TAG, 1, power_prepare, power_resume
+};
 static const risc_driver_diagnostics_v2 driver = {
     {2, sizeof(driver), "x4pro-gt911", "input.touch.raw", 1, &api, start, stop, quiesce}, last_error
 };

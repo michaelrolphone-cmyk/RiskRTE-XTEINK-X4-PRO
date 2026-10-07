@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "2317b4fca374bb2b9cfe8dd204aa22244d1db609",
-    "version": "0.1.46"
+    "commit": "3c39aa7ac50ecd7f6da0296a62a2d7af066f82d1",
+    "version": "0.1.47"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "cccfa3fd9b606998c27adb03665722ea44d5358f",
+    "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "sixteen-app software-qualified test composition, corrected controls and native IQ reconciliation; hardware verification pending"
+  "status": "Future desk-clock foundation integration; complete app wiring and hardware qualification pending; frozen 0.1.6 unchanged"
 }

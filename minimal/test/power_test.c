@@ -1,5 +1,6 @@
 #include "../drivers/x4pro_power/X4PowerV1.h"
 #include <GardenPlatformV1.h>
+#include "../drivers/x4pro_board_power/PowerReadyV1.h"
 #include <RiscProviderSyncV1.h>
 #include <RiscPlatformClockV1.h>
 #include <assert.h>
@@ -23,15 +24,17 @@ static const risc_provider_sync_api_v1 sync={1,sizeof(sync),NULL,own,create,take
 static const risc_platform_clock_api_v1 clock_api={1,sizeof(clock_api),NULL,ticks,NULL};
 static risc_hw_gpio_bank_v1 cfg={.struct_size=sizeof(cfg),.count=1,.pull_up=1,.pins={3}};
 static risc_hardware_device_v1 hw={1,sizeof(hw),17,"xteink,x4-pro-power-key","unspecified","gpio.bank",1,sizeof(cfg),&cfg};
-static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hw},{"platform.gpio",1,&gpio},{"platform.sync",1,&sync},{"platform.clock",1,&clock_api}};
+static bool ready(void*c){(void)c;return true;}
+static const x4_power_ready_api_v1 board={1,sizeof(board),NULL,ready};
+static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hw},{"platform.gpio",1,&gpio},{"platform.sync",1,&sync},{"platform.clock",1,&clock_api},{"board.power.ready",1,&board}};
 int main(int argc,char**argv){
  assert(argc==2);const risc_driver_v2*d=t5_driver_get(2);const x4_power_v1*a=d->capability;
  assert(!strcmp(d->capability_id,X4_POWER_CAPABILITY));
  if(!strcmp(argv[1],"validation")) {
-  cfg.pins[0]=7;assert(!d->start(deps,4)&&!live);cfg.pins[0]=3;
-  gpio.struct_size=GARDEN_GPIO_LIGHT_SLEEP_V1_SIZE;assert(!d->start(deps,4)&&!live);return 0;
+  cfg.pins[0]=7;assert(!d->start(deps,5)&&!live);cfg.pins[0]=3;
+  gpio.struct_size=GARDEN_GPIO_LIGHT_SLEEP_V1_SIZE;assert(!d->start(deps,5)&&!live);return 0;
  }
- down=!strcmp(argv[1],"held");assert(d->start(deps,4));
+ down=!strcmp(argv[1],"held");assert(d->start(deps,5));
  risc_light_sleep_result_v1 r={.struct_size=sizeof(r)};bool key=false;
  assert(a->light_sleep(NULL,0,&r)==RISC_LIGHT_SLEEP_ACTIVE_WAKE&&!entries);
  if(down){now+=100;assert(a->light_sleep(NULL,0,&r)==RISC_LIGHT_SLEEP_ACTIVE_WAKE);down=false;assert(a->read_key(NULL,&key)&&!key);}

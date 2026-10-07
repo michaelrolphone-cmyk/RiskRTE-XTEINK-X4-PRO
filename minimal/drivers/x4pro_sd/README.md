@@ -1,6 +1,6 @@
 # X4 native one-bit SD ordinary provider
 
-`x4pro-sd@0.2.5` adapts the X4 native CLK/CMD/DAT0 transport to scoped
+`x4pro-sd@0.2.6` adapts the X4 native CLK/CMD/DAT0 transport to scoped
 `platform.gpio@1`, `platform.clock@1` and `platform.sync@1`, with explicit
 `board.power.ready@1` admission. It is not SPI and imports no firmware SD,
 FreeRTOS, task identity, MMIO or filesystem service.
@@ -19,13 +19,12 @@ Transport and existing volume behavior originate at Reader commit
 remain external shared sources; the build includes them directly from the
 selected Reader/shared-source checkout. This directory does not vendor FatFs.
 
-The shared hook delta is published as Reader PR441, commit
-`4f5620a9ca4b2ee6c9a8adb038955671acde9556`, based on frozen Reader
-`34d8e694d89a1e72d8854403d8592c289fae3ddc` and original volume.c blob
-`c47cbca4da28351081c89cd50263c1be267d9f01`. The patch file records the exact
-narrow delta for review. Production builds must select that published shared
-commit, not silently apply an untracked patch. Existing OS-mutex and T5 paths
-remain unchanged; the source branch associated with PR350 is untouched.
+The shared external-guard baseline is Reader PR441 at
+`cccfa3fd9b606998c27adb03665722ea44d5358f`. The checked sleep recovery delta is
+published as [Reader PR443](https://github.com/michaelrolphone-cmyk/T5S3-Reader/pull/443)
+on the separate `codex/storage-sleep-resume` branch based on that commit. Select the exact shared commit recorded in `minimal/sources.lock.json`;
+do not silently apply an untracked helper/header patch. Existing OS-mutex and T5
+paths remain unchanged; the source branch associated with PR350 is untouched.
 
 ## Safety and limits
 
@@ -40,15 +39,30 @@ or 4 ms, including across calls.
 GPIO readback and a bounded cycle-counter guard enforce each clock phase.
 Identification phases have a 300-cycle minimum (1.25 us at max 240 MHz); selected
 phases retain a 24-cycle minimum. Stuck counter/readback and card-busy waits are
-bounded. A power-down commit succeeds only after every scoped GPIO transition
-succeeds; held claims and read handles keep the ELF pinned until reset.
+bounded. Legacy `prepare_power_down` / `commit_power_down` remain terminal:
+held claims and frozen read handles keep the ELF pinned until reset.
+
+The optional tagged `storage.volume@1` sleep suffix is a separate zero-handle
+transaction. Its checked prepare rejects readers, writers and directories;
+commit unregisters FatFs, parks the bus, switches GPIO5 HIGH, then holds it.
+After a refused deep-sleep entry, resume releases the hold and runs the normal
+bounded SD initialization/remount. Old closed tokens remain invalid; generations
+are never reset. Legacy and new transactions cannot be mixed.
+
+Resume returns READY only after usable media is restored. MEDIA_UNAVAILABLE
+means GPIO custody and powered rails are recovered but there is no usable
+filesystem; readiness/I/O fail and normal refresh can retry. Partial GPIO
+commit, hold/unhold, uncertain remount and unlock failures return RETAINED and
+keep the provider, remaining claims and dependencies pinned. A busy/wrong-owner
+call returns REFUSED without changing the existing transaction. Repeated resume
+after recovery does not cycle the card again.
 
 No physical card or device has been operated. Native-card wire simulation and
 an Xtensa ELF build do not constitute hardware timing/throughput qualification.
 
 ## Verified checks
 
-After applying the proposed shared hooks to a temporary copy only:
+Against the exact shared source and Runtime checkouts:
 
 ```sh
 RISCRTE_RUNTIME_ROOT=/path/to/RiscRTE \
@@ -56,13 +70,18 @@ RISCRTE_READER_ROOT=/path/to/shared-source-with-hooks \
 SANITIZE=1 bash minimal/test/run_sd_test.sh
 ```
 
-The 23 host scenarios cover dependency/config validation, absent media, native
+The 54 host scenarios cover dependency/config validation, absent media, native
 FAT32 and MBR operations, stale file/directory handles, reentry/non-owner
 rejection, sync create/take/unlock/destroy failures, retained GPIO releases and
 claims, failed shutdown writes, GPIO reads, stuck clock counters, CRC failure,
 rejected writes and busy timeout, operation budgets, generation exhaustion,
-and successful/failed power commits. The unchanged Reader X4/T5 gate suite
-adds 25 passing admission/lifecycle/absent scenarios against the shared patch.
+and successful/failed terminal power commits. New cases cover empty/absent/
+removed/unformatted media, live-handle refusal, prepare rollback, repeated
+cycles and stale closed file/directory tokens, mixed old/new calls, busy/reentry,
+partial clock/CMD/DAT/rail/hold changes, failed unhold/remount and repeated-phase
+unlock retention. ASan/UBSan pass. The unchanged Reader X4/T5 gate suite adds 25
+admission/lifecycle/absent scenarios; both full FatFs wire-model suites pass.
+Legacy X4 and T5 objects are byte-identical with no new conditional hook.
 
 The target ELF links with `-O2 -fPIC -mtext-section-literals -mlongcalls
 -fvisibility=hidden -fno-builtin -nostdlib -nostartfiles -shared
@@ -71,4 +90,15 @@ The target ELF links with `-O2 -fPIC -mtext-section-literals -mlongcalls
 `-lgcc`. Use one canonical SDK include directory from `prepare_sdk.py` and
 include the selected shared `Drivers/storage_fatfs` directory. It exports only
 `t5_driver_get`; imports are `memcpy`, `memcmp`, `memset`, `strlen`, `strchr`.
-Xtensa relative-target validation passes 314 pointers.
+`minimal/test/run_sd_target_test.sh` reproduces the target checks with the
+selected `NATIVE_DRIVER_CC` and `PYTHON`. Xtensa 8.4.0
+(esp-2021r2-patch5), `-O2 -fno-ivopts --no-relax`, passes 357 relative pointers,
+the exact export/import boundary, and absence of provider-BSS compare-and-set.
+The checked ELF is 62,976 bytes, SHA-256
+`7c88b67189a7fe5dcc694541823ac9225394debfbcf41a25dadb1755ad1fa5c8`.
+
+This branch changes only SD source/package `0.2.5 -> 0.2.6`, its tests and the
+shared dependency pin. It does not update the frozen X4 0.1.6 artifacts, enable
+deep-sleep policy, implement retained clock state, merge code, or flash hardware.
+The future coordinator must close all storage handles before prepare, retain
+the provider across the whole transaction, and distinguish all resume results.
