@@ -2,8 +2,8 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "5bb6da59a5d0f9e8b37dc5a07618787518bdb802",
-    "version": "0.1.40"
+    "commit": "5129d967b7287466be5fe00aa8aac7237b1f7611",
+    "version": "0.1.42"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",

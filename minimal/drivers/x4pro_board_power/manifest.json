@@ -1,17 +1,35 @@
 {
   "type": "driver",
   "id": "x4pro-board-power",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "driver_abi": 2,
   "architecture": "xtensa-esp32s3",
   "file_name": "driver.elf",
   "requires": [
-    {"capability": "hardware.device", "api": 1},
-    {"capability": "platform.gpio", "api": 1}
+    {
+      "capability": "hardware.device",
+      "api": 1
+    },
+    {
+      "capability": "platform.gpio",
+      "api": 1
+    }
   ],
-  "provides": [{"capability": "board.power.ready", "api": 1}],
+  "provides": [
+    {
+      "capability": "board.power.ready",
+      "api": 1
+    }
+  ],
   "hardware_compatibility": [
-    {"compatible": "xteink,x4-pro-peripheral-enable", "revisions": ["unspecified"], "config_type": "gpio.bank", "config_version": 1}
+    {
+      "compatible": "xteink,x4-pro-peripheral-enable",
+      "revisions": [
+        "unspecified"
+      ],
+      "config_type": "gpio.bank",
+      "config_version": 1
+    }
   ],
   "physical_verification": "pending"
 }

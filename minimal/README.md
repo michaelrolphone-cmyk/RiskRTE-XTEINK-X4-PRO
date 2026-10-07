@@ -42,3 +42,20 @@ The generated output is a driver test artifact, not a flash image.
 Host wire simulation and target linking cannot verify electrical timing,
 controller identity, power retention, battery/RTC telemetry or real media.
 All physical execution is unrun for these new provider versions.
+
+The native GPIO readback regression compiles the production board-power provider,
+JSON materializer, scoped CPU GPIO table and `NativeSleep::openPin` against an
+SDK shim that returns zero when a pad's input path is disabled:
+
+```sh
+bash minimal/test/run_native_gpio_readback_test.sh
+# Reproduce the original failure against Runtime 5bb6da5:
+bash minimal/test/run_native_gpio_readback_test.sh expect-broken
+```
+
+It checks both panel profiles, GPIO1 readiness, forced-low pad detection, SD CLK
+GPIO41 low/high/low readback, release and stale-token rejection. This exercises
+the SD clock GPIO contract, not a complete SD card protocol or physical hardware.
+The ESP-IDF 4.4 GPIO API documents that `gpio_get_level()` always returns zero
+unless the pad is configured for input or input/output; output-latch-only mocks
+cannot detect this boot failure.

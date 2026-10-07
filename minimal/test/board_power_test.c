@@ -36,6 +36,8 @@ int main(int argc,char **argv){
   claim_ok=true;assert(!driver->start(deps,2));assert(claims==1 && !releases);
  }else if(!strcmp(argv[1],"readback")){
   high=false;assert(!driver->start(deps,2));assert(claims==1 && reads==1);
+  char reason[80];const risc_driver_diagnostics_v2 *diagnostics=(const risc_driver_diagnostics_v2*)driver;
+  assert(driver->struct_size>=sizeof(*diagnostics) && diagnostics->last_error(reason,sizeof(reason)) && !strcmp(reason,"gpio1 readback LOW after HIGH claim"));
   assert(driver->quiesce() && releases==1);driver->stop();
   high=true;assert(driver->start(deps,2) && api->ready(api->context));assert(driver->quiesce());
  }else{
