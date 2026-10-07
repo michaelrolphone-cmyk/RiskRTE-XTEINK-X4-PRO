@@ -10,5 +10,5 @@
     "commit": "cccfa3fd9b606998c27adb03665722ea44d5358f",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "typed-driver and six-app test bundle assembled; hardware first-frame follow-up in progress"
+  "status": "controls, opt-in manual light sleep and cooperative UC8279 present integrated; hardware verification pending"
 }

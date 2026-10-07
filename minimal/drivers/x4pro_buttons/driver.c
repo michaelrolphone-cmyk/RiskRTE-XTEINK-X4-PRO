@@ -4,6 +4,7 @@
  * Preserve source 0.1.5 page-button debounce/neutral reset and page-pair traits.
  * All GPIO authority and synchronization arrive as scoped typed tables. */
 #include <RiscInputNavigationV1.h>
+#include "../x4pro_power/X4PowerV1.h"
 #include <RiscProviderV2.h>
 #include <RiscHardwareConfigV1.h>
 #include <GardenPlatformV1.h>
@@ -14,6 +15,7 @@
 static const uint8_t button_pins[3] = {0, 7, 3};
 static const uint32_t button_bits[3] = {RISC_NAV_LEFT, RISC_NAV_RIGHT, RISC_NAV_CONFIRM};
 static const garden_gpio_v1 *gpio;
+static const x4_power_v1 *power;
 static const risc_provider_sync_api_v1 *sync_api;
 static const risc_platform_clock_api_v1 *clock_api;
 static uint32_t crown_limit_ms;
@@ -35,7 +37,8 @@ static bool sample(uint32_t *out) {
     uint32_t buttons = 0;
     for (unsigned i = 0; i < 3; ++i) {
         bool high;
-        if (!gpio->read(gpio->context, tokens[i], &high)) return false;
+        if (i==2 && power) { bool down;if(!power->read_key(power->context,&down))return false;high=!down; }
+        else if (!gpio->read(gpio->context, tokens[i], &high)) return false;
         if (!high) buttons |= button_bits[i];
     }
     *out = buttons; return true;
@@ -107,11 +110,12 @@ static bool reset(void *context) {
     return leave();
 }
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
-    if (gpio || sync_api || mutex || tokens[0] || tokens[1] || tokens[2] || started || retained || !deps || (count != 3 && count != 4)) return false;
+    if (gpio || sync_api || mutex || tokens[0] || tokens[1] || tokens[2] || started || retained || !deps || (count != 3 && count != 4 && count != 5)) return false;
     const risc_hardware_device_v1 *hardware = NULL;
     const garden_gpio_v1 *candidate = NULL;
     const risc_provider_sync_api_v1 *sync = NULL;
     const risc_platform_clock_api_v1 *clock = NULL;
+    const x4_power_v1 *key = NULL;
     for (size_t i = 0; i < count; ++i) {
         if (!deps[i].capability_id || deps[i].api_version != 1 || !deps[i].api) return false;
         const char *name = deps[i].capability_id;
@@ -119,6 +123,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         else if (!strcmp(name, "platform.gpio") && !candidate) candidate = deps[i].api;
         else if (!strcmp(name, RISC_PROVIDER_SYNC_CAPABILITY) && !sync) sync = deps[i].api;
         else if (!strcmp(name, "platform.clock") && !clock) clock = deps[i].api;
+        else if (!strcmp(name, X4_POWER_CAPABILITY) && !key) key=deps[i].api;
         else return false;
     }
     if (!hardware || hardware->api_version != 1 || hardware->struct_size < sizeof(*hardware) || !hardware->instance_id ||
@@ -131,17 +136,21 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         !sync || sync->api_version != 1 || sync->struct_size < sizeof(*sync) ||
         !sync->is_owner || !sync->create || !sync->try_lock || !sync->unlock || !sync->destroy) return false;
     const risc_hw_gpio_bank_v1 *config = hardware->config;
-    if (config->struct_size != sizeof(*config) || config->count != 3 || config->active_high || config->pull_up != 1 ||
-        config->pins[0] != 0 || config->pins[1] != 7 || config->pins[2] != 3 || config->reserved ||
+    if (config->struct_size != sizeof(*config) || config->count != (key?2:3) || config->active_high || config->pull_up != 1 ||
+        config->pins[0] != 0 || config->pins[1] != 7 || (!key && config->pins[2] != 3) || config->reserved ||
         config->debounce_us || config->click_min_us || !sync->is_owner(sync->context)) return false;
     if (config->long_press_us && (config->long_press_us<100000u || config->long_press_us>10000000u || config->long_press_us%1000u ||
         !clock || clock->api_version!=1 || clock->struct_size<sizeof(*clock) || !clock->monotonic_ms)) return false;
-    gpio = candidate; sync_api = sync; clock_api=clock; closing = false;
+#ifdef X4_REQUIRE_POWER
+    if(!key)return false;
+#endif
+    if(key && (key->api_version!=1 || key->struct_size<sizeof(*key) || !key->read_key || !config->long_press_us))return false;
+    power=key;gpio = candidate; sync_api = sync; clock_api=clock; closing = false;
     crown_limit_ms=config->long_press_us/1000u;last_sample=0;crown_armed=crown_cancelled=false;
     if (!sync_api->create(sync_api->context, &mutex) || !mutex) { gpio = NULL; sync_api = NULL; return false; }
     if (!enter()) return false;
     bool okay = true;
-    for (unsigned i = 0; i < 3; ++i) {
+    for (unsigned i = 0; i < (power?2u:3u); ++i) {
         if (!gpio->claim(gpio->context, button_pins[i], false, false, true, &tokens[i]) || !tokens[i]) {
             retained = true; okay = false; break;
         }
@@ -165,7 +174,7 @@ static bool quiesce(void) {
     }
     if (!leave() || !okay) return false;
     if (!sync_api->destroy(sync_api->context, mutex)) return false;
-    mutex = 0; gpio = NULL; sync_api = NULL; clock_api=NULL;crown_armed=false;
+    mutex = 0; power=NULL;gpio = NULL; sync_api = NULL; clock_api=NULL;crown_armed=false;
     return true;
 }
 static void stop(void) { /* No fallible cleanup after accepted quiescence. */ }
@@ -173,6 +182,9 @@ static const risc_input_navigation_traits_v1 api = {
     {1, sizeof(api), NULL, poll, foreground, reset}, RISC_INPUT_NAVIGATION_TRAITS_TAG,
     RISC_INPUT_NAVIGATION_TRAITS_VERSION, RISC_INPUT_NAVIGATION_PHYSICAL_PAGE_PAIR
 };
-static const risc_driver_v2 driver = {2, sizeof(driver), "x4pro-buttons", "input.navigation", 1, &api.base, start, stop, quiesce};
+#ifndef X4_BUTTON_DRIVER_ID
+#define X4_BUTTON_DRIVER_ID "x4pro-buttons"
+#endif
+static const risc_driver_v2 driver = {2, sizeof(driver), X4_BUTTON_DRIVER_ID, "input.navigation", 1, &api.base, start, stop, quiesce};
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) { return abi == 2 ? &driver : NULL; }

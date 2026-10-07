@@ -18,6 +18,7 @@ def main():
     p.add_argument('--reader', type=Path, required=True)
     p.add_argument('--cc', required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--sleep', action='store_true', help='Build explicit power and split-navigation packages')
     p.add_argument('--source-fixture', action='store_true', help='Allow non-Git host fixture sources; never production packaging')
     args = p.parse_args()
     runtime, reader, out = args.runtime.resolve(), args.reader.resolve(), args.output.resolve()
@@ -37,7 +38,7 @@ def main():
     subprocess.run([sys.executable, str(ROOT/'minimal/scripts/prepare_sdk.py'), '--runtime', str(runtime), '--reader', str(reader), '--output', str(out/'sdk')], check=True)
     tools = args.cc.removesuffix('gcc')
     products = []
-    for name in PROVIDERS:
+    for name in PROVIDERS + (('power', 'power_buttons') if args.sleep else ()):
         source = ROOT/'minimal/drivers'/('x4pro_'+name)
         manifest = json.loads((source/'manifest.json').read_text())
         target = out/manifest['id']; target.mkdir(exist_ok=True)
@@ -57,7 +58,7 @@ def main():
             raise SystemExit(f'{name}: provider-BSS compare-and-set is forbidden')
         raw = elf.read_bytes()
         (target/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
-        products.append({'id': manifest['id'], 'version': manifest['version'], 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'imports': sorted(imports), 'source_sha256': hashlib.sha256((source/'driver.c').read_bytes()).hexdigest()})
+        products.append({'id': manifest['id'], 'version': manifest['version'], 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'imports': sorted(imports), 'source_sha256': hashlib.sha256((source/'driver.c').read_bytes()).hexdigest(), 'local_source_hashes': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in ([source/'driver.c'] + ([ROOT/'minimal/drivers/x4pro_buttons/driver.c'] if name=='power_buttons' else []) + ([ROOT/'minimal/drivers/x4pro_power/X4PowerV1.h'] if name in ('power','buttons','power_buttons') else []))}})
     (out/'products.json').write_text(json.dumps(products, indent=2)+'\n')
     print(json.dumps(products, indent=2))
 
