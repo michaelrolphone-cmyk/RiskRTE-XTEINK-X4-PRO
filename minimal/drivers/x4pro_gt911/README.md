@@ -116,7 +116,8 @@ never resurrected. This is recovery after a returned/refused sleep request;
 a real deep-sleep wake resets the MCU and takes ordinary startup instead.
 
 The frozen 0.1.6 test BIN is unchanged. This branch is source/host/ELF work and
-requires the new Reader SDK header when composing the next source pins. It
+pins Reader SDK commit `3656bf6eaab3cfd1b75429610cd9216f3ea1170d` in
+both the source lock and target-validation workflow. It
 does not implement the desk-clock coordinator or perform system sleep entry.
 
 ## Checks
