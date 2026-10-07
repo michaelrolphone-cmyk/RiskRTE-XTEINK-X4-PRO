@@ -4,18 +4,19 @@ import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zip
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 ROOT=Path(__file__).resolve().parents[2]
-APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard')
-CAPS={'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1}
-KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1)}
+APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
+CAPS={'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
+KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
+APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
 def app_grants(name, requirements, sleep=False):
     grants=[]
     for req in requirements:
         cap=req['capability']
         if cap=='x4.power' and (name!='default' or not sleep):
             raise ValueError('Power authority restricted to explicit sleep Clock')
-        if cap=='storage.app-data' and name!='timecard':
+        if cap=='storage.app-data' and name not in APPDATA_NAMESPACES:
             raise ValueError('App-data authority requires an explicit deployment mapping')
-        instances=KV_NAMESPACES.get(name,(1,)) if cap=='storage.key-value' else (CAPS[cap],)
+        instances=((8,) if req['api']==2 else (1,)) if name=='waterfall' and cap=='storage.key-value' else KV_NAMESPACES.get(name,(1,)) if cap=='storage.key-value' else (APPDATA_NAMESPACES[name],) if cap=='storage.app-data' else (CAPS[cap],)
         for instance in instances:
             grant={'capability':cap,'api':req['api'],'instance_id':instance}
             if grant not in grants:grants.append(grant)
@@ -49,21 +50,37 @@ def build(a):
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
+    lock=custody['shared_source_lock']
+    if custody['runtime']['source_sha']!=lock['runtime']['commit'] or custody['runtime']['firmware_version']!=lock['runtime']['version']:raise ValueError('Native candidate differs from locked Runtime source')
+    if driver_origin['source_fixture']:raise ValueError('Source-fixture drivers cannot be packaged')
+    for name in ('runtime','shared'):
+        source=driver_origin['sources'][name]
+        if source['commit']!=lock[name]['commit'] or source['dirty']:raise ValueError('Driver dependency source custody mismatch: '+name)
     custody['driver_build_origin']=driver_origin
     for name,(_,folder,_) in selections(getattr(a,"sleep",False)).items():
         path=store/folder;m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
         (path/'driver.elf').write_bytes(blob)
-    for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider')]:
+    for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider'),('wifi','wifi_provider'),('hid','hid_provider'),('iq','iq_provider')]:
         src=Path(inputs[key]);dest=store/folder;dest.mkdir();m=json.loads((src/'manifest.json').read_text());blob=(src/'driver.elf').read_bytes()
         (dest/'manifest.json').write_bytes(encoded(m));(dest/'driver.elf').write_bytes(blob)
         custody[key]={'id':m['id'],'version':m['version'],'sha256':sha(blob)}
+        evidence=out/'build-records'/'providers'/m['id'];evidence.mkdir(parents=True,exist_ok=True)
+        notices=out/'licenses'/'providers'/m['id'];notices.mkdir(parents=True,exist_ok=True)
+        for record in src.glob('*.json'):
+            if record.name!='manifest.json':shutil.copyfile(record,evidence/record.name)
+        for notice in src.iterdir():
+            if notice.is_file() and ('LICENSE' in notice.name or 'NOTICE' in notice.name or notice.name.endswith('SOURCE.json')):shutil.copyfile(notice,notices/notice.name)
     board['devices'].append({'instance_id':16,'chip':{'vendor':'espressif','model':'esp32s3-ble','revision':'unspecified'},'compatible':'espressif,esp32s3-ble','config_type':'radio.integrated','config_version':1,'config':{'unit':0,'features':1}})
     boot['drivers'].append({'manifest':'ble/manifest.json','instance_id':16})
     boot['drivers'].append({'manifest':'sensors/manifest.json'})
+    board['devices'].append({'instance_id':15,'chip':{'vendor':'espressif','model':'esp32s3-wifi','revision':'unspecified'},'compatible':'espressif,esp32s3-wifi','config_type':'radio.integrated','config_version':1,'config':{'unit':0,'features':1}})
+    boot['drivers'].append({'manifest':'wifi/manifest.json','instance_id':15})
+    boot['drivers'].append({'manifest':'iq/manifest.json'})
+    boot['drivers'].append({'manifest':'hid/manifest.json','key_value':[{'key':k,'namespace':10,'access':'read-write'} for k in ('hid_ours','hid_peer','hid_ccc','hid_identity')]})
     keys=[('alarm_cfg',3,'read'),('timer_cfg',3,'read'),('alarm_occ',4,'read-write'),('timer_occ',4,'read-write'),('alert_mode',1,'read'),('points_cfg',5,'read'),('points_occ',4,'read-write'),('alert_dnd',1,'read')]
     boot['drivers'].append({'manifest':'alarm/manifest.json','key_value':[{'key':k,'namespace':n,'access':v} for k,n,v in keys]})
-    policies=[];licenses=out/'licenses';licenses.mkdir()
+    policies=[];licenses=out/'licenses';licenses.mkdir(exist_ok=True)
     for name in APPS:
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
@@ -85,6 +102,9 @@ def build(a):
             (licenses/name).mkdir(exist_ok=True);shutil.copyfile(notice,licenses/name/notice.name)
     custody['sleep']=getattr(a,'sleep',False)
     boot['app_capabilities']=policies;(store/'boot.json').write_bytes(encoded(boot));(store/'board.json').write_bytes(encoded(board))
+    # IQ authority requires the exact native reservation proof, not just a table name.
+    iq_proof=custody['runtime'].get('native_proof',{}).get('radio_iq',{})
+    if custody['runtime'].get('target')!='esp32s3-16mb-appdata-iq' or iq_proof.get('bank_bytes')!=65536 or iq_proof.get('elf_sha256')!=sha((a.native/'firmware.elf').read_bytes()):raise ValueError('RF cohort requires a proven native IQ reservation')
     fw=(a.native/'firmware.bin').read_bytes()
     cohort=cohort_identity(json.loads((ROOT/'minimal/product.json').read_text()),custody['runtime'],fw,custody['x4_source'])
     (store/'cohort.json').write_bytes(encoded(cohort));custody['cohort']=cohort
@@ -111,7 +131,7 @@ def build(a):
     custody['image']={'name':filename,'bytes':len(full),'sha256':sha(full)};custody['store_files']={n:{'bytes':len(b),'sha256':sha(b)} for n,b in sorted(files.items())};custody['extended_checks_skipped']=a.skip_extended_checks
     custody['native_partitions']=[{'offset':at,'bytes':len(blob),'sha256':sha(blob)} for at,blob in parts]
     (out/'build-custody.json').write_bytes(encoded(custody))
-    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; swipe any direction to Springboard; File Browser, Bluetooth Scanner with sensor details, Points in Time, Settings, Calculator, Stopwatch, Countdown and Timecard. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
+    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; swipe any direction to Springboard; File Browser, Bluetooth Scanner with sensor details, Points in Time, Settings, Calculator, Stopwatch, Countdown, Timecard, Battery, Alarms, Wi-Fi, Bluetooth Touchpad, Bluetooth Buttons and RF Spectrogram. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))

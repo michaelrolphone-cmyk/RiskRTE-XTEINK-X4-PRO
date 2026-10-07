@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: a768245998ba334ef54da92f6573ae01b2320a4e
+          ref: 2317b4fca374bb2b9cfe8dd204aa22244d1db609
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE-System-Apps
-          ref: 2aa0cf63346e507525af884bbfbf6b69313442c4
+          ref: a7f08a9db7342a69ef5b9bc03e3b1ea60dafbb7c
           path: .shared/apps
       - uses: actions/setup-python@v5
         with:

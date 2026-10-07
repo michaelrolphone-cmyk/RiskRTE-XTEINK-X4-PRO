@@ -39,6 +39,36 @@
       "display_name": "Timecard",
       "file_name": "timecard.elf",
       "icon": "solid:f274"
+    },
+    {
+      "display_name": "Battery",
+      "file_name": "battery.elf",
+      "icon": "solid:f240"
+    },
+    {
+      "display_name": "Alarms",
+      "file_name": "alarms.elf",
+      "icon": "solid:f0f3"
+    },
+    {
+      "display_name": "Wi-Fi",
+      "file_name": "wifi_settings.elf",
+      "icon": "solid:f1eb"
+    },
+    {
+      "display_name": "Bluetooth Touchpad",
+      "file_name": "ble_touchpad.elf",
+      "icon": "solid:f0ec"
+    },
+    {
+      "display_name": "Bluetooth Buttons",
+      "file_name": "ble_buttons.elf",
+      "icon": "solid:f11c"
+    },
+    {
+      "display_name": "RF Spectrogram",
+      "file_name": "waterfall.elf",
+      "icon": "solid:f550"
     }
   ]
 }

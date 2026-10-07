@@ -64,24 +64,31 @@ cannot detect this boot failure.
 
 ## Completed product candidate
 
-Product0.1.4 selects manual crown light sleep with the explicit GPIO3 power
-provider and split navigation, Runtime0.1.45 scoped GPIO acceleration and
+Product0.1.5 selects manual crown light sleep with the explicit GPIO3 power
+provider and split navigation, Runtime0.1.46 scoped GPIO acceleration and
 cooperative UC8279 transfer. Center Home returns to the clock. A completed
 short top-right press returns to the clock from an app; on the clock it requests
 light sleep, and GPIO3 wakes it. An open QuickActions sheet consumes the first
 press as dismissal. Top-edge pull-down opens QuickActions; other clock swipes
 open Springboard. Deep/hybrid/idle/touch wake remains unimplemented.
 
-The10 executable apps are Clock, Springboard, File Browser, sensor-backed
+The16 executable apps are Clock, Springboard, File Browser, sensor-backed
 Bluetooth Scanner, Points in Time, Settings, Calculator, Stopwatch, Countdown
-and Timecard. The explicit eight-entry launcher catalog is apps/catalog.json.
+Timecard, Battery, Alarms, Wi-Fi Settings, Bluetooth Touchpad, Bluetooth Buttons
+and RF Spectrogram. The explicit fourteen-entry launcher catalog is apps/catalog.json.
 Source pins are in apps/sources.json; individual build receipts and Font Awesome
-licenses accompany the image. Radio toggles in QuickActions remain unavailable
-until a Wi-Fi provider is selected. Alarms are visual-only. Serial Monitor,
-RF Spectrogram and remaining supported Watch apps are not included yet.
+licenses accompany the image. QuickActions radio toggles remain unselected; Wi-Fi Settings and the Bluetooth
+apps expose their explicitly granted controls. Alarms are visual-only. Serial Monitor and the deep-sleep desk clock are not included. OTA Update and
+App Store paper clients are retained upstream but omitted here because their
+service still selects the Watch release feed. Audio input/output and LoRa apps
+are omitted because those interfaces are absent from the verified X4 mapping.
 
 Use build_drivers.py --sleep, build the pinned apps with their paper/control
 flags, and call build_test_bundle.py --sleep with the JSON map of artifact
 directories. It emits a full16MiB BIN at offset0x0. This is a new-device test
 layout and overwrites partition table, NVS and app data; it is not a preserving
 update. The explicit --panel uc8279 selection must match the controller.
+
+RF uses a proven64KiB native IQ reservation, provider0.2.0, KV2 namespace8 and
+AppData namespace3. Timecard owns AppData1. HID bonds stay provider-bound in
+namespace10; Buttons owns namespace11. No raw platform capability reaches apps.

@@ -1,12 +1,13 @@
 {
   "schema": 1,
-  "system_apps": "2aa0cf63346e507525af884bbfbf6b69313442c4",
-  "utilities": "9889ee7c510fa8efeaba6cf8de8d25e42c88ae43",
-  "productivity": "b949ab00155599d95ca6956bcef213fc37989ea6",
-  "points_artifact_source": "08a6e41c4765fe067c8944d4391c7b8a5cfdf044",
-  "points_system_apps": "2775b0b898c432825d9cb5685175c0647dd4dc30",
+  "system_apps": "a7f08a9db7342a69ef5b9bc03e3b1ea60dafbb7c",
+  "utilities": "bb81ab0cdc137e1b2fddcfbe191880c1c6e649ad",
+  "productivity": "cc4c31f3df0dcb2eb61bc8ad426f15ce96cc60ed",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "23a4887f1eeb7b7ce867c0e243158b899e43f0f8",
-  "purpose": "Completed ten-app X4 test cohort; exact build receipts accompany package",
-  "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda"
+  "purpose": "Completed sixteen-app X4 test cohort; exact build receipts accompany package",
+  "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
+  "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+  "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
+  "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb"
 }
