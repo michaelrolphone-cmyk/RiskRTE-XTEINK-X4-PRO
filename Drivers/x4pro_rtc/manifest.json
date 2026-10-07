@@ -1,0 +1,12 @@
+{
+  "type": "driver",
+  "id": "x4pro-rtc",
+  "version": "0.1.0",
+  "driver_abi": 2,
+  "architecture": "xtensa-esp32s3",
+  "file_name": "driver.elf",
+  "board": "xteink-x4-pro",
+  "requires": [{"capability": "i2c.bus", "api": 1}],
+  "provides": [{"capability": "rtc.clock", "api": 2}],
+  "status": "experimental-unpublished"
+}

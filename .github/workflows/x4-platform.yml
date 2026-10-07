@@ -1,0 +1,71 @@
+name: X4 platform
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: x4-platform-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host-and-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Read locked runtime commit
+        id: lock
+        run: echo "sha=$(python3 -c \"import json; print(json.load(open('migration-source.json'))['upstream']['commit'])\")" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: ${{ steps.lock.outputs.sha }}
+          path: .upstream
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-x4-platform-${{ hashFiles('migration-source.json', 'platformio.x4.ini') }}
+          restore-keys: ${{ runner.os }}-x4-platform-
+      - name: Install build tools
+        run: python3 -m pip install platformio==6.1.19 pyelftools==0.32
+      - name: Compose pinned runtime and platform
+        run: python3 scripts/prepare_runtime.py --upstream .upstream --output build/runtime
+      - name: Test host drivers and board behavior
+        run: python3 scripts/run_host_tests.py build/runtime
+      - name: Install pinned target dependencies
+        working-directory: build/runtime
+        run: |
+          pio pkg install -e xteink-x4-pro
+          bash scripts/install_x4_provider_toolchain.sh
+      - name: Build and stage all nine packages
+        env:
+          RISCRTE_X4_LINK_PROFILE: esp14-no-relax
+        run: |
+          export NATIVE_DRIVER_CC="$X4_ELF_TOOLCHAIN/xtensa-esp32s3-elf-gcc"
+          (cd build/runtime && python3 scripts/build_platform_clock_v1.py)
+          python3 scripts/build_platform_drivers.py --runtime build/runtime
+          python3 scripts/stage_platform_packages.py --runtime build/runtime
+          python3 scripts/run_host_tests.py build/runtime --built
+      - name: Build target firmware
+        working-directory: build/runtime
+        run: pio run -e xteink-x4-pro
+      - name: Record combined-source artifact custody
+        run: python3 scripts/record_artifacts.py --runtime build/runtime --output dist/x4-platform
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-platform-${{ github.event.pull_request.head.sha || github.sha }}
+          path: dist/x4-platform/
+          if-no-files-found: error
+          retention-days: 14

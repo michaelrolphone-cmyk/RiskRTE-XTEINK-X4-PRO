@@ -1,0 +1,32 @@
+[
+  {
+    "path": "test/frontlight/x4_test.cpp",
+    "blob": "0d833219eb1c0da702a42c43022925f4993c9e23",
+    "mode": "100644"
+  },
+  {
+    "path": "test/frontlight/x4_stubs/x4pro_mmio.h",
+    "blob": "8b28624b49feb47e97ec90f1468d6f19dd19290e",
+    "mode": "100644"
+  },
+  {
+    "path": "test/desk_clock/BootPowerTest.py",
+    "blob": "bcbb83fed115c67424fb3493accd1080422d985c",
+    "mode": "100644"
+  },
+  {
+    "path": "test/desk_clock/BootDiagnosticsTest.py",
+    "blob": "a5719932f51ffdce1146cf25245354b03275ce09",
+    "mode": "100644"
+  },
+  {
+    "path": "test/native_battery/boot_hook_test.py",
+    "blob": "4f6e982d492af63e3dbecdea9ba2895b739f20c4",
+    "mode": "100644"
+  },
+  {
+    "path": "test/bootstrap_store/frontlight_test.cpp",
+    "blob": "0350ed2a8a251ae5150bf844e5e02fe6e4de61c5",
+    "mode": "100644"
+  }
+]
