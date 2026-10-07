@@ -16,7 +16,9 @@ def build(a):
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store)
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
+    driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
+    custody['driver_build_origin']=driver_origin
     for name in IDS:
         path=store/PATHS[name];m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
