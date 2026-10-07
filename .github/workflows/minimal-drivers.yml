@@ -10,12 +10,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: e63913f4a1d1451a61f18b86f8ca883a7f94f8c4
+          ref: 5bb6da59a5d0f9e8b37dc5a07618787518bdb802
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/T5S3-Reader
-          ref: 4f5620a9ca4b2ee6c9a8adb038955671acde9556
+          ref: cccfa3fd9b606998c27adb03665722ea44d5358f
           path: .shared/reader
       - uses: actions/setup-python@v5
         with:

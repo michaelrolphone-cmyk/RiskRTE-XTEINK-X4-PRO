@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 IDS={'board_power':1,'i2c':2,'panel':3,'gt911':4,'frontlight':5,'buttons':6,'battery':7,'rtc':8,'sd':9}
+PATHS={'board_power':'board','i2c':'i2c','panel':'panel','gt911':'touch','frontlight':'light','buttons':'buttons','battery':'battery','rtc':'rtc','sd':'sd'}
 def profile(panel):
     if panel not in ('ssd1677','uc8279'):raise ValueError('Explicit supported panel required')
     uc=panel=='uc8279'
@@ -34,7 +35,7 @@ def stage(panel,out):
     drivers=[]
     for name,instance in IDS.items():
         manifest=json.loads((ROOT/'minimal/drivers'/('x4pro_'+name)/'manifest.json').read_text())
-        relative=manifest['id']+'/manifest.json';path=out/relative;path.parent.mkdir(exist_ok=True);path.write_text(json.dumps(manifest,indent=2)+'\n')
+        relative=PATHS[name]+'/manifest.json';path=out/relative;path.parent.mkdir(exist_ok=True);path.write_text(json.dumps(manifest,indent=2)+'\n')
         drivers.append({'manifest':relative,'instance_id':instance})
     (out/'boot.json').write_text(json.dumps({'board':'board.json','default_app':'default.elf','drivers':drivers},indent=2)+'\n')
 if __name__=='__main__':
