@@ -2,10 +2,21 @@
 """Compose an offline NEW-device X4 test image; never opens hardware."""
 import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zipfile
 from pathlib import Path
-from generate_profile import IDS, PATHS, stage
+from generate_profile import IDS, PATHS, stage, selections
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings')
-CAPS={'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0}
+CAPS={'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0}
+def app_grants(name, requirements, sleep=False):
+    grants=[]
+    for req in requirements:
+        cap=req['capability']
+        if cap=='x4.power' and (name!='default' or not sleep):
+            raise ValueError('Power authority restricted to explicit sleep Clock')
+        instances=([5,1] if name=='points_in_time' else [1]) if cap=='storage.key-value' else [CAPS[cap]]
+        grants.extend({**req,'instance_id':instance} for instance in instances)
+    if sleep and name=='default' and not any(g['capability']=='x4.power' for g in grants):
+        raise ValueError('Sleep graph requires explicit Clock power grant')
+    return grants
 def sha(b):return hashlib.sha256(b).hexdigest()
 def encoded(d):return (json.dumps(d,sort_keys=True,indent=2)+'\n').encode()
 def cohort_identity(product,native,firmware,revision):
@@ -28,14 +39,14 @@ def load_module(name,path):
 def build(a):
     inputs=json.loads(a.inputs.read_text());out=a.output.resolve()
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
-    out.mkdir(parents=True);store=out/'store';stage(a.panel,store)
+    out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
     custody['driver_build_origin']=driver_origin
-    for name in IDS:
-        path=store/PATHS[name];m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
+    for name,(_,folder,_) in selections(getattr(a,"sleep",False)).items():
+        path=store/folder;m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
         (path/'driver.elf').write_bytes(blob)
     for folder,key in [('ble','ble_provider'),('alarm','alarm_service')]:
@@ -52,10 +63,7 @@ def build(a):
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
         # The shared adapter exposes battery telemetry only with explicit grants.
         if not any(r['capability']=='board.battery' for r in m['requires']):m['requires'].append({'capability':'board.battery','api':1})
-        grants=[]
-        for req in m['requires']:
-            cap=req['capability'];instances=([5,1] if name=='points_in_time' else [1]) if cap=='storage.key-value' else [CAPS[cap]]
-            for instance in instances:grants.append({**req,'instance_id':instance})
+        grants=app_grants(name,m['requires'],getattr(a,'sleep',False))
         policies.append({'manifest':name+'.json','grants':grants});(store/(name+'.elf')).write_bytes(blob);(store/(name+'.json')).write_bytes(encoded(m))
         custody['apps'][name]={'id':m['id'],'version':m['version'],'sha256':sha(blob),'manifest_sha256':sha(encoded(m))}
         records=out/'build-records'/name;records.mkdir(parents=True)
@@ -64,6 +72,7 @@ def build(a):
         if (src/'licenses').is_dir():shutil.copytree(src/'licenses',licenses/name)
         for notice in src.glob('LICENSE*'):
             (licenses/name).mkdir(exist_ok=True);shutil.copyfile(notice,licenses/name/notice.name)
+    custody['sleep']=getattr(a,'sleep',False)
     boot['app_capabilities']=policies;(store/'boot.json').write_bytes(encoded(boot));(store/'board.json').write_bytes(encoded(board))
     fw=(a.native/'firmware.bin').read_bytes()
     cohort=cohort_identity(json.loads((ROOT/'minimal/product.json').read_text()),custody['runtime'],fw,custody['x4_source'])
@@ -103,4 +112,4 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
-    p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())
+    p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())

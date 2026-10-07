@@ -7,7 +7,7 @@ root="$(cd "$(dirname "$0")/../.." && pwd)"
 python="${PYTHON:-python3}"
 build="$(mktemp -d)";trap 'rm -rf "$build"' EXIT
 "$python" "$root/minimal/scripts/prepare_sdk.py" --runtime "$RISCRTE_RUNTIME_ROOT" --reader "$RISCRTE_READER_ROOT" --output "$build/sdk"
-for provider in frontlight buttons; do
+for provider in frontlight buttons power power_buttons; do
   elf="$build/$provider.elf"
   "$NATIVE_DRIVER_CC" -std=c11 -O2 -fno-ivopts -fPIC -mtext-section-literals -mlongcalls \
     -fvisibility=hidden -fno-builtin -nostdlib -nostartfiles -shared -Wall -Wextra -Werror \
