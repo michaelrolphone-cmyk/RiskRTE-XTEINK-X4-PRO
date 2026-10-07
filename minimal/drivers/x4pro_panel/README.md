@@ -1,6 +1,6 @@
 # X4 panel ordinary-provider adapter
 
-`x4pro-panel@0.1.19` ports the source-preserved panel implementation to ordinary
+`x4pro-panel@0.1.20` ports the source-preserved panel implementation to ordinary
 `hardware.device`, device-scoped `platform.gpio`, `platform.clock`,
 `platform.sync` and `board.power.ready` dependencies. It imports no privileged
 CPU entry points and performs no MMIO. The original `Drivers/x4pro_panel` is
@@ -98,3 +98,57 @@ frontlight writes propagate failure. Unused panel-power ABI slots are canonical
 zeroes from Runtime's materializer, not handwritten -1 sentinels.
 The display-info brightness flag is advertised only with the bound frontlight
 method present, so capability-selected controls can truthfully enable its slider.
+
+## Reversible panel preparation (0.1.20)
+
+The canonical optional `RiscDisplayOutputPowerV1.h` SDK suffix follows the exact
+existing history prefix in `display.output@1`. Discover it with
+`risc_display_output_power(display)`, then call `prepare(context, timeout_ms)`
+or `resume(context, timeout_ms)` on the serialized owner. This does not export a
+second capability and does not change renderer or Watch ABI prefixes.
+
+Both methods cap total admission/readiness budget at 1500 ms. Zero is a
+non-mutating state poll. Readiness has an independent 150-iteration bound with
+real ten-ms sleeps, including under a stalled clock. A command finishes before
+checking its deadline; the maximum unchecked command group is six bytes
+(156 GPIO writes), so the deadline is cooperative rather than hard real-time.
+Reset assertion/recovery use 10/10 ms for SSD1677 and 50/50 ms for UC8279.
+POF settling is 200 ms for SSD1677 and at least 1 ms for UC8279. The six owned
+pins, synchronization guard, mapped provider and dependencies remain live.
+
+`prepare` refuses acquired/queued/active frames. It observes POF, sends DSLP
+once, and holds RESET high without retiring or releasing anything. Retries only
+observe incomplete POF or retry a known failed hold; they do not replay POF or
+DSLP. Partial or complete preparation rejects frame acquisition, seeding,
+submission, presentation status/wait, brightness and polling. `get_info` remains
+an informational query. Preparation OK means only that this panel is prepared;
+it is not evidence that the CPU entered sleep or other devices are ready.
+
+Any ordinary error may require `resume` before use. Resume unholds only the
+instance's owned RESET, repeats the controller's reset/register initialization
+without probe, frame clear, PON or visible refresh, and invalidates prior image
+seeding and old presentation tokens. RAM preparation on SSD does not refresh
+the physical paper. Resume is idempotent; a timed-out resume remains blocked
+until a later resume succeeds. No claim/release occurs on this reversible path.
+A failed GPIO operation, hold rollback, unhold or mutex unlock returns sticky
+`RETAINED`: retain the complete provider graph rather than assert safe recovery.
+Clock/known hold refusal returns `PLATFORM`; elapsed bounds return `TIMEOUT`.
+
+Terminal quiesce after successful preparation uses the existing explicit
+RESET-retirement suffix and releases other pins without another POF/DSLP.
+If resume was interrupted, terminal quiesce refuses until resume succeeds.
+Retirement/release refusal keeps its exact outstanding ownership for retry;
+a retired instance cannot be resumed.
+
+A real MCU deep-sleep wake is a fresh boot: none of these C globals, addresses,
+frame IDs or tokens survives. Runtime must restore its separately versioned
+retained transaction record, reload/rebind the provider, stage RESET high before
+unholding, and let normal start probe/init run without a visible refresh. The
+clock application must reconstruct the previous visible image into an acquired
+frame, seed it with `seed_previous`, then draw and submit the current image. If
+previous pixels cannot be reconstructed truthfully, use an ordinary full clean
+refresh. The provider does not persist framebuffer history or invent old pixels.
+
+This slice excludes the desk-clock application transaction, Runtime retained
+records, CPU sleep entry, touch/SD/rail lifecycle and hardware qualification.
+The existing frozen X4 0.1.6 firmware and raw `Drivers/` custody are unchanged.
