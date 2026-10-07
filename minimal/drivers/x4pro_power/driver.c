@@ -1,5 +1,5 @@
 /* X4 owns GPIO3 explicitly; no Watch PMU layout or raw pin authority escapes. */
-#include "X4PowerV1.h"
+#include "X4PowerDeepV1.h"
 #include <RiscProviderV2.h>
 #include <RiscHardwareConfigV1.h>
 #include <GardenPlatformV1.h>
@@ -57,6 +57,30 @@ static int32_t light_sleep(void *c,uint32_t duration,risc_light_sleep_result_v1 
     if(!leave())return RISC_LIGHT_SLEEP_RETAINED;
     return rc;
 }
+static int32_t deep_sleep_for(void *c,uint32_t duration) {
+    (void)c;
+    if(!duration || duration>RISC_TIMED_SLEEP_MAX_MS)return RISC_DEEP_SLEEP_INVALID;
+    if(retained)return RISC_DEEP_SLEEP_RETAINED;
+    if(!enter())return RISC_DEEP_SLEEP_CONTEXT;
+    int32_t rc=RISC_DEEP_SLEEP_BUSY;bool down=true;
+    if(started && !closing) {
+        if(gpio->struct_size<GARDEN_GPIO_DEEP_SLEEP_FOR_V1_SIZE || !gpio->deep_sleep_for)
+            rc=RISC_DEEP_SLEEP_UNSUPPORTED;
+        else if(!sample(&down))rc=RISC_DEEP_SLEEP_PLATFORM;
+        else if(down || !neutral || sampled_at-neutral_at<30u)rc=RISC_DEEP_SLEEP_ACTIVE_WAKE;
+        else {
+            neutral=false;
+            rc=gpio->deep_sleep_for(gpio->context,token,false,duration);
+            /* Even a zero/unknown return violates the terminal contract. Do
+             * not unlock or touch providers after an unconfirmed entry. */
+            if(rc==RISC_DEEP_SLEEP_RETAINED || rc>=0 || rc<RISC_DEEP_SLEEP_UNSUPPORTED) {
+                retained=true;return RISC_DEEP_SLEEP_RETAINED;
+            }
+        }
+    }
+    if(!leave())return RISC_DEEP_SLEEP_RETAINED;
+    return rc;
+}
 static bool start(const risc_provider_dependency_v1 *deps,size_t count) {
     if(gpio || token || lock || retained || !deps || count!=4)return false;
     const risc_hardware_device_v1 *hw=NULL;
@@ -103,6 +127,6 @@ static bool quiesce(void) {
     lock=0;gpio=NULL;sync_api=NULL;clock_api=NULL;return true;
 }
 static void stop(void){}
-static const x4_power_v1 api={1,sizeof(api),NULL,read_key,light_sleep};
+static const x4_power_deep_v1 api={{1,sizeof(api),NULL,read_key,light_sleep},X4_POWER_DEEP_TAG,1,deep_sleep_for};
 static const risc_driver_v2 driver={2,sizeof(driver),"x4pro-power",X4_POWER_CAPABILITY,1,&api,start,stop,quiesce};
 __attribute__((visibility("default"))) const risc_driver_v2 *t5_driver_get(uint32_t abi){return abi==2?&driver:NULL;}
