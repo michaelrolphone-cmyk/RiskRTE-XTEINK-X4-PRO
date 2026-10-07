@@ -1,0 +1,43 @@
+name: Typed minimal X4 drivers
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  host-target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: 54292706667a3dfca1b90f11e81247c4c87f2f69
+          path: .shared/runtime
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 4f5620a9ca4b2ee6c9a8adb038955671acde9556
+          path: .shared/reader
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Host lifecycle and wire simulations
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+          SANITIZE: '1'
+        run: |
+          python3 minimal/test/prepare_sdk_test.py
+          for driver in board_power i2c panel frontlight buttons rtc sd battery; do
+            bash minimal/test/run_${driver}_test.sh
+          done
+      - name: Install pinned target compiler
+        run: pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+      - name: Build and validate ordinary Xtensa providers
+        run: >-
+          python3 minimal/scripts/build_drivers.py
+          --runtime .shared/runtime --reader .shared/reader
+          --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc"
+          --output build/minimal-drivers
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-typed-drivers-${{ github.sha }}
+          path: build/minimal-drivers

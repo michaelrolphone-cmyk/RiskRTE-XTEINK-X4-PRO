@@ -1,45 +1,43 @@
-# X4 ordinary-provider port for the minimal Runtime
+# Typed minimal-runtime X4 integration
 
-This directory is the in-progress adaptation from the source-preserving Reader
-migration to the shared headless RiscRTE architecture used by Watch. The original
-`Drivers/`, board and Reader composition remain unchanged while each adapter is
-connected and tested.
+This directory is a separate product adaptation of the source-preserving
+migration. Its ordinary providers run on the shared headless RiscRTE through
+exact typed capability tables. Original migrated `Drivers/` remain unchanged.
 
-## Board power
+`sources.lock.json` pins the provisioning/sync/GPIO Runtime candidate and the
+one-file shared FatFs helper candidate. Eight providers are implemented:
+board power, I2C, panel, frontlight, buttons, RTC, SD and battery. GT911, the
+complete board/profile graph and the default application bundle remain pending.
+Do not treat this checkpoint as a bootable or hardware-qualified product.
 
-`x4pro-board-power@0.1.0` owns the GPIO1 peripheral-enable rail through the
-Runtime's existing device-scoped `platform.gpio@1`. Its typed `gpio.bank` record
-contains only GPIO1, active-high, without pull-up or timing reinterpretation.
-The provider asserts the output latch high before enabling the pad, verifies
-readback, and publishes `board.power.ready@1` for dependency-ordered consumers.
-It performs no MMIO or privileged imports. Failed release retains ownership;
-uncertain failed claims keep the provider pinned instead of fabricating cleanup.
+The board-power provider establishes the peripheral rail; panel candidates
+explicitly select SSD1677 or UC8279 protocol and matching reset/BUSY/offset
+configuration. No physical controller identity is guessed. SD remains native
+one-bit CLK/CMD/DAT0, not SPI. Battery and RTC are included and versioned in this
+integration rather than silently omitted from the package selection.
 
-The candidate will need explicit board, driver and application selections before
-it can replace a Reader-based deployment. This provider alone is not a complete
-boot bundle or a hardware qualification. Deep-sleep policy and first-install
-layout remain integration work.
+## Build and host checks
 
-## Checks
+Check out the immutable Runtime and shared-source commits from the lock, then:
 
 ```sh
-RISCRTE_RUNTIME_ROOT=../RiscRTE SANITIZE=1 bash minimal/test/run_board_power_test.sh
+export RISCRTE_RUNTIME_ROOT=/path/to/RiscRTE
+export RISCRTE_READER_ROOT=/path/to/T5S3-Reader
+for d in board_power i2c panel frontlight buttons rtc sd battery; do
+  SANITIZE=1 bash minimal/test/run_${d}_test.sh
+done
+python3 minimal/scripts/build_drivers.py \
+  --runtime "$RISCRTE_RUNTIME_ROOT" --reader "$RISCRTE_READER_ROOT" \
+  --cc /path/to/xtensa-esp32s3-elf-gcc --output build/minimal-drivers
 ```
 
-The four host scenarios cover malformed dependencies/configuration, normal and
-repeated lifecycle, readback failure, cleanup retry and retained claim failure.
-AddressSanitizer/UBSan and an Xtensa ordinary-provider link were checked. The ELF
-exports only `t5_driver_get`; its only libc import is `strcmp`.
+Use Python with pyelftools0.32 and the pinned Xtensa8.4.0 compiler. The builder
+composes canonical shared headers (divergent duplicates fail closed), validates
+relative relocation targets, rejects privileged imports and PSRAM compare-and-set,
+and records provider versions, source hashes and ELF hashes in products.json.
+It includes shared FatFs/RTC sources directly; no SDK or loader source is moved.
+The generated output is a driver test artifact, not a flash image.
 
-## Typed I2C adapter
-
-`x4pro-i2c@0.1.5` preserves the API1 prefix and tagged serialized/deadline/retained-release suffix. It uses the ordinary `platform.i2c.controller`, `platform.clock` and `platform.sync` tables plus explicit `board.power.ready` dependency. The source migration's legacy0.1.4 provider remains unchanged outside this directory.
-
-One owner-task, nonrecursive attempt admits each transaction. Admission time is deducted from the physical transfer budget, and an expired completion never returns success. Address claims are exclusive and generation-safe; failed release retains the exact claim. Failed controller close or sync cleanup retains the dependency state. There are eight claim slots,256 bytes per transfer phase and a maximum1000ms total request budget. No FreeRTOS imports or provider-BSS atomics are used.
-
-```sh
-RISCRTE_RUNTIME_ROOT=../RiscRTE RISCRTE_READER_ROOT=../T5S3-Reader \
-  SANITIZE=1 bash minimal/test/run_i2c_test.sh
-```
-
-The Runtime and Reader SDKs share byte-identical common headers. `minimal/scripts/prepare_sdk.py` composes one include directory and rejects any overlapping filename with divergent bytes, preventing duplicate pragma-once type definitions or silent ABI drift. Generated SDK copies stay in build scratch; shared headers remain maintained upstream.
+Host wire simulation and target linking cannot verify electrical timing,
+controller identity, power retention, battery/RTC telemetry or real media.
+All physical execution is unrun for these new provider versions.
