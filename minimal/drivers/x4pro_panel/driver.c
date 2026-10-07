@@ -469,6 +469,7 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->preferred_format = RISC_DISPLAY_FORMAT_MONO1;
     out->supported_rotations = RISC_DISPLAY_ROTATION_0;
     out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE | RISC_DISPLAY_INFO_QUIESCE_SLEEP;
+    if (frontlight && frontlight->set_level) out->flags |= RISC_DISPLAY_INFO_BRIGHTNESS;
     out->damage_x_alignment = 8;
     out->damage_width_alignment = 8;
     out->damage_y_alignment = 1;
@@ -837,7 +838,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.17 cause=");
+    append(destination, capacity, &used, "v=0.1.18 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

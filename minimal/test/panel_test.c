@@ -217,6 +217,7 @@ int main(int argc, char **argv) {
         assert(probe_reads==(chip==PROBE_SSD?1u:2u));
         risc_display_info_v1 info={0}; assert(display->get_info(NULL,&info));
         assert(info.width==800 && info.height==480 && info.preferred_format==RISC_DISPLAY_FORMAT_MONO1);
+        assert(info.flags&RISC_DISPLAY_INFO_BRIGHTNESS);
         risc_display_surface_v1 surface={0}; uint64_t token=0; risc_display_present_status_v1 status={0};
         assert(!display->present_status(NULL,0,&status));
         queue(&surface,&token); assert(!driver->quiesce());

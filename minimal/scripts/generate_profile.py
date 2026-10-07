@@ -22,7 +22,8 @@ def profile(panel):
     add('panel','ultrachip,uc8279' if uc else 'solomon-systech,ssd1677','display.spi',{'bus_instance_id':101,'width':800,'height':480,'offset_x':0,'offset_y':120 if uc else 0,'rotation':0,'cs':13,'dc':18,'reset':14,'backlight':-1,'busy':6,'reset_active_high':False,'busy_active_high':not uc,'backlight_active_high':False,'power_pins':[],'power_active_high':[],'reset_assert_ms':50 if uc else 10,'reset_recovery_ms':50 if uc else 10},{'board.power.ready':1,'display.frontlight':5})
     add('gt911','goodix,gt911','touch.i2c',{'bus_instance_id':100,'width':480,'height':800,'address':0x5d,'reset_active_high':False,'irq_active_high':False,'irq_pull_up':False,'reset':4,'irq':10,'reset_assert_ms':10,'reset_recovery_ms':10,'power':2,'power_active_high':False,'irq_output':True,'alternate_address':0x14},{'i2c.bus':2,'board.power.ready':1},2)
     add('frontlight','xteink,x4-pro-frontlight','gpio.bank',bank([8,9],True,False))
-    add('buttons','xteink,x4-pro-buttons','gpio.bank',bank([0,7,3],False,True))
+    buttons=bank([0,7,3],False,True);buttons['long_press_us']=1000000
+    add('buttons','xteink,x4-pro-buttons','gpio.bank',buttons)
     add('battery','cellwise,cw2017-readonly-gauge','peripheral.i2c',peripheral(0x63,21,True),{'i2c.bus':2})
     add('rtc','riscrte,pcf8563-compatible-rtc','peripheral.i2c',peripheral(0x51),{'i2c.bus':2})
     add('sd','xteink,x4-pro-sd-native1','gpio.bank',bank([5,41,42,40],True,True),{'board.power.ready':1})

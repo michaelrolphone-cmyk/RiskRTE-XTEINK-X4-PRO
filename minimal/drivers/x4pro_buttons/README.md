@@ -1,18 +1,28 @@
 # Ordinary X4 physical buttons
 
-`x4pro-buttons@0.1.6` preserves source `0.1.5` navigation behavior and the
+`x4pro-buttons@0.1.7` preserves source `0.1.5` page-button behavior and the
 `input.navigation@1` API, including the physical-page-pair trait. The original
 `Drivers/x4pro_buttons` source is unchanged. This ordinary ABI2 adapter requires
-scoped `platform.gpio`, `platform.sync`, and a typed `hardware.device`.
+scoped `platform.gpio`, `platform.sync`, `platform.clock`, and a typed `hardware.device`.
 
 The `xteink,x4-pro-buttons`, revision `unspecified`, `gpio.bank@1` record lists
-GPIO0 LEFT, GPIO7 RIGHT, and GPIO3 CONFIRM, in that exact order. All are active-low
-inputs with pull-ups. Timing fields must be zero: the original algorithm uses
+GPIO0 LEFT, GPIO7 RIGHT, and GPIO3 power/crown button, in that exact order. All are active-low
+inputs with pull-ups. Legacy zero timing fields retain CONFIRM semantics. The original algorithm uses
 poll counts rather than a time-based debounce. A changed sample begins at count
 zero, and three further unchanged samples accept its press/release edges. Reset
 discards previous navigation history. If a button is held at reset/start, every
 output remains neutral until three consecutive neutral samples rearm input.
 Foreground claims remain a no-op for this nonoverlapping physical source.
+
+The minimal X4 profile explicitly sets `long_press_us=1000000`. In this mode,
+GPIO3 emits one completed `RISC_NAV_HOME` press/release pulse only for a short
+release under one second. Long holds, page-button combinations, held-at-start,
+reset boundaries, bad clocks and incomplete reads do not become Home events.
+The one-second threshold is X4 profile policy, not an assertion about a Watch
+PMIC's electrical timing. A zero threshold preserves the original CONFIRM oracle.
+The separate center Home key is a GT911 touch-button event, not GPIO3. Apps route
+Home to their explicit root target; clock sleep still requires a separately
+implemented, hardware-correct power/wake lifecycle and is not synthesized here.
 
 The GPIO and sync tables control ownership without firmware UI, MMIO, RTOS
 imports, or provider-BSS atomics. Calls reject reentry/non-owner access. Failed

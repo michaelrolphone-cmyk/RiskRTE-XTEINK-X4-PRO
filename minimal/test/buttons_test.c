@@ -2,6 +2,7 @@
 #include <RiscProviderV2.h>
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
+#include <RiscPlatformClockV1.h>
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +15,10 @@ static uint32_t physical;
 static unsigned claims,reads,releases,creates,destroys,takes;
 static bool owner=true,locked,create_ok=true,unlock_ok=true,destroy_ok=true,recurse;
 static int fail_claim=-1,fail_read=-1,fail_release=-1;
+static uint64_t now=100;
+static bool clock_bad;
+static uint64_t clock_now(void*c){(void)c;return clock_bad?UINT64_MAX:now;}
+static const risc_platform_clock_api_v1 clock_api={1,sizeof(clock_api),NULL,clock_now,NULL};
 static unsigned index_of(uint64_t token) {
     for(unsigned i=0;i<3;++i) if(token && tokens[i]==token) return i;
     assert(!"Unknown button token"); return 0;
@@ -64,10 +69,11 @@ static garden_gpio_v1 gpio={.api_version=1,.struct_size=sizeof(gpio),.claim=clai
 static risc_provider_sync_api_v1 sync_api={1,sizeof(sync_api),NULL,is_owner,create,take,give,destroy};
 static risc_hw_gpio_bank_v1 config={.struct_size=sizeof(config),.count=3,.pull_up=1,.pins={0,7,3}};
 static risc_hardware_device_v1 hardware={1,sizeof(hardware),1,"xteink,x4-pro-buttons","unspecified","gpio.bank",1,sizeof(config),&config};
-static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hardware},{"platform.gpio",1,&gpio},{"platform.sync",1,&sync_api}};
-static bool start(void) { return driver->start(deps,3); }
+static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hardware},{"platform.gpio",1,&gpio},{"platform.sync",1,&sync_api},{"platform.clock",1,&clock_api}};
+static bool start(void) { return driver->start(deps,config.long_press_us?4:3); }
 static void expect(uint32_t buttons,uint32_t pressed,uint32_t released) {
     risc_input_navigation_frame_v1 frame={91,92,93};
+    now+=5;
     assert(api->poll(NULL,&frame));
     assert(frame.buttons==buttons && frame.pressed==pressed && frame.released==released);
 }
@@ -121,6 +127,30 @@ int main(int argc,char **argv) {
         assert(!creates && !claims && !reads && !releases && driver->quiesce());
         create_ok=false;assert(!start() && driver->quiesce() && !claims);create_ok=true;
         assert(start() && driver->quiesce());clean();
+    } else if(!strcmp(argv[1],"crown")) {
+        config.long_press_us=1000000;assert(!driver->start(deps,3));
+        assert(start());expect(0,0,0);
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        now+=100;physical=0;for(unsigned j=0;j<3;++j)expect(0,0,0);
+        expect(0,RISC_NAV_HOME,RISC_NAV_HOME);expect(0,0,0);
+        /* Long, combined, reset-boundary, and failed samples never become Home. */
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<4;++j)expect(0,0,0);
+        now+=1000;physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<4;++j)expect(0,0,0);
+        physical|=RISC_NAV_LEFT;expect(0,0,0);physical=RISC_NAV_CONFIRM;expect(0,0,0);
+        physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<4;++j)expect(0,0,0);
+        assert(api->reset(NULL));physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<4;++j)expect(0,0,0);
+        clock_bad=true;assert(!api->poll(NULL,&frame));clock_bad=false;
+        physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=RISC_NAV_CONFIRM;for(unsigned j=0;j<4;++j)expect(0,0,0);
+        fail_read=1;assert(!api->poll(NULL,&frame));fail_read=-1;
+        physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=RISC_NAV_LEFT;for(unsigned j=0;j<3;++j)expect(0,0,0);expect(RISC_NAV_LEFT,RISC_NAV_LEFT,0);
+        assert(driver->quiesce());clean();
+        physical=RISC_NAV_CONFIRM;assert(start());for(unsigned j=0;j<5;++j)expect(0,0,0);
+        physical=0;for(unsigned j=0;j<5;++j)expect(0,0,0);assert(driver->quiesce());clean();
     } else if(!strcmp(argv[1],"mapping")) {
         assert(start() && !start() && claims==3);expect(0,0,0);
         for(unsigned i=0;i<3;++i) {
