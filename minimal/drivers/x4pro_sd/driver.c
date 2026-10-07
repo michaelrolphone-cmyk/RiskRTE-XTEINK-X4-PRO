@@ -321,7 +321,7 @@ static bool resume_sleep_media(void) {
 }
 #define STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN commit_sleep_rails
 #define STORAGE_VOLUME_TRY_RESUME_POWER_DOWN resume_sleep_media
-#define STORAGE_VOLUME_SLEEP_UNSAFE() (mutex_poisoned || gpio_fault || gpio_retained)
+#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained))
 #define STORAGE_VOLUME_EXTERNAL_GUARD
 #define STORAGE_VOLUME_GUARD_ENTER guard_enter
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave

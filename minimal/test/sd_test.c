@@ -155,6 +155,7 @@ static void sleep_cases(const char *scenario){
     assert(ready(NULL));
     if(!strcmp(scenario,"sleep-busy")){
         owner=false;assert(!prepare_sleep(NULL) && resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);owner=true;
+        owner=false;mutex_poisoned=true;assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED);mutex_poisoned=false;owner=true;
         assert(enter());const unsigned before=calls;assert(!prepare_sleep(NULL) && !commit_sleep(NULL));
         assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_REFUSED && calls==before);assert(leave());
     }

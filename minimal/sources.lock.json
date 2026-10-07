@@ -7,7 +7,7 @@
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "99a62c8566f7126f636288b4db0f8f2ada82404e",
+    "commit": "e5ee20064a9d416e5cdf268306d77da880732e37",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
   "status": "SD checked sleep-recovery development unit; separate from the frozen X4 0.1.6 cohort; hardware verification pending"

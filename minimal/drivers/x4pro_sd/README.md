@@ -92,10 +92,10 @@ include the selected shared `Drivers/storage_fatfs` directory. It exports only
 `t5_driver_get`; imports are `memcpy`, `memcmp`, `memset`, `strlen`, `strchr`.
 `minimal/test/run_sd_target_test.sh` reproduces the target checks with the
 selected `NATIVE_DRIVER_CC` and `PYTHON`. Xtensa 8.4.0
-(esp-2021r2-patch5), `-O2 -fno-ivopts --no-relax`, passes 356 relative pointers,
+(esp-2021r2-patch5), `-O2 -fno-ivopts --no-relax`, passes 357 relative pointers,
 the exact export/import boundary, and absence of provider-BSS compare-and-set.
-The checked ELF is 62,596 bytes, SHA-256
-`0e33b1794f2aff215d3034b55fc9558b439520c731c1907891a2488b188d7866`.
+The checked ELF is 62,976 bytes, SHA-256
+`7c88b67189a7fe5dcc694541823ac9225394debfbcf41a25dadb1755ad1fa5c8`.
 
 This branch changes only SD source/package `0.2.5 -> 0.2.6`, its tests and the
 shared dependency pin. It does not update the frozen X4 0.1.6 artifacts, enable
