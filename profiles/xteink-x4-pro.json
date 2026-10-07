@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "board_id": "xteink-x4-pro",
+  "sources": [
+    "platform_clock_v1",
+    "x4pro_panel",
+    "x4pro_buttons",
+    "x4pro_frontlight",
+    "x4pro_sd",
+    "x4pro_i2c",
+    "x4pro_gt911",
+    "x4pro_battery",
+    "x4pro_rtc"
+  ]
+}

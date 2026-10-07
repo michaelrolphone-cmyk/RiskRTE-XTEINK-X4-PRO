@@ -1,0 +1,315 @@
+{
+  "schema": 1,
+  "upstream": {
+    "repository": "michaelrolphone-cmyk/T5S3-Reader",
+    "url": "https://github.com/michaelrolphone-cmyk/T5S3-Reader.git",
+    "commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc",
+    "tree": "e7dc2a45c3553f0102a7c2e2c2c9fe5bc51b00a2"
+  },
+  "files": [
+    {
+      "path": "Drivers/x4pro_battery/README.md",
+      "blob": "f10e01163c6f4c41d92662c84b5ba7a1831e5c93",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_battery/driver.c",
+      "blob": "26e2d4f00e2a395137e01bb52a8d3bba70cad44d",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_battery/manifest.json",
+      "blob": "d4b185f621883aa505982c2d3ec3498baa33cffb",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_board/x4pro_pins.h",
+      "blob": "52f30122802de76e9063daa470fd8908e2256787",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_board/x4pro_proto.h",
+      "blob": "1ef08c19cf5503fd680ad72ba9b802058981d749",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_buttons/driver.c",
+      "blob": "c65fe3ac6743b4ed32144b3e81deda368f6ef487",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_buttons/manifest.json",
+      "blob": "4258ea74cf95bebce9a3eddfd23ea6f843d2f96b",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_frontlight/driver.c",
+      "blob": "cd2967635421f0c8743d19f56493d2ef915d58e0",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_frontlight/manifest.json",
+      "blob": "1ca93d5a5812f4a5ae5c2139314c813a8ba5a293",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_gt911/driver.c",
+      "blob": "b207ef3dee91cd46cae4b277e5285ee18510629b",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_gt911/manifest.json",
+      "blob": "339da34f21b777a2dedf08ef7e50f24ece0a832c",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_i2c/README.md",
+      "blob": "688cdd15842830e64c3d5644a9dc0470fb64be10",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_i2c/driver.c",
+      "blob": "906ce8170bc74c849ee8d70a03d520b03900b171",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_i2c/manifest.json",
+      "blob": "d6b26a6b09ce7452b064615e394af96113e2afe0",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_panel/README.md",
+      "blob": "e25823361b5c39db588d9b46a9ab18ee52a87c30",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_panel/driver.c",
+      "blob": "66286ecfe3c1bcaea287ed2539ac5dd1260d9a31",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_panel/manifest.json",
+      "blob": "18399e2a24a8cc963d62fa5b056274b82402cebb",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_rtc/README.md",
+      "blob": "ffd4105d7196b9efec9ab67eefa444fc7923754e",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_rtc/driver.c",
+      "blob": "6dced6c93892527c7dc15753a6103850c9d1bc63",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_rtc/manifest.json",
+      "blob": "3ff0df37dd30c2bf47fec42e3e7ee8c1b0b19dff",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_sd/driver.c",
+      "blob": "c13765887011666b8aff3bf4a45f6d815cd54110",
+      "mode": "100644"
+    },
+    {
+      "path": "Drivers/x4pro_sd/manifest.json",
+      "blob": "510b24c6b0bcf73bc8282403c1742557ef53ecbc",
+      "mode": "100644"
+    },
+    {
+      "path": "LICENSE",
+      "blob": "b8c074800342d88eb4892d9ef79a65485d1bfcf9",
+      "mode": "100644"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "blob": "4fe1926d3ddcedc0b61a519de1a1a86678ce4859",
+      "mode": "100644"
+    },
+    {
+      "path": "lib/Board_X4Pro/BoardX4Pro.cpp",
+      "blob": "aa85318224a16fd451b0dc985d26fd74c74711e6",
+      "mode": "100644"
+    },
+    {
+      "path": "lib/Board_X4Pro/BoardX4Pro.h",
+      "blob": "72c98cf76160fe6fc9822d69960571bf0b00e679",
+      "mode": "100644"
+    },
+    {
+      "path": "lib/Board_X4Pro/FrontlightLevels.h",
+      "blob": "cf84aa9b260a02091c006110b4c2125198f450c6",
+      "mode": "100644"
+    },
+    {
+      "path": "lib/hal/HalDisplayX4.cpp",
+      "blob": "2e5c26c2c7ebd40152cfa046c1fcecb98b4a7f95",
+      "mode": "100644"
+    },
+    {
+      "path": "scripts/build_x4pro_rtc.py",
+      "blob": "353f1f536fc124ae60322ab1643c3f52adf8c49c",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootDiagnostics.cpp",
+      "blob": "32cbd51b08a1b2025b5d471f5e65395f3dfa9104",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootDiagnostics.h",
+      "blob": "fd3695790922d69cbeb471f8daf5da0556867ac2",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootPower.cpp",
+      "blob": "e143502a65744803d85319d6a892ff6e01179adf",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootPower.h",
+      "blob": "a2c566b8f8fb7597a820f3ae92b247ca64f1befc",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootScreen.cpp",
+      "blob": "dbc572f3d041da70147151e56fb9a2c667aef3a3",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4BootScreen.h",
+      "blob": "3dff69a9029bc6996a124ab311eea93daef457a2",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4DiagnosticBoot.cpp",
+      "blob": "96b7b0e916c36062b1a1d3503dbeccf480b0d3af",
+      "mode": "100644"
+    },
+    {
+      "path": "src/platform/X4DiagnosticBoot.h",
+      "blob": "8f8b1ab1f7da885ef0f43e6607ef6cdc9b04db90",
+      "mode": "100644"
+    },
+    {
+      "path": "test/drivers/x4pro_battery_test.c",
+      "blob": "2bc5504b6314d7fb732bb1c54e1f408b1edc34b1",
+      "mode": "100644"
+    },
+    {
+      "path": "test/drivers/x4pro_i2c_test.c",
+      "blob": "9dba1aaac15d76c84fb0d74414eb76fd3cc7aeac",
+      "mode": "100644"
+    },
+    {
+      "path": "test/run_x4pro_battery_test.sh",
+      "blob": "7913434bf4b5f5d8a88c3524da437c49087db869",
+      "mode": "100755"
+    },
+    {
+      "path": "test/run_x4pro_frontlight_test.sh",
+      "blob": "5ab89836e37eec51d8d7591e97097bb996ab3ce0",
+      "mode": "100755"
+    },
+    {
+      "path": "test/run_x4pro_i2c_test.sh",
+      "blob": "56851e98ccbf2a127d8b7e1f69a3fcc6583d66cf",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_boot_isolation_test.py",
+      "blob": "10d11b4e644a663b0a8a05fa3b81f50dda989535",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_boot_profile_test.py",
+      "blob": "5149ffb7446d66b7bd9a36ff9b1b77cc8f24d8a3",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_buttons_fake/x4pro_mmio.h",
+      "blob": "0d985f6d2c50764c5357e39cb939d712c5ec6150",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_buttons_state_test.c",
+      "blob": "731049ee5c3a19d8e5812e969af5cde076d0cb8c",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_gpio_test.c",
+      "blob": "163ae8f3b71e62e4ec80ba0efa8cfec325ee5ab4",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_gt911_state_test.c",
+      "blob": "44de805729da728c1b576d6f044a09530e02d96f",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_panel_fake/x4pro_mmio.h",
+      "blob": "5b065cb221396e1a482b46c7e1ca370273f3d688",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_panel_sequence_test.py",
+      "blob": "edb71a1fbdf5590115fb3e85a04b6ca55a64cd23",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_panel_state_test.c",
+      "blob": "06ffd46cc93077c5bae3ba0c3f9c14723ab38f28",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_proto_test.c",
+      "blob": "faf5204bf1a58f94260783075999cd2d2703e3aa",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_sd_absent_test.c",
+      "blob": "241a70dce4973ec65e6f5e9b25af99324f61eb7e",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_sd_fake/x4pro_mmio.h",
+      "blob": "e5f7552fbc9be861ab0d1e0dc4263b40802cf23d",
+      "mode": "100644"
+    },
+    {
+      "path": "test/x4pro_touch_fake/x4pro_mmio.h",
+      "blob": "22281953c699a6bbb6eea41dddd22a062d1790a4",
+      "mode": "100644"
+    }
+  ],
+  "shared_dependencies_retained": [
+    "Drivers/x4pro_board/x4pro_mmio.h",
+    "Drivers/x4pro_i2c/os_cpu_v1.h",
+    "docs/X4_COPY_METADATA_ADMISSION.md",
+    "docs/X4_PROVIDER_ADMISSION_AND_APP_TRAVERSAL.md",
+    "docs/X4_READER_DEFAULT_ENTRY.md",
+    "docs/bugfix/X4_PAGE_BUTTON_DIRECTION.md",
+    "scripts/stage_x4pro_packages.py",
+    "test/display/x4_flip_bridge_test.py",
+    "test/drivers/x4pro_i2c_sdk_contract.c",
+    "test/reader_entry/x4_integration_test.py",
+    "test/run_x4pro_rtc_test.sh",
+    "test/x4pro_import_match_test.py",
+    "test/x4pro_provider_link_test.py"
+  ],
+  "historical_inputs_retained_upstream": [
+    "docs/X4_BOOT_RESET_DIAGNOSTICS.md",
+    "docs/X4_CLOCK_POWER_RECOVERY.md",
+    "docs/X4_FRONTLIGHT.md",
+    "docs/X4_HARDWARE_CI.md",
+    "docs/X4_SD_BOOTSTRAP_COMPATIBILITY.md",
+    "docs/X4_UPSTREAM_HARDWARE_COMPARISON.md",
+    "docs/boards/xteink-x4-pro.md",
+    "scripts/prepare_x4_test_state.py",
+    "test/hardware/x4/make_manifest.py",
+    "test/hardware/x4/test_x4_controller.py",
+    "test/hardware/x4/x4_ci_device.py",
+    "test/hardware/x4/x4_controller.py"
+  ]
+}
