@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Compose X4-owned sources with the exact locked shared runtime checkout."""
 import argparse
-import configparser
+import hashlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import shutil
 import subprocess
 
@@ -13,6 +13,23 @@ EXCLUDED = {'.git', '.github', '.pio', '.cache', 'dist', 'firmware', 'SD_fonts'}
 
 def git(root, *args):
     return subprocess.check_output(['git', '-C', str(root), *args], text=True).strip()
+
+
+def safe_source(root, name):
+    path = PurePosixPath(name)
+    if not name or path.is_absolute() or '..' in path.parts or str(path) != name:
+        raise ValueError(f'Unsafe source path: {name}')
+    source = root / name
+    if not source.resolve().is_relative_to(root):
+        raise ValueError(f'Source escapes repository: {name}')
+    current = source
+    while current != root:
+        if current.is_symlink():
+            raise ValueError(f'Symlinked source path: {name}')
+        current = current.parent
+    if not source.is_file():
+        raise ValueError(f'Expected regular source: {name}')
+    return source
 
 
 def compose(upstream, output, platform_root=ROOT):
@@ -31,20 +48,29 @@ def compose(upstream, output, platform_root=ROOT):
         # A root-local build/ directory is supported, but never inside the dependency checkout.
         if not (platform_root in output.parents and output != platform_root and upstream not in output.parents):
             raise ValueError('Output must be separate from the source checkout')
-    paths = git(upstream, 'ls-files', '-z').split('\0')
+    paths = git(upstream, 'ls-files', '--stage', '-z').split('\0')
     copied = []
     output.mkdir(parents=True)
     try:
-        for name in paths:
-            path = Path(name)
-            if not name or path.parts[0] in EXCLUDED:
+        for entry in paths:
+            if not entry:
                 continue
-            source = upstream / path
-            if source.is_symlink() or not source.is_file():
-                raise ValueError(f'Expected regular tracked source: {name}')
-            target = output / path
+            metadata, name = entry.split('\t', 1)
+            mode, expected_blob, stage = metadata.split()
+            path = PurePosixPath(name)
+            if path.parts[0] in EXCLUDED:
+                continue
+            if mode not in ('100644', '100755') or stage != '0':
+                raise ValueError(f'Unsupported tracked source: {name}')
+            source = safe_source(upstream, name)
+            data = source.read_bytes()
+            observed = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+            if observed != expected_blob:
+                raise ValueError(f'Tracked source content differs from locked runtime: {name}')
+            target = output / name
             target.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(source, target)
+            target.write_bytes(data)
+            target.chmod(0o755 if mode == '100755' else 0o644)
             copied.append(name)
         # Overlay only the explicitly migrated paths and platform-owned provisioning.
         overlay = [item['path'] for item in lock['files']]
@@ -54,9 +80,7 @@ def compose(upstream, output, platform_root=ROOT):
         overlay += [p.relative_to(platform_root).as_posix() for folder in ('profiles', 'provisioning')
                     for p in (platform_root / folder).rglob('*') if p.is_file()]
         for name in sorted(set(overlay)):
-            source = platform_root / name
-            if not source.is_file() or source.is_symlink():
-                raise ValueError(f'Missing platform source: {name}')
+            source = safe_source(platform_root, name)
             target = output / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
