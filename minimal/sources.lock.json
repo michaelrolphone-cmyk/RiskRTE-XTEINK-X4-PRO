@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "runtime": {
+    "repository": "michaelrolphone-cmyk/RiscRTE",
+    "commit": "2317b4fca374bb2b9cfe8dd204aa22244d1db609",
+    "version": "0.1.46"
+  },
+  "shared": {
+    "repository": "michaelrolphone-cmyk/T5S3-Reader",
+    "commit": "cccfa3fd9b606998c27adb03665722ea44d5358f",
+    "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
+  },
+  "status": "sixteen-app software-qualified test composition, corrected controls and native IQ reconciliation; hardware verification pending"
+}
