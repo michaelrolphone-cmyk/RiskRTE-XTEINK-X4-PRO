@@ -10,7 +10,7 @@
 static const garden_gpio_v1 *gpio;
 static const risc_provider_sync_api_v1 *sync_api;
 static uint64_t token, lock;
-static bool started, retained, prepared;
+static bool started, retained, prepared, restoring;
 static const char *reason;
 static bool fail(const char *message){reason=message;return false;}
 static int32_t retain(const char *message){retained=true;fail(message);return RISC_DEEP_SLEEP_RETAINED;}
@@ -70,12 +70,14 @@ static int32_t restore(void *context) {
     (void)context;
     if(retained)return RISC_DEEP_SLEEP_RETAINED;
     if(!sync_api || !lock || !sync_api->is_owner(sync_api->context))return RISC_DEEP_SLEEP_CONTEXT;
-    if(!prepared)return RISC_DEEP_SLEEP_BUSY;
-    /* Successful prepare still owns the lock. Do not recursively acquire it. */
+    if(!prepared || restoring)return RISC_DEEP_SLEEP_BUSY;
+    /* Successful prepare still owns the lock. A recursive restore cannot
+     * consume that transaction while unhold/readback is in progress. */
+    restoring=true;
     if(gpio->deep_sleep_hold(gpio->context,token,false)!=0)
         return retain("gpio1 unhold failed; ownership retained");
     if(!high())return RISC_DEEP_SLEEP_RETAINED;
-    prepared=false;
+    prepared=false;restoring=false;
     return leave()?0:RISC_DEEP_SLEEP_RETAINED;
 }
 static bool start(const risc_provider_dependency_v1 *deps,size_t count) {

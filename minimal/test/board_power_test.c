@@ -10,7 +10,10 @@ static unsigned claims,reads,releases,writes,holds,unholds,locks,unlocks,destroy
 static bool claim_ok=true,read_ok=true,release_ok=true,write_ok=true,high=true,owner=true,locked,held;
 static bool create_ok=true,lock_ok=true,unlock_ok=true,destroy_ok=true;
 static int32_t hold_result,unhold_result;
-static bool fail_rollback_read;
+static bool fail_rollback_read,reentrant_restore;
+static const x4_board_keepalive_v1 *transaction;
+static unsigned rejected_restores;
+static void recursive_restore(void){if(reentrant_restore){assert(transaction->restore(NULL)==RISC_DEEP_SLEEP_BUSY);++rejected_restores;}}
 static unsigned order;
 static bool own(void*c){(void)c;return owner;}
 static bool create(void*c,uint64_t*t){(void)c;*t=create_ok?9:0;return create_ok;}
@@ -21,8 +24,8 @@ static bool claim(void *c,uint8_t pin,bool output,bool initial,bool pullup,uint6
  (void)c;++claims;assert(locked&&pin==1&&output&&initial&&!pullup);*out=claim_ok?41:0;return claim_ok;
 }
 static bool write_pin(void*c,uint64_t t,bool v){(void)c;assert(locked&&t==41&&v&&!held);++writes;order=1;return write_ok;}
-static bool read_pin(void *c,uint64_t t,bool *out){(void)c;++reads;assert(locked&&t==41);if(order==1)order=2;if(read_ok)*out=high;return read_ok;}
-static int32_t hold_pin(void*c,uint64_t t,bool enable){(void)c;assert(locked&&t==41);if(enable){++holds;assert(order==2);order=3;if(!hold_result)held=true;if(fail_rollback_read)read_ok=false;return hold_result;}++unholds;if(!unhold_result)held=false;return unhold_result;}
+static bool read_pin(void *c,uint64_t t,bool *out){(void)c;++reads;assert(locked&&t==41);recursive_restore();if(order==1)order=2;if(read_ok)*out=high;return read_ok;}
+static int32_t hold_pin(void*c,uint64_t t,bool enable){(void)c;assert(locked&&t==41);if(enable){++holds;assert(order==2);order=3;if(!hold_result)held=true;if(fail_rollback_read)read_ok=false;return hold_result;}++unholds;recursive_restore();if(!unhold_result)held=false;return unhold_result;}
 static bool release_pin(void *c,uint64_t t){(void)c;++releases;assert(locked&&t==41&&!held);return release_ok;}
 int main(int argc,char **argv){
  assert(argc==2);const char*s=argv[1];
@@ -33,7 +36,7 @@ int main(int argc,char **argv){
  risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hardware},{"platform.gpio",1,&gpio},{"platform.sync",1,&sync}};
  const risc_driver_v2 *driver=t5_driver_get(2);assert(driver&&!t5_driver_get(1));
  const x4_power_ready_api_v1 *api=driver->capability;assert(api->api_version==1&&api->struct_size==sizeof(x4_board_keepalive_v1));
- const x4_board_keepalive_v1 *a=x4_board_keepalive(api);assert(a);
+ const x4_board_keepalive_v1 *a=x4_board_keepalive(api);assert(a);transaction=a;
  x4_board_keepalive_v1 bad=*a;bad.power.struct_size=sizeof(bad.power);assert(!x4_board_keepalive(&bad.power));bad=*a;bad.extension_tag=0;assert(!x4_board_keepalive(&bad.power));bad=*a;bad.extension_version=2;assert(!x4_board_keepalive(&bad.power));bad=*a;bad.prepare=NULL;assert(!x4_board_keepalive(&bad.power));bad=*a;bad.restore=NULL;assert(!x4_board_keepalive(&bad.power));
  assert(!api->ready(api->context));
  if(!strcmp(s,"validation")){
@@ -99,8 +102,11 @@ int main(int argc,char **argv){
      if(!strcmp(s,"restore-read"))read_ok=false;
      if(!strcmp(s,"restore-low"))high=false;
      if(!strcmp(s,"restore-unlock"))unlock_ok=false;
+     reentrant_restore=!strcmp(s,"reentrant-restore");
      rc=a->restore(NULL);
-     if(!strcmp(s,"lifecycle")){
+     reentrant_restore=false;
+     if(!strcmp(s,"lifecycle")||!strcmp(s,"reentrant-restore")){
+      if(!strcmp(s,"reentrant-restore"))assert(rejected_restores==2);
       assert(rc==0&&!held&&!locked&&api->ready(NULL));
       for(unsigned i=0;i<5;++i){assert(a->prepare(NULL)==0);assert(a->restore(NULL)==0);assert(api->ready(NULL));}
       assert(holds==6&&unholds==6);assert(a->restore(NULL)==RISC_DEEP_SLEEP_BUSY);

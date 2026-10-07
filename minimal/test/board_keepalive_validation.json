@@ -55,14 +55,14 @@
     {
       "id": "x4pro-board-power",
       "version": "0.1.2",
-      "bytes": 8368,
-      "sha256": "bc6394b07f5ba304ef8773c1e85beba773adbe7bf9e1f381e3e30d7acc3470dc",
+      "bytes": 8428,
+      "sha256": "4077a6c8d0b6c8299815a462dbf62a2d1e8a3ae84304f250285fd13eec16535f",
       "imports": [
         "strcmp"
       ],
-      "source_sha256": "5541862cb0f9223c5434c4e6c7a5e9fe245548cd81c858ce76aef3795a036743",
+      "source_sha256": "2d7c3c0a4cc2c155969db15e57145ed7f5af453f6b9879b3a7479788f18c14d4",
       "local_source_hashes": {
-        "minimal/drivers/x4pro_board_power/driver.c": "5541862cb0f9223c5434c4e6c7a5e9fe245548cd81c858ce76aef3795a036743",
+        "minimal/drivers/x4pro_board_power/driver.c": "2d7c3c0a4cc2c155969db15e57145ed7f5af453f6b9879b3a7479788f18c14d4",
         "minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
         "minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h": "794e3bbc65191bd29bedd4b6afa69c83366b01d6d7cdb65201397406b9a0a5b7"
       }

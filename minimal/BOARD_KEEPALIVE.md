@@ -40,7 +40,8 @@ between successful preparation and native entry/checked refusal restoration.
 Success is terminal. Native `RETAINED`, zero, positive, and out-of-contract
 negative returns preserve both owner locks, tokens, dependencies and the rail
 hold. They do not invoke normal restore or unlock. Ready, reentrant preparation,
-and quiesce cannot steal or release the prepared board transaction.
+and quiesce cannot steal or release the prepared board transaction. An explicit
+restore-phase guard also rejects recursive restore during unhold/readback.
 
 Only a canonical ordinary native refusal runs board `restore`: unhold GPIO1,
 read back HIGH, unlock the board owner, then unlock the power owner. Repeated
