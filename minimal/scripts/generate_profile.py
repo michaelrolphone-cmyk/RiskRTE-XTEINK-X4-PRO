@@ -25,7 +25,7 @@ def profile(panel, sleep=False):
     buttons=bank([0,7] if sleep else [0,7,3],False,True);buttons['long_press_us']=1000000
     add('buttons','xteink,x4-pro-buttons','gpio.bank',buttons,{'x4.power':17} if sleep else None)
     if sleep:
-        devices.append({'instance_id':17,'chip':{'vendor':'xteink','model':'x4-pro-power-key','revision':'unspecified'},'compatible':'xteink,x4-pro-power-key','config_type':'gpio.bank','config_version':1,'config':bank([3],False,True)})
+        devices.append({'instance_id':17,'chip':{'vendor':'xteink','model':'x4-pro-power-key','revision':'unspecified'},'compatible':'xteink,x4-pro-power-key','config_type':'gpio.bank','config_version':1,'config':bank([3],False,True),'bindings':{'board.power.ready':1}})
     add('battery','cellwise,cw2017-readonly-gauge','peripheral.i2c',peripheral(0x63,21,True),{'i2c.bus':2})
     add('rtc','riscrte,pcf8563-compatible-rtc','peripheral.i2c',peripheral(0x51),{'i2c.bus':2})
     add('sd','xteink,x4-pro-sd-native1','gpio.bank',bank([5,41,42,40],True,True),{'board.power.ready':1})

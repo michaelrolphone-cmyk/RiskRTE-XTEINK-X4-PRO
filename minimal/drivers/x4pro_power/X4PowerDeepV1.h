@@ -5,8 +5,9 @@
 #define X4_POWER_DEEP_TAG UINT32_C(0x58344431)
 /* Optional append-only product authority. The light-sleep prefix is unchanged.
  * Caller must close input sessions, complete frames, prepare peripherals and
- * stage its app-owned retained record first. This provider owns only GPIO3;
- * it does not silently change panel, touch, SD, rails, radios or alarm policy.
+ * stage its app-owned retained record first. This provider owns only GPIO3
+ * and asks the bound board provider to retain GPIO1 HIGH;
+ * it does not silently change panel, touch, SD, radios or alarm policy.
  * Duration is 1..RISC_TIMED_SLEEP_MAX_MS. GPIO3 and timer wake remain armed.
  * Successful entry NEVER RETURNS. Only ordinary native refusal returns for
  * checked rollback. RETAINED requires keeping the invocation/resources intact.

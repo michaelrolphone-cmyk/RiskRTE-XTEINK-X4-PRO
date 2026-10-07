@@ -3,6 +3,7 @@
 #include <RiscProviderSyncV1.h>
 #include <RiscPlatformClockV1.h>
 #include "../drivers/x4pro_power/X4PowerV1.h"
+#include "../drivers/x4pro_board_power/PowerReadyV1.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,15 +22,17 @@ static bool release_pin(void*c,uint64_t t){unsigned i=pin_index((uint8_t)(t-10))
 static int32_t sleep_pin(void*c,uint64_t t,bool high,risc_light_sleep_result_v1*r){assert((uintptr_t)c==1&&t==live[2]&&!high&&!pressed[2]);entries++;pressed[2]=true;r->wake_cause=1;return 0;}
 static int32_t timed(void*c,uint64_t t,bool h,uint32_t ms,risc_light_sleep_result_v1*r){(void)ms;return sleep_pin(c,t,h,r);}
 static risc_input_navigation_frame_v1 poll(const risc_input_navigation_api_v1*n){risc_input_navigation_frame_v1 f={0};now+=10;assert(n->poll(NULL,&f));return f;}
+static bool ready(void*c){(void)c;return true;}
 int main(void){
+ const x4_power_ready_api_v1 board={1,sizeof(board),NULL,ready};
  garden_gpio_v1 gpio[2];risc_provider_sync_api_v1 sync[2];
  for(unsigned i=0;i<2;i++){gpio[i]=(garden_gpio_v1){.api_version=1,.struct_size=sizeof(gpio[i]),.context=(void*)(uintptr_t)i,.claim=claim,.read=read_pin,.release=release_pin,.light_sleep=sleep_pin,.light_sleep_for=timed};sync[i]=(risc_provider_sync_api_v1){1,sizeof(sync[i]),(void*)(uintptr_t)i,owner,create,take,unlock,destroy};}
  risc_platform_clock_api_v1 clock_api={1,sizeof(clock_api),NULL,ticks,NULL};
  risc_hw_gpio_bank_v1 cfg={.struct_size=sizeof(cfg),.count=1,.pull_up=1,.pins={3}};
  risc_hardware_device_v1 hw={1,sizeof(hw),17,"xteink,x4-pro-power-key","unspecified","gpio.bank",1,sizeof(cfg),&cfg};
- risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hw},{"platform.gpio",1,&gpio[1]},{"platform.sync",1,&sync[1]},{"platform.clock",1,&clock_api},{X4_POWER_CAPABILITY,1,NULL}};
- const risc_driver_v2*p=power_get(2);assert(p->start(deps,4));const x4_power_v1*power=p->capability;
- cfg.count=2;cfg.pins[0]=0;cfg.pins[1]=7;cfg.long_press_us=1000000;hw.instance_id=6;hw.compatible="xteink,x4-pro-buttons";deps[1].api=&gpio[0];deps[2].api=&sync[0];deps[4].api=power;
+ risc_provider_dependency_v1 deps[]={{"hardware.device",1,&hw},{"platform.gpio",1,&gpio[1]},{"platform.sync",1,&sync[1]},{"platform.clock",1,&clock_api},{"board.power.ready",1,&board}};
+ const risc_driver_v2*p=power_get(2);assert(p->start(deps,5));const x4_power_v1*power=p->capability;
+ cfg.count=2;cfg.pins[0]=0;cfg.pins[1]=7;cfg.long_press_us=1000000;hw.instance_id=6;hw.compatible="xteink,x4-pro-buttons";deps[1].api=&gpio[0];deps[2].api=&sync[0];deps[4]=(risc_provider_dependency_v1){X4_POWER_CAPABILITY,1,power};
  const risc_driver_v2*d=t5_driver_get(2);assert(!d->start(deps,4));assert(d->start(deps,5));
  const risc_input_navigation_api_v1*n=d->capability;assert(n->struct_size==sizeof(risc_input_navigation_traits_v1));assert(claimed[0]==2&&claimed[1]==1);
  for(unsigned i=0;i<4;i++)assert(!poll(n).pressed);
