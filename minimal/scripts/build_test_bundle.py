@@ -4,16 +4,21 @@ import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zip
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 ROOT=Path(__file__).resolve().parents[2]
-APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings')
-CAPS={'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0}
+APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard')
+CAPS={'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1}
+KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1)}
 def app_grants(name, requirements, sleep=False):
     grants=[]
     for req in requirements:
         cap=req['capability']
         if cap=='x4.power' and (name!='default' or not sleep):
             raise ValueError('Power authority restricted to explicit sleep Clock')
-        instances=([5,1] if name=='points_in_time' else [1]) if cap=='storage.key-value' else [CAPS[cap]]
-        grants.extend({**req,'instance_id':instance} for instance in instances)
+        if cap=='storage.app-data' and name!='timecard':
+            raise ValueError('App-data authority requires an explicit deployment mapping')
+        instances=KV_NAMESPACES.get(name,(1,)) if cap=='storage.key-value' else (CAPS[cap],)
+        for instance in instances:
+            grant={'capability':cap,'api':req['api'],'instance_id':instance}
+            if grant not in grants:grants.append(grant)
     if sleep and name=='default' and not any(g['capability']=='x4.power' for g in grants):
         raise ValueError('Sleep graph requires explicit Clock power grant')
     return grants
@@ -49,12 +54,13 @@ def build(a):
         path=store/folder;m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
         (path/'driver.elf').write_bytes(blob)
-    for folder,key in [('ble','ble_provider'),('alarm','alarm_service')]:
+    for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider')]:
         src=Path(inputs[key]);dest=store/folder;dest.mkdir();m=json.loads((src/'manifest.json').read_text());blob=(src/'driver.elf').read_bytes()
         (dest/'manifest.json').write_bytes(encoded(m));(dest/'driver.elf').write_bytes(blob)
         custody[key]={'id':m['id'],'version':m['version'],'sha256':sha(blob)}
     board['devices'].append({'instance_id':16,'chip':{'vendor':'espressif','model':'esp32s3-ble','revision':'unspecified'},'compatible':'espressif,esp32s3-ble','config_type':'radio.integrated','config_version':1,'config':{'unit':0,'features':1}})
     boot['drivers'].append({'manifest':'ble/manifest.json','instance_id':16})
+    boot['drivers'].append({'manifest':'sensors/manifest.json'})
     keys=[('alarm_cfg',3,'read'),('timer_cfg',3,'read'),('alarm_occ',4,'read-write'),('timer_occ',4,'read-write'),('alert_mode',1,'read'),('points_cfg',5,'read'),('points_occ',4,'read-write'),('alert_dnd',1,'read')]
     boot['drivers'].append({'manifest':'alarm/manifest.json','key_value':[{'key':k,'namespace':n,'access':v} for k,n,v in keys]})
     policies=[];licenses=out/'licenses';licenses.mkdir()
@@ -63,6 +69,11 @@ def build(a):
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
         # The shared adapter exposes battery telemetry only with explicit grants.
         if not any(r['capability']=='board.battery' for r in m['requires']):m['requires'].append({'capability':'board.battery','api':1})
+        requirements=[]
+        for req in m['requires']:
+            normalized={'capability':req['capability'],'api':req['api']}
+            if normalized not in requirements:requirements.append(normalized)
+        m['requires']=requirements
         grants=app_grants(name,m['requires'],getattr(a,'sleep',False))
         policies.append({'manifest':name+'.json','grants':grants});(store/(name+'.elf')).write_bytes(blob);(store/(name+'.json')).write_bytes(encoded(m))
         custody['apps'][name]={'id':m['id'],'version':m['version'],'sha256':sha(blob),'manifest_sha256':sha(encoded(m))}
@@ -100,7 +111,7 @@ def build(a):
     custody['image']={'name':filename,'bytes':len(full),'sha256':sha(full)};custody['store_files']={n:{'bytes':len(b),'sha256':sha(b)} for n,b in sorted(files.items())};custody['extended_checks_skipped']=a.skip_extended_checks
     custody['native_partitions']=[{'offset':at,'bytes':len(blob),'sha256':sha(blob)} for at,blob in parts]
     (out/'build-custody.json').write_bytes(encoded(custody))
-    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; swipe any direction to Springboard; File Browser, Bluetooth Scanner, Points in Time and Settings. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
+    (out/'README.txt').write_text('X4 MINIMAL TEST BUILD - '+a.panel+'\n\nNEW 16 MiB paired/app-data layout only. Flashing the full BIN at0x0 overwrites firmware, partition table, NVS and app-data. Do not use as a data-preserving update. No device was flashed or physically tested. Select the panel variant explicitly; wrong-controller detection fails closed.\n\nBoot: clock; swipe any direction to Springboard; File Browser, Bluetooth Scanner with sensor details, Points in Time, Settings, Calculator, Stopwatch, Countdown and Timecard. Serial Monitor deferred. RTC uses unconverted wall time. Alarms are visual-only; no audio/haptic hardware is simulated. File opening requires a declared installed handler; no arbitrary SD ELF execution.\n\nExtra checks/CI wait were skipped for this requested accelerated test artifact. See build-custody.json for exact hashes and verification limits.\n')
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
