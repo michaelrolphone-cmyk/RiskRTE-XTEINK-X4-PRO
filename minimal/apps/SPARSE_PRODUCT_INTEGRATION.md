@@ -27,6 +27,14 @@ tests pass. They cover every current app, exact instance0 mapping, required
 profile flags, wrong native versions, fourteen/sixteen/seventeen boundaries,
 duplicate handling, and unchanged existing app policies.
 
+The unselected sparse Clock receipt validator separately requires Clock0.3.2,
+all fourteen exact requirements, retained-only timer preferences, explicit
+promotion and invocation retention, the selected source/local-sleep hashes,
+and every canonical display/touch/storage/native lifecycle SDK hash. Five
+negative/positive tests reject mixed wall-time/eager profiles, missing or extra
+authority, old/malformed SDK custody, dirty sources and mismatched artifacts.
+Neither helper is wired into a product command-line activation yet.
+
 ## Remaining activation gates
 
 The future boot policy must remain eager until the actual sparse Clock,

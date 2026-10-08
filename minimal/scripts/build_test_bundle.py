@@ -80,6 +80,31 @@ def validate_settings_profile(manifest,blob,record,desk_clock=False,source=None)
 DESK_REQUIREMENTS={('display.output',1),('input.touch.raw',1),('rtc.clock',2),('board.battery',1),
     ('storage.key-value',1),('input.navigation',1),('alarm.service',1),('x4.power',1),
     ('runtime.retained-wake',1),('storage.volume',1),('net.wifi',1),('bluetooth.hci',1)}
+SPARSE_REQUIREMENTS=DESK_REQUIREMENTS|{('runtime.realtime-control',1),('runtime.provider-promotion',1)}
+def validate_sparse_clock_profile(manifest,blob,record,source,local_source,headers):
+    """Unselected future-profile gate; does not enable demand activation."""
+    required_headers={'RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h',
+                      'RiscRetainedWakeV1.h','RiscDisplayOutputPowerV1.h','RiscTouchPowerV1.h',
+                      'RiscStorageVolumeV1.h','RiscTimedSleepV1.h','RiscDeepSleepV1.h','RiscLightSleepV1.h'}
+    if not required_headers.issubset(headers) or any(not re.fullmatch(r'[0-9a-f]{64}',value) for value in headers.values()):
+        raise ValueError('Sparse Clock requires exact canonical lifecycle/native SDK hashes')
+    expected={'working_tree_dirty':False,'desk_clock':True,'version':'0.3.2',
+              'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
+              'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
+              'display_rotation':90,'launcher_app':'springboard.elf','navigation':True,'sleep_capability':'x4.power',
+              'alarm_client':True,'quick_actions':True,'quick_radios':True,'grant_count':14,
+              'repository_commit':source,'sha256':sha(blob),'size_bytes':len(blob),
+              'local_sleep_source_sha256':sha(local_source),'desk_sdk_headers':headers,
+              'retained_wake_sdk_sha256':headers['RiscRetainedWakeV1.h']}
+    if manifest.get('id')!='paper_clock' or manifest.get('version')!='0.3.2' or any(record.get(k)!=v for k,v in expected.items()):
+        raise ValueError('Sparse Clock source, feature or artifact identity mismatch')
+    requirements=manifest.get('requires',[])
+    if len(requirements)!=14 or {(r['capability'],r['api']) for r in requirements}!=SPARSE_REQUIREMENTS:
+        raise ValueError('Sparse Clock requires exactly its fourteen typed capabilities')
+    return {'record_type':'0x44434c4b','record_schema':1,'grant_count':14,
+            'provider_activation':'demand','timer_preferences':'retained-only',
+            'foreground_promotion':True,'invocation_retention':True,
+            'rtc_policy':'native-utc-with-explicit-iana-conversion','hardware_qualified':False}
 def validate_desk_clock_profile(manifest,blob,record,source,local_source,headers):
     expected={'working_tree_dirty':False,'desk_clock':True,'version':'0.3.0','clock_policy':'rtc-wall-time',
               'display_rotation':90,'launcher_app':'springboard.elf','navigation':True,'sleep_capability':'x4.power',
