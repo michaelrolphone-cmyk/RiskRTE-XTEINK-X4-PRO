@@ -74,7 +74,7 @@ static void panel_epd_reset_unhold(void) {
 #define FRAME_BYTES ((X4PRO_PANEL_WIDTH / 8u) * X4PRO_PANEL_HEIGHT)
 static const risc_platform_clock_api_v1 *clock_api;
 static uint8_t frame[FRAME_BYTES], previous_frame[FRAME_BYTES];
-static bool previous_seeded, partial_update;
+static bool previous_seeded, completed_history, partial_update;
 static risc_display_rect_v1 update_area;
 static uint64_t transfer_yielded_ms;
 static unsigned transfer_work;
@@ -465,6 +465,19 @@ static bool transfer_frame(uint64_t deadline_ms) {
     command(0x20);
     return wait_idle(deadline_ms);
 }
+/* Record only pixels whose visible update completed. Unsubmitted caller
+ * edits and a partial refresh's untouched pixels never become history. */
+static void remember_completed_frame(void) {
+    if (controller != PROBE_UC8279) return;
+    if (partial_update) {
+        const size_t row_bytes = X4PRO_PANEL_WIDTH / 8u;
+        const size_t left = (size_t)update_area.x / 8u;
+        const size_t length = update_area.width / 8u;
+        for (size_t y = (size_t)update_area.y; y < (size_t)update_area.y + update_area.height; ++y)
+            memcpy(previous_frame + y * row_bytes + left, frame + y * row_bytes + left, length);
+    } else memcpy(previous_frame, frame, FRAME_BYTES);
+    completed_history = true;
+}
 /* Runtime calls this ordinary poll suffix on the existing serialized owner.
  * Keep every GPIO edge/command from the synchronous UC path, but return between
  * bounded chunks so app input can be sampled while a frame is in flight. */
@@ -545,6 +558,7 @@ static void poll_present(uint32_t budget_ms) {
             if (!sample_now(&busy_done_ms)) goto failed;
             if (partial_update) command(0x92);
             if (io_failed) goto failed;
+            remember_completed_frame();
             present_state = PRESENT_COMPLETE; held = false; previous_seeded = false;
             async_stage = UC_ASYNC_NONE; reason = "complete"; break;
         } else { set_reason("invalid async state"); goto failed; }
@@ -603,7 +617,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
         return false;
     if (options && (options->intent > RISC_DISPLAY_PRESENT_CLEAN || options->queue_policy != RISC_DISPLAY_QUEUE_FIFO || options->reserved)) return false;
     if (!token_out || count > RISC_DISPLAY_MAX_DAMAGE_RECTS || (count && !damage)) return false;
-    partial_update = count && previous_seeded && (!options || options->intent != RISC_DISPLAY_PRESENT_CLEAN);
+    partial_update = count && (previous_seeded || completed_history) && (!options || options->intent != RISC_DISPLAY_PRESENT_CLEAN);
     update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (count) {
         uint32_t left = X4PRO_PANEL_WIDTH, top = X4PRO_PANEL_HEIGHT, right = 0, bottom = 0;
@@ -624,7 +638,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
     pending_token = token_serial;
-    previous_seeded = false; // Consumed by this one admitted submission.
+    previous_seeded = completed_history = false; // Invalid until this submission completes.
     present_state = PRESENT_QUEUED;
     transfer_started = false;
     async_stage = UC_ASYNC_NONE;
@@ -666,6 +680,7 @@ static bool wait_present_impl(void *context, risc_display_present_token_v1 token
             present_state = PRESENT_FAILED;
             held = false;
         } else {
+            remember_completed_frame();
             present_state = PRESENT_COMPLETE;
             reason = "complete";
             held = false;
@@ -684,7 +699,7 @@ static bool seed_previous_impl(void *context, risc_display_frame_v1 frame_id) {
     (void)context;
     if (!started || shutdown_stage || !held || frame_id != frame_serial ||
         present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE) return false;
-    previous_seeded = false;
+    previous_seeded = completed_history = false;
     const uint64_t began = now_ms();
     if (began == UINT64_MAX || began > UINT64_MAX - 100u) return false;
     uint64_t last_yield = began;
@@ -833,7 +848,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     physical_pins[X4PRO_PIN_EPD_MOSI] = (uint8_t)configuration->bus.mosi;
     physical_pins[X4PRO_PIN_EPD_DC] = (uint8_t)configuration->dc;
     physical_pins[X4PRO_PIN_EPD_RST] = (uint8_t)configuration->reset;
-    shutdown_stage = 0; previous_seeded = partial_update = false;
+    shutdown_stage = 0; previous_seeded = completed_history = partial_update = false;
     present_state = PRESENT_NONE; pending_token = 0; last_sample_ms = now;
     reason = "none"; operation_deadline = now + 2000u;
     prepare_pins();
@@ -901,7 +916,7 @@ static int32_t prepare_power_impl(uint64_t deadline) {
         if (controller == PROBE_UC8279) command(0x02);
         else { command(0x3C); data1(0x80); command(0x22); data1(0x03); command(0x20); }
         if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
-        shutdown_stage = 1u; started = false; previous_seeded = false;
+        shutdown_stage = 1u; started = false; previous_seeded = completed_history = false;
         /* Start settling after the completed command, not before its GPIO I/O. */
         result = power_checkpoint(deadline);
         shutdown_not_before = last_sample_ms + (controller == PROBE_UC8279 ? 1u : 200u);
@@ -961,7 +976,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
         }
         reset_held = false;
     }
-    shutdown_stage = 5u; started = false; previous_seeded = false;
+    shutdown_stage = 5u; started = false; previous_seeded = completed_history = false;
     shutdown_not_before = 0;
     /* The same controller register setup as initial start, but without probe,
      * frame clear, PON or refresh. RESET recovers partial POF/DSLP/refusals. */

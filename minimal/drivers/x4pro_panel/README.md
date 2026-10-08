@@ -152,3 +152,30 @@ refresh. The provider does not persist framebuffer history or invent old pixels.
 This slice excludes the desk-clock application transaction, Runtime retained
 records, CPU sleep entry, touch/SD/rail lifecycle and hardware qualification.
 The existing frozen X4 0.1.6 firmware and raw `Drivers/` custody are unchanged.
+
+## Completed-image partial refresh (0.1.21)
+
+UC8279 now remembers the image after BUSY confirms a successful presentation.
+Subsequent ordinary damage submissions can use the existing partial waveform
+without an explicit app call to `seed_previous`. Before this change, ordinary
+button redraws supplied damage but selected the full waveform because no seed
+was present. The explicit seed path used for reconstructed deep-wake images
+still takes precedence, and clean presentations still select the full waveform.
+SSD1677 behavior is unchanged.
+
+Only the refreshed rectangle is incorporated after a partial completion;
+unsubmitted writes, released leases and pixels outside the physical update do
+not become history. Admitted submissions invalidate inferred history until
+completion. Failed transfers, explicit reseeding, restart, power preparation and
+resume cannot reuse stale history. The existing previous-frame buffer is reused;
+no new allocation, API, input polling policy or integrity check is introduced.
+
+The real-provider `uc-async-history` fixture verifies full→ordinary-partial,
+unsubmitted lease edits, clean override, explicit seed precedence, partial-region
+history, timeout invalidation and resume invalidation. Before/after modes are
+0x1E→0x5A. The existing command order, two 60,000-byte UC planes, bounded async
+slices and BUSY handshake are preserved. Visible geometry is 800×480 (48,000
+bytes); each UC plane includes 120 blank controller rows, making 800×600 (60,000
+bytes). This change removes unnecessary full waveforms, but does not establish
+physical touch-to-visible latency, introduce paper crossfades or reduce wire
+transfer volume. Hardware qualification remains pending.

@@ -25,6 +25,6 @@ entries = [line.split() for line in Path(sys.argv[2]).read_text().splitlines()]
 exports = {r[7] for r in entries if len(r) >= 8 and r[4] == 'GLOBAL' and r[6] != 'UND' and r[3] == 'FUNC'}
 imports = {r[7] for r in entries if len(r) >= 8 and r[4] == 'GLOBAL' and r[6] == 'UND'}
 assert exports == {'t5_driver_get'}, exports
-assert imports <= {'memset', 'strcmp'}, imports
+assert imports <= {'memcpy', 'memset', 'strcmp'}, imports
 print('x4 ordinary panel Xtensa: PASS', len(blob), hashlib.sha256(blob).hexdigest(), 'imports:', ','.join(sorted(imports)))
 PY

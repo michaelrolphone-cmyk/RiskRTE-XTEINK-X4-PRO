@@ -190,6 +190,48 @@ static void complete(uint64_t token) {
     } else assert(display->wait_present(NULL, token, 20000, &status));
     assert(status.state == RISC_DISPLAY_PRESENT_COMPLETE);
 }
+/* Ordinary app damage must use the provider's own completed physical image.
+ * No explicit seed call is made until its independent precedence case. */
+static void ordinary_history(const risc_driver_v2 *driver,uint64_t token) {
+    const bool expected=getenv("X4_EXPECT_HISTORY")?atoi(getenv("X4_EXPECT_HISTORY"))!=0:true;
+    const risc_display_rect_v1 damage={0,0,8,1};
+    const risc_display_present_options_v1 clean={RISC_DISPLAY_PRESENT_CLEAN,RISC_DISPLAY_QUEUE_FIFO,0};
+    risc_display_surface_v1 surface={0};
+    complete(token);assert(registers[0xE5][0]==0x1E);
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));((uint8_t*)surface.pixels)[0]=0xF0;
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));assert(partial_update==expected);complete(token);
+    assert(registers[0xE5][0]==(expected?0x5A:0x1E));
+    unsigned ordinary_mode=registers[0xE5][0];
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));((uint8_t*)surface.pixels)[0]=0x55;display->release(NULL,surface.frame);
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));((uint8_t*)surface.pixels)[0]=0xA5;
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));assert(partial_update==expected);complete(token);
+    assert(old_pixel==(expected?0x0F:0xFF));
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));((uint8_t*)surface.pixels)[0]=0xC3;
+    assert(display->submit(NULL,surface.frame,&damage,1,&clean,&token));assert(!partial_update);complete(token);
+    assert(registers[0xE5][0]==0x1E);
+    const risc_display_output_api_v1_history *history=risc_display_output_history(display);assert(history);
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));memset(surface.pixels,0x3C,surface.size_bytes);
+    assert(history->seed_previous(NULL,surface.frame));((uint8_t*)surface.pixels)[0]=0x69;
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));assert(partial_update);complete(token);assert(old_pixel==0xC3);
+    /* A partial completion must retain the old physical pixels outside damage,
+     * even if the caller left unsubmitted data elsewhere in its surface. */
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));((uint8_t*)surface.pixels)[100]=0xF0;
+    const risc_display_rect_v1 next_damage={0,1,8,1};
+    assert(display->submit(NULL,surface.frame,&next_damage,1,NULL,&token));assert(partial_update==expected);complete(token);
+    if(expected)assert(previous_frame[0]==0x69&&previous_frame[100]==0xF0&&previous_frame[101]==0x3C);
+    /* A timeout invalidates inferred history before another admission. */
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));
+    const risc_driver_poll_v2 *d=(const risc_driver_poll_v2*)driver;d->poll(8);fake_now=async_deadline;d->poll(8);assert(present_state==PRESENT_FAILED);
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));assert(!partial_update);complete(token);
+    const risc_display_output_api_v1_power *power=risc_display_output_power(display);assert(power);
+    assert(power->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);assert(power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
+    assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
+    assert(display->submit(NULL,surface.frame,&damage,1,NULL,&token));assert(!partial_update);complete(token);
+    assert(driver->quiesce());
+    printf("ordinary damage refresh=0x%02x; release/seed/clean/failure/resume history passed; total_async_slices=%u\n",ordinary_mode,async_calls);
+}
 static void assert_sleep_blocks(const risc_display_output_api_v1_power *power, uint64_t old_token) {
     risc_display_surface_v1 other = {0}; risc_display_present_status_v1 status = {0};
     uint64_t token = 99;
@@ -399,7 +441,9 @@ int main(int argc, char **argv) {
         unsigned before=writes; assert(!display->wait_present(NULL,token,20000,NULL) && writes==before);
         assert(display->wait_present(NULL,token,0,&status) && status.state==RISC_DISPLAY_PRESENT_QUEUED && writes==before);
         display->release(NULL,surface.frame); assert(!display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
-        if (!strcmp(scenario,"uc-async-retained")) {
+        if (!strcmp(scenario,"uc-async-history")) {
+            ordinary_history(driver,token);goto done;
+        } else if (!strcmp(scenario,"uc-async-retained")) {
             const risc_driver_poll_v2 *d=(const risc_driver_poll_v2*)driver;
             d->poll(8);assert(present_state==PRESENT_ACTIVE && bytes_sent && bytes_sent<=512u);
             const unsigned writes_before=writes;owner=false;d->poll(8);assert(writes==writes_before);owner=true;
