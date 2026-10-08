@@ -19,7 +19,7 @@ import sys
 import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
-ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf')
+ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
 NATIVE_FILES = ('X4EarlyBoot.cpp', 'build.py')
 SCHEMA = 'x4.native-composition'
 
@@ -242,6 +242,15 @@ def stage(runtime, workspace, output, appdata):
         require(recorder is not None and recorder['st_shndx'] != 'SHN_UNDEF' and recorder['st_size'] >= 4096,
                 'Performance recorder absent')
         proof['performance_trace'] = {'enabled': True, 'recorder_bytes': recorder['st_size'], 'symbol': '_ZN8RiscPerf4dataE'}
+    plain_stages = environment.endswith('-stage')
+    if plain_stages:
+        from elftools.elf.elffile import ELFFile
+        symbols = {s.name: s for s in ELFFile(io.BytesIO(blobs['firmware.elf'])).get_section_by_name('.symtab').iter_symbols()}
+        sink=symbols.get('_ZN15RiscDiagnostics11timestampedEPKcz')
+        require(sink is not None and sink['st_shndx'] != 'SHN_UNDEF' and sink['st_size'] > 0,
+                'Plain stage logger absent')
+        require('_ZN8RiscPerf4dataE' not in symbols, 'Unexpected enabled performance recorder')
+        proof['stage_logs']={'enabled':True,'automatic':True,'recorder':False,'symbol':sink.name}
     x4_proof = startup_proof(blobs['firmware.elf'], record)
     blobs['radio-iq-proof.json'] = encoded(proof['radio_iq'])
     blobs['x4-native-proof.json'] = encoded(x4_proof)
@@ -251,7 +260,7 @@ def stage(runtime, workspace, output, appdata):
     for name in ('appdata.bin', 'appdata-image.json'):
         blobs[name] = (Path(appdata) / name).read_bytes()
     candidate = {'schema': 1, 'target': target, 'build_environment': environment,
-                 'performance_trace': performance, 'source_sha': native['commit'],
+                 'performance_trace': performance, 'stage_logs':plain_stages,'source_sha': native['commit'],
                  'firmware_version': native['version'], 'layout': 'riscrte-paired-appdata-v2',
                  'store_abi': 2, 'flash_bytes': 0x1000000, 'partitions': shared.APP_DATA_EXPECTED,
                  'native_proof': proof, 'initial_appdata': initial,
