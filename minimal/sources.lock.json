@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "3c39aa7ac50ecd7f6da0296a62a2d7af066f82d1",
-    "version": "0.1.47"
+    "commit": "30dcec5ce6ce33223f2b203a2399283e1f758567",
+    "version": "0.1.52"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Future desk-clock foundation integration; complete app wiring and hardware qualification pending; frozen 0.1.6 unchanged"
+  "status": "Native UTC sparse Clock cohort integration; hardware qualification separate"
 }
