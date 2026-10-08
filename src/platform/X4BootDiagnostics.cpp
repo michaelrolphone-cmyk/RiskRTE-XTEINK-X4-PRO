@@ -20,6 +20,10 @@ RTC_NOINIT_ATTR Record retained;
 Record previous{};
 bool initialized = false, previousValid = false, wasConnected = false;
 uint32_t stageStartedMs = 0;
+struct StageTiming { uint8_t stage; uint32_t elapsedMs; uint32_t sinceBootMs; };
+StageTiming stageTimings[static_cast<size_t>(Stage::Count)]{};
+size_t stageTimingCount = 0;
+uint32_t bootStartedMs = 0;
 uint32_t digest(const Record& record) {
   const auto* bytes = reinterpret_cast<const unsigned char*>(&record);
   uint32_t value = 2166136261u;
@@ -64,14 +68,19 @@ void begin(uint32_t resetReason) {
   retained = next;
   initialized = true;
   stageStartedMs = next.stageAtMs;
+  bootStartedMs = stageStartedMs;
+  stageTimingCount = 0;
   wasConnected = false;
 }
 void mark(Stage stage) {
   if (!initialized || stage >= Stage::Count) return;
   const uint32_t now = static_cast<uint32_t>(millis());
-  LOG_INF("X4TIMING", "phase=boot-stage stage=%s duration_ms=%lu total_ms=%lu",
-      name(retained.stage), static_cast<unsigned long>(now - stageStartedMs),
-      static_cast<unsigned long>(now));
+  // Accumulate without serial I/O on the boot hot path. Dump only at the
+  // existing serial-connect edge, after the normal firmware has started.
+  if (stageTimingCount < static_cast<size_t>(Stage::Count)) {
+    stageTimings[stageTimingCount++] = {
+        static_cast<uint8_t>(retained.stage), now - stageStartedMs, now - bootStartedMs};
+  }
   stageStartedMs = now;
   retained.stage = static_cast<uint32_t>(stage);
   retained.stageAtMs = now;
@@ -90,6 +99,12 @@ void fail(const char* reason) {
 void poll(bool serialConnected) {
   if (!initialized) return;
   if (serialConnected && !wasConnected) {
+    for (size_t i = 0; i < stageTimingCount; ++i) {
+      const auto& sample = stageTimings[i];
+      LOG_INF("X4TIMING", "phase=boot-stage stage=%s duration_ms=%lu since_boot_ms=%lu",
+          name(sample.stage), static_cast<unsigned long>(sample.elapsedMs),
+          static_cast<unsigned long>(sample.sinceBootMs));
+    }
     report("current", retained);
     if (previousValid) report("previous-retained", previous);
     else LOG_INF("X4BOOT", "previous record unavailable or reset does not establish RTC retention");
