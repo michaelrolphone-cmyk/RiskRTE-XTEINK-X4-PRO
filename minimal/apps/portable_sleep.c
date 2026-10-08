@@ -145,7 +145,14 @@ static bool desk_wake_valid(const risc_retained_wake_api_v1 *wake) {
     return wake && wake->api_version==RISC_RETAINED_WAKE_API_V1 &&
         wake->struct_size>=sizeof(*wake) && wake->read && wake->stage && wake->clear;
 }
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+static bool desk_boot_is_cold;
+bool portable_desk_clock_boot_is_cold(void) { return desk_boot_is_cold; }
+#endif
 int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_record *out) {
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+    desk_boot_is_cold=false;
+#endif
     if(!out || !desk_runtime_valid(rt))return 0;
     risc_runtime_capability_v1 grant={.struct_size=sizeof(grant)};
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
@@ -158,7 +165,7 @@ int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_re
     portable_desk_record record={0};int valid=0;
     if(desk_wake_valid(wake)) {
         risc_retained_wake_record_v1 value={.struct_size=sizeof(value)};
-        uint32_t cause=RISC_BOOT_POWER_ON;
+        uint32_t cause=UINT32_MAX;
         int32_t rc=wake->read(wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
                              PORTABLE_DESK_CLOCK_RECORD_SCHEMA,&value,&cause);
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
@@ -166,6 +173,8 @@ int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_re
          * give no authority to release, clear, yield or try another provider. */
         if(rc!=RISC_RETAINED_WAKE_OK && rc!=RISC_RETAINED_WAKE_ABSENT &&
            rc!=RISC_RETAINED_WAKE_MISMATCH && rc!=RISC_RETAINED_WAKE_INVALID)return -2;
+        desk_boot_is_cold=rc!=RISC_RETAINED_WAKE_INVALID &&
+            (cause==RISC_BOOT_POWER_ON || cause==RISC_BOOT_RESET);
 #endif
         valid=rc==RISC_RETAINED_WAKE_OK && cause==RISC_BOOT_DEEP_TIMER &&
             value.struct_size>=sizeof(value) && value.type==PORTABLE_DESK_CLOCK_RECORD_TYPE &&
