@@ -12,7 +12,7 @@
   "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
   "settings_system_apps": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
   "desk_clock_system_apps": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
-  "cohort_admission_watch_tools": "d2cce9f9c5119cd59e08f73f7f573d2eba91d75d",
+  "cohort_admission_watch_tools": "b20e0b68984749bfe7a7cca0ac82dd3aa694765d",
   "native_cohort": {
     "default": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
     "settings": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
@@ -22,6 +22,13 @@
     "timecard": "d5893d50e5cf7927329d9e7dfedc03e180bbe63e",
     "file_browser": "ba280f3c1db89f3bf42647bfdea8c205ad55e9ce",
     "wifi_settings": "15828e8792be82d851d77f46f91257f6094275b9",
-    "springboard": "ba280f3c1db89f3bf42647bfdea8c205ad55e9ce"
+    "springboard": "ba280f3c1db89f3bf42647bfdea8c205ad55e9ce",
+    "ble_buttons": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "battery": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "ble_touchpad": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "waterfall": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "ble_scanner": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "stopwatch": "278404d2c92b3e94b4a6d93d6df789614ff6ce39",
+    "calculator": "278404d2c92b3e94b4a6d93d6df789614ff6ce39"
   }
 }
