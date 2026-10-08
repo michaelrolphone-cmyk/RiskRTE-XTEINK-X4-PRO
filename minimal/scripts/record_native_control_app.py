@@ -21,14 +21,15 @@ digest=hashlib.sha256(blob).hexdigest()
 assert record['repository_commit']==source and record['working_tree_dirty'] is False
 assert record['sha256']==digest and record['size_bytes']==len(blob)
 assert record['version']==manifest['version']
-include=a.input/('desk-sdk/include' if a.app=='default' else 'native-time-sdk/include')
-headers={name:hashlib.sha256((include/name).read_bytes()).hexdigest() for name in cohort.SDK}
-assert headers==cohort.SDK,'Compiled SDK headers differ from the cohort'
+runtime_source,expected_headers=cohort.expected_sdk(a.app)
+include=a.input/('performance-sdk/include' if record.get('performance_trace') else 'desk-sdk/include' if a.app=='default' else 'native-time-sdk/include')
+headers={name:hashlib.sha256((include/name).read_bytes()).hexdigest() for name in expected_headers}
+assert headers==expected_headers,'Compiled SDK headers differ from the cohort'
 tagged=json.loads((a.input/'tagged-alarm-sdk.json').read_text())
 assert tagged['commit']==cohort.ALARMS and tagged['api']==2
 receipt={'schema':1,'app':a.app,'version':manifest['version'],
  'source_repo':'michaelrolphone-cmyk/RiscRTE-System-Apps','source_revision':source,
- 'system_source_revision':source,'runtime_source_revision':cohort.RUNTIME,
+ 'system_source_revision':source,'runtime_source_revision':runtime_source,
  'alarm_source_revision':cohort.ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',
  'elf_sha256':digest,'elf_bytes':len(blob),'requires':manifest['requires'],'sdk_sha256':headers,
  'build_record_sha256':hashlib.sha256((a.input/('build-evidence.json' if a.app=='default' else 'settings-build-record.json')).read_bytes()).hexdigest()}

@@ -91,7 +91,7 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
                       'RiscStorageVolumeV1.h','RiscTimedSleepV1.h','RiscDeepSleepV1.h','RiscLightSleepV1.h'}
     if not required_headers.issubset(headers) or any(not re.fullmatch(r'[0-9a-f]{64}',value) for value in headers.values()):
         raise ValueError('Sparse Clock requires exact canonical lifecycle/native SDK hashes')
-    version='0.3.6' if tagged_alarm else '0.3.2'
+    version='0.3.7' if tagged_alarm else '0.3.2'
     expected={'working_tree_dirty':False,'desk_clock':True,'version':version,
               'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
               'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
@@ -160,6 +160,7 @@ def build(a):
         compact_tool=load_module('x4_compact_elf',a.watch/'scripts/compact_current_elf.py')
     lock=custody['shared_source_lock']
     if custody['runtime']['source_sha']!=lock['runtime']['commit'] or custody['runtime']['firmware_version']!=lock['runtime']['version']:raise ValueError('Native candidate differs from locked Runtime source')
+    if custody['runtime'].get('performance_trace') is not True or custody['runtime'].get('native_proof',{}).get('performance_trace',{}).get('enabled') is not True:raise ValueError('Diagnostic cohort requires proved enabled native trace storage')
     if driver_origin['source_fixture']:raise ValueError('Source-fixture drivers cannot be packaged')
     for name in ('runtime','shared'):
         source=driver_origin['sources'][name]

@@ -1,17 +1,27 @@
 """Admission of the explicit UTC/API2 cohort; ordinary profiles remain separate."""
 import hashlib
 import re
+import json
+from pathlib import Path
 
 RUNTIME = '30dcec5ce6ce33223f2b203a2399283e1f758567'
 ALARMS = '637e13b0bce62ad49b756bec2468a6271d163fc7'
+PERFORMANCE = json.loads((Path(__file__).resolve().parents[1]/'performance-sdk.json').read_text())
+DIAGNOSTIC_APPS = {'default','springboard','settings'}
+def expected_sdk(name):
+    if name not in DIAGNOSTIC_APPS:return RUNTIME, dict(SDK)
+    headers=dict(PERFORMANCE['headers'])
+    if name=='default':headers.update(PERFORMANCE['clock_overrides'])
+    return PERFORMANCE['runtime_source'],headers
+
 SDK = {
  'RiscRuntimeV1.h':'2f1b785d65729c0866691570bb920299a8c5187765f3eac204df3cb427ce9c84',
  'RiscRealtimeV1.h':'639781f728841cda6d40c3033877436b9e5d59519a4b15e11a9bc99b2365395d',
  'AlarmServiceV1.h':'c70c087550306c123255e1ace41aeb504809e16b0193e382ec8dfbd7cb5531f5',
  'AlarmServiceV2.h':'d7e750a8093e1b5e698483254edc38533b7242a3446d0bca5866c9dfd6ad07a1',
 }
-VERSIONS = {'default':'0.3.6','springboard':'1.7.3','file_browser':'1.5.5',
- 'ble_scanner':'0.2.6','points_in_time':'0.6.1','settings':'1.3.9',
+VERSIONS = {'default':'0.3.7','springboard':'1.7.4','file_browser':'1.5.5',
+ 'ble_scanner':'0.2.6','points_in_time':'0.6.1','settings':'1.3.10',
  'calculator':'0.1.11','stopwatch':'0.1.11','countdown':'0.1.10','timecard':'0.2.1',
  'battery':'1.1.4','alarms':'0.2.6','wifi_settings':'1.1.8',
  'ble_touchpad':'0.1.6','ble_buttons':'0.1.6','waterfall':'0.2.2'}
@@ -23,11 +33,12 @@ ALARM_KEYS = [('alarm_utc_cfg',3,'read'),('timer_utc_cfg',3,'read'),
 def validate_app(name, manifest, blob, receipt, source):
     if name not in VERSIONS or not re.fullmatch(r'[0-9a-f]{40}',source):
         raise ValueError('Unknown native app or unpinned source')
+    runtime_source, compiled_sdk = expected_sdk(name)
     expected = {'schema':1,'app':name,'version':VERSIONS[name],
-        'source_revision':source,'runtime_source_revision':RUNTIME,
+        'source_revision':source,'runtime_source_revision':runtime_source,
         'alarm_source_revision':ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',
         'elf_sha256':hashlib.sha256(blob).hexdigest(),'elf_bytes':len(blob),
-        'requires':manifest.get('requires'),'sdk_sha256':SDK}
+        'requires':manifest.get('requires'),'sdk_sha256':compiled_sdk}
     if any(receipt.get(k)!=v for k,v in expected.items()):
         raise ValueError('Native app receipt/source/SDK/ELF mismatch: '+name)
     if not re.fullmatch(r'[0-9a-f]{40}',receipt.get('system_source_revision','')):
