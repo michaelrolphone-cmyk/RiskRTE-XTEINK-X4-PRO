@@ -5,16 +5,16 @@ import unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import native_time_cohort as n
-from build_test_bundle import app_grants
+from build_test_bundle import app_grants, SPARSE_REQUIREMENTS
 
 class NativeCohort(unittest.TestCase):
  def setUp(self):
   self.blob=b'compiled native foreground app';self.source='a'*40
-  self.manifest={'file_name':'alarms.elf','version':'0.2.5','requires':[
+  self.manifest={'file_name':'alarms.elf','version':'0.2.6','requires':[
    {'capability':c,'api':v} for c,v in [('display.output',1),('input.touch.raw',1),
     ('input.navigation',1),('board.battery',1),('runtime.realtime',1),
     ('storage.key-value',1),('alarm.service',2)]]}
-  self.receipt={'schema':1,'app':'alarms','version':'0.2.5',
+  self.receipt={'schema':1,'app':'alarms','version':'0.2.6',
    'source_repo':'michaelrolphone-cmyk/RiscRTE-Utilities','source_revision':self.source,
    'system_source_revision':'b'*40,'runtime_source_revision':n.RUNTIME,
    'alarm_source_revision':n.ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',
@@ -45,6 +45,14 @@ class NativeCohort(unittest.TestCase):
    with self.assertRaises(ValueError):app_grants(name,req,True,True,True)
   self.assertEqual(app_grants('alarms',req,True,True,True,True),
                    [{'capability':'runtime.realtime','api':1,'instance_id':0}])
+ def test_home_points_grant_is_explicit_and_bounded(self):
+  req=[{'capability':c,'api':2 if c=='alarm.service' else v} for c,v in SPARSE_REQUIREMENTS]
+  grants=app_grants('default',req,True,True,True,True)
+  self.assertEqual(len(grants),15)
+  self.assertEqual([g['instance_id'] for g in grants if g['capability']=='storage.key-value'],[5,1])
+  old=app_grants('default',req,True,True,True,False)
+  self.assertEqual(len(old),14)
+  self.assertEqual([g['instance_id'] for g in old if g['capability']=='storage.key-value'],[1])
  def test_nine_explicit_provider_keys(self):
   self.assertEqual(len(n.ALARM_KEYS),9)
   self.assertEqual(n.ALARM_KEYS[-1],('time_zone',1,'read'))

@@ -27,7 +27,7 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
             raise ValueError('Retained-wake authority restricted to explicit desk Clock')
         if cap=='storage.app-data' and name not in APPDATA_NAMESPACES:
             raise ValueError('App-data authority requires an explicit deployment mapping')
-        instances=((8,) if req['api']==2 else (1,)) if name=='waterfall' and cap=='storage.key-value' else KV_NAMESPACES.get(name,(1,)) if cap=='storage.key-value' else (APPDATA_NAMESPACES[name],) if cap=='storage.app-data' else (CAPS[cap],)
+        instances=(5,1) if native_time and sparse_clock and name=='default' and cap=='storage.key-value' else ((8,) if req['api']==2 else (1,)) if name=='waterfall' and cap=='storage.key-value' else KV_NAMESPACES.get(name,(1,)) if cap=='storage.key-value' else (APPDATA_NAMESPACES[name],) if cap=='storage.app-data' else (CAPS[cap],)
         for instance in instances:
             grant={'capability':cap,'api':req['api'],'instance_id':instance}
             if grant not in grants:grants.append(grant)
@@ -91,7 +91,7 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
                       'RiscStorageVolumeV1.h','RiscTimedSleepV1.h','RiscDeepSleepV1.h','RiscLightSleepV1.h'}
     if not required_headers.issubset(headers) or any(not re.fullmatch(r'[0-9a-f]{64}',value) for value in headers.values()):
         raise ValueError('Sparse Clock requires exact canonical lifecycle/native SDK hashes')
-    version='0.3.3' if tagged_alarm else '0.3.2'
+    version='0.3.6' if tagged_alarm else '0.3.2'
     expected={'working_tree_dirty':False,'desk_clock':True,'version':version,
               'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
               'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
@@ -100,13 +100,16 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
               'repository_commit':source,'sha256':sha(blob),'size_bytes':len(blob),
               'local_sleep_source_sha256':sha(local_source),'desk_sdk_headers':headers,
               'retained_wake_sdk_sha256':headers['RiscRetainedWakeV1.h']}
+    if tagged_alarm:
+        expected['home_points']={'clock_policy':'native-utc','storage_instance':5,'foreground_only':True,'records':['points_utc_cfg','points_utc_meta'],'projection':'Utilities PointsUtcSchedule','model':'Watch nova_points_state','tap_app':'points_in_time.elf'}
     if manifest.get('id')!='paper_clock' or manifest.get('version')!=version or any(record.get(k)!=v for k,v in expected.items()):
         raise ValueError('Sparse Clock source, feature or artifact identity mismatch')
     requirements=manifest.get('requires',[])
     expected_requirements=(SPARSE_REQUIREMENTS-{('alarm.service',1)}|{('alarm.service',2)}) if tagged_alarm else SPARSE_REQUIREMENTS
     if len(requirements)!=14 or {(r['capability'],r['api']) for r in requirements}!=expected_requirements:
         raise ValueError('Sparse Clock requires exactly its fourteen typed capabilities')
-    return {'record_type':'0x44434c4b','record_schema':1,'grant_count':14,
+    return {'record_type':'0x44434c4b','record_schema':1,'grant_count':15 if tagged_alarm else 14,
+            'home_points_foreground_only':bool(tagged_alarm),
             'provider_activation':'demand','timer_preferences':'retained-only',
             'foreground_promotion':True,'invocation_retention':True,
             'rtc_policy':'native-utc-with-explicit-iana-conversion','hardware_qualified':False}

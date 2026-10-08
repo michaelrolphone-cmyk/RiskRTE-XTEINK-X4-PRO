@@ -10,11 +10,11 @@ SDK = {
  'AlarmServiceV1.h':'c70c087550306c123255e1ace41aeb504809e16b0193e382ec8dfbd7cb5531f5',
  'AlarmServiceV2.h':'d7e750a8093e1b5e698483254edc38533b7242a3446d0bca5866c9dfd6ad07a1',
 }
-VERSIONS = {'default':'0.3.3','springboard':'1.7.2','file_browser':'1.5.4',
- 'ble_scanner':'0.2.5','points_in_time':'0.6.0','settings':'1.3.8',
- 'calculator':'0.1.10','stopwatch':'0.1.10','countdown':'0.1.9','timecard':'0.2.0',
- 'battery':'1.1.3','alarms':'0.2.5','wifi_settings':'1.1.7',
- 'ble_touchpad':'0.1.5','ble_buttons':'0.1.5','waterfall':'0.2.1'}
+VERSIONS = {'default':'0.3.6','springboard':'1.7.3','file_browser':'1.5.5',
+ 'ble_scanner':'0.2.6','points_in_time':'0.6.1','settings':'1.3.9',
+ 'calculator':'0.1.11','stopwatch':'0.1.11','countdown':'0.1.10','timecard':'0.2.1',
+ 'battery':'1.1.4','alarms':'0.2.6','wifi_settings':'1.1.8',
+ 'ble_touchpad':'0.1.6','ble_buttons':'0.1.6','waterfall':'0.2.2'}
 ALARM_KEYS = [('alarm_utc_cfg',3,'read'),('timer_utc_cfg',3,'read'),
  ('alarm_utc_occ',4,'read-write'),('timer_utc_occ',4,'read-write'),
  ('alert_mode',1,'read'),('points_utc_cfg',5,'read'),
