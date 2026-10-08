@@ -9,7 +9,7 @@
 static unsigned claims,reads,retired_reads,holds,retires,locks,unlocks,destroys;
 static bool claim_ok=true,read_ok=true,high=true,owner=true,locked,held,retired;
 static bool create_ok=true,lock_ok=true,unlock_ok=true,destroy_ok=true,retire_ok=true;
-static bool retired_read_ok=true,reentrant_restore;
+static bool retired_read_ok=true,reentrant_restore,low_after_retire;
 static int32_t hold_result;
 static const x4_board_keepalive_v1 *transaction;
 static unsigned rejected_restores;
@@ -24,7 +24,7 @@ static bool claim(void*c,uint8_t p,bool output,bool initial,bool pullup,uint64_t
 }
 static bool read_pin(void*c,uint64_t t,bool*out){(void)c;++reads;assert(locked&&t==41&&!retired);*out=high;return read_ok;}
 static int32_t hold_pin(void*c,uint64_t t,bool enable){(void)c;assert(locked&&t==41&&enable&&!retired);++holds;if(!hold_result)held=true;return hold_result;}
-static bool retire_pin(void*c,uint64_t t){(void)c;assert(locked&&t==41&&held&&!retired);++retires;if(retire_ok)retired=true;return retire_ok;}
+static bool retire_pin(void*c,uint64_t t){(void)c;assert(locked&&t==41&&held&&!retired);++retires;if(retire_ok){retired=true;if(low_after_retire)high=false;}return retire_ok;}
 static bool read_retired(void*c,uint8_t p,bool*out){
  (void)c;assert(locked&&p==1&&held&&retired);++retired_reads;
  if(reentrant_restore){assert(transaction->restore(NULL)==RISC_DEEP_SLEEP_BUSY);++rejected_restores;}
@@ -74,6 +74,7 @@ int main(int argc,char**argv){
   else if(!strcmp(name,"negative"))hold_result=-99;
   else hold_result=RISC_DEEP_SLEEP_PLATFORM;
  }
+ low_after_retire=!strcmp(s,"start-retired-low");
  assert(d->start(deps,3)==!uncertain);
  if(!uncertain){
   assert(api->ready(NULL)&&held&&retired&&!locked&&holds==1&&retires==1);assert(!d->start(deps,3));

@@ -22,7 +22,7 @@ static unsigned io,holdCount,unholdCount,railReads,railWrites,order;
 static uint64_t now=100;
 static bool armOk=true,timerOk=true,clearOk=true,timerClearOk=true,deepReady=false;
 static bool holdOk=true,unholdOk=true,readOk=true,failRestoreRead;
-static bool armed,timerArmed,reenter,nativeReturns;
+static bool armed,timerArmed,reenter,nativeReturns,lowAfterHold;
 static const char* executable;static const char* profile;
 static Port* active;
 static const risc_driver_v2 *boardDriver,*powerDriver;
@@ -30,7 +30,7 @@ static const x4_power_ready_api_v1* boardApi;
 static const x4_power_deep_v1* powerApi;
 extern "C" esp_err_t gpio_set_level(gpio_num_t pin,uint32_t value){++io;if(pin==1){assert(value==1);++railWrites;order=1;}levels[pin]=value!=0;return ESP_OK;}
 extern "C" esp_err_t gpio_config(const gpio_config_t*c){++io;for(unsigned p=0;p<49;++p)if(c->pin_bit_mask&(UINT64_C(1)<<p)){modes[p]=c->mode;if(p==1){assert(order==1&&levels[1]);order=2;}}return ESP_OK;}
-extern "C" esp_err_t gpio_hold_en(gpio_num_t pin){++io;assert(pin==1&&levels[1]&&modes[1]==GPIO_MODE_INPUT_OUTPUT&&order==3);++holdCount;held[1]=true;return holdOk?ESP_OK:ESP_FAIL;}
+extern "C" esp_err_t gpio_hold_en(gpio_num_t pin){++io;assert(pin==1&&levels[1]&&modes[1]==GPIO_MODE_INPUT_OUTPUT&&order==3);++holdCount;held[1]=true;if(lowAfterHold)forcedLow[1]=true;return holdOk?ESP_OK:ESP_FAIL;}
 extern "C" esp_err_t gpio_hold_dis(gpio_num_t pin){++io;if(pin==1){assert(levels[1]&&modes[1]==GPIO_MODE_INPUT_OUTPUT);if(order!=3)assert(order==2);++unholdCount;if(!unholdOk)return ESP_FAIL;}held[pin]=false;return ESP_OK;}
 extern "C" bool rtc_gpio_is_valid_gpio(gpio_num_t p){return p<=21;}
 extern "C" esp_err_t rtc_gpio_deinit(gpio_num_t){++io;return ESP_OK;}
@@ -75,6 +75,7 @@ int main(int argc,char**argv){
  const risc_provider_dependency_v1 boardDeps[]={{"hardware.device",1,&runtime.board().device(1)->hardware},{"platform.gpio",1,gpio(1)},{"platform.sync",1,sync(1)}};
  if(!strcmp(scenario,"startup-hold-refusal")||!strcmp(scenario,"startup-hold-retained"))holdOk=false;
  if(!strcmp(scenario,"startup-hold-retained")||!strcmp(scenario,"startup-unhold-retained"))unholdOk=false;
+ if(!strcmp(scenario,"startup-low-after-hold"))lowAfterHold=true;
  if(!strncmp(scenario,"startup-",8)){
   assert(!boardDriver->start(boardDeps,3)&&levels[1]);const unsigned before=io;
   assert(!boardDriver->quiesce()&&!boardApi->ready(nullptr)&&!port.appExitSafe()&&!port.providerStorageSafe());
