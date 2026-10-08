@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "1c72b5742cbbf9d8b2d04e5b6274ad64c555521a",
-    "version": "0.1.60"
+    "commit": "b69f87a576c339b8207d6fb0ef1f006aa7f121fc",
+    "version": "0.1.61"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "UC8279 fast native SPI, early board hold, cold native RTC recovery and automatic plain stage logs"
+  "status": "Repair shared-SPI receive turnaround after all-zero physical probe; strict panel admission and fast waveform unchanged"
 }

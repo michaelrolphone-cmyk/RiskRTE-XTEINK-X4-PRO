@@ -8,7 +8,7 @@
 static bool owner=true, locked, lock_exists, fail_unlock, fail_destroy;
 static bool fail_claim, fail_gpio, fail_spi_begin, fail_spi_exchange, fail_spi_end, fail_spi_release;
 static bool fail_hold, fail_unhold, fail_retire, fail_release, no_busy, stuck_busy, stuck_power, fail_clock, reverse_clock;
-static bool ambiguous, unstable;static uint8_t lut_id=0x68;
+static bool ambiguous, zero_probe, unstable;static uint8_t lut_id=0x68;
 static uint64_t tick=100, busy_until, bus_deadline, gpio_serial=10, model_bus_token;
 static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, refreshes, pons, pofs, sleeps, polls;
 static uint32_t payload, max_exchange, max_poll_bytes;
@@ -93,7 +93,7 @@ static bool spi_begin(void*c,uint64_t t,uint32_t hz,uint8_t mode,uint32_t ms){
 static bool spi_exchange(void*c,uint64_t t,const uint8_t*tx,uint8_t*rx,size_t n){
  (void)c;assert(owner&&locked&&model_bus_held&&t==model_bus_token&&!!tx!=!!rx&&n&&n<=512&&tick<bus_deadline);++exchanges;if(n>max_exchange)max_exchange=(uint32_t)n;if(fail_spi_exchange)return false;
  if(tx){for(size_t i=0;i<n;++i){if(pins[18].level)model_data(tx[i]);else { model_command(tx[i]); tick+=command_cost; }}}
- else {assert(pins[18].level);for(size_t i=0;i<n;++i){const uint8_t ver[]={1,2,lut_id,4,5};rx[i]=cmd==0x71?0x13:ver[i];if(ambiguous)rx[i]=0xFF;if(unstable&&probe_reads==2)rx[i]^=0x10;}}
+ else {assert(pins[18].level);for(size_t i=0;i<n;++i){const uint8_t ver[]={1,2,lut_id,4,5};rx[i]=cmd==0x71?0x13:ver[i];if(ambiguous)rx[i]=0xFF;if(zero_probe)rx[i]=0;if(unstable&&probe_reads==2)rx[i]^=0x10;}}
  return true;
 }
 static bool spi_end(void*c,uint64_t t){(void)c;assert(owner&&locked&&model_bus_held&&t==model_bus_token);++ends;if(fail_spi_end)return false;model_bus_held=false;return true;}
@@ -170,9 +170,13 @@ int main(int argc,char**argv){
   cfg.bus.miso=11;assert(!d->start(deps,7));cfg.bus.miso=-1;owner=false;assert(!d->start(deps,7));owner=true;
   assert(!bus_calls&&!gpio_writes&&!lock_exists&&d->quiesce());goto done;
  }
- if(!strcmp(s,"floating")||!strcmp(s,"unstable")||!strcmp(s,"lut-bad")){
-  ambiguous=!strcmp(s,"floating");unstable=!strcmp(s,"unstable");if(!strcmp(s,"lut-bad"))lut_id=0x67;
-  assert(!d->start(deps,7)&&probe_reads==2&&!refreshes&&!d->quiesce());goto done;
+ if(!strcmp(s,"floating")||!strcmp(s,"zero-probe")||!strcmp(s,"unstable")||!strcmp(s,"lut-bad")){
+  ambiguous=!strcmp(s,"floating");zero_probe=!strcmp(s,"zero-probe");unstable=!strcmp(s,"unstable");if(!strcmp(s,"lut-bad"))lut_id=0x67;
+  assert(!d->start(deps,7)&&probe_reads==2&&!refreshes&&!d->quiesce());
+  if(zero_probe){char error[256];const risc_driver_diagnostics_v2*diagnostics=(const risc_driver_diagnostics_v2*)d;
+   assert(diagnostics->last_error(error,sizeof(error))&&strstr(error,"cause=ambiguous-controller")&&strstr(error,"probe=flg:00 ver:0000000000"));
+   assert(!d->quiesce());assert(diagnostics->last_error(error,sizeof(error))&&strstr(error,"cause=ambiguous-controller"));
+  }goto done;
  }
  if(!strcmp(s,"claim-fail")){fail_claim=true;assert(!d->start(deps,7)&&!d->quiesce());goto done;}
  if(!strcmp(s,"probe-spi-fail")){fail_spi_exchange=true;assert(!d->start(deps,7)&&!d->quiesce()&&!model_bus_held);goto done;}
