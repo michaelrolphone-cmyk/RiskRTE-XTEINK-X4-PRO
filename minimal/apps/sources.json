@@ -4,13 +4,24 @@
   "utilities": "bb81ab0cdc137e1b2fddcfbe191880c1c6e649ad",
   "productivity": "4921a4306bb11adea646d766eb7539242e0142a7",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
-  "visual_alarm_service": "23a4887f1eeb7b7ce867c0e243158b899e43f0f8",
-  "purpose": "Opt-in retained desk-clock integration; fourteen other app artifacts preserve their delivered source pins",
+  "visual_alarm_service": "637e13b0bce62ad49b756bec2468a6271d163fc7",
+  "purpose": "Explicit native UTC and tagged alarm API2 cohort; per-app compiled source checkpoints",
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
   "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
-  "settings_system_apps": "a78723d2eefa9f865049c0e492b62c276d61d1ee",
-  "desk_clock_system_apps": "a78723d2eefa9f865049c0e492b62c276d61d1ee",
-  "cohort_admission_watch_tools": "d2cce9f9c5119cd59e08f73f7f573d2eba91d75d"
+  "settings_system_apps": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
+  "desk_clock_system_apps": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
+  "cohort_admission_watch_tools": "d2cce9f9c5119cd59e08f73f7f573d2eba91d75d",
+  "native_cohort": {
+    "default": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
+    "settings": "d305e6b718f51d42ffcf6339e05ce4b56398f68c",
+    "points_in_time": "2b9cc77879ba7be11d82548002f8981abe8976b2",
+    "alarms": "b33cdb68301d0e948a886606cf76428c3c507a0b",
+    "countdown": "b33cdb68301d0e948a886606cf76428c3c507a0b",
+    "timecard": "d5893d50e5cf7927329d9e7dfedc03e180bbe63e",
+    "file_browser": "ba280f3c1db89f3bf42647bfdea8c205ad55e9ce",
+    "wifi_settings": "15828e8792be82d851d77f46f91257f6094275b9",
+    "springboard": "ba280f3c1db89f3bf42647bfdea8c205ad55e9ce"
+  }
 }
