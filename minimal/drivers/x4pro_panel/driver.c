@@ -4,6 +4,7 @@
  * Touch power GPIO2 and SD power GPIO5 stay untouched. */
 #include "RiscDisplayOutputV1.h"
 #include "RiscDisplayOutputPowerV1.h"
+#include "../../interfaces/RiscDisplayOutputMetricsV1.h"
 #include "RiscPlatformClockV1.h"
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
@@ -27,6 +28,9 @@ static uint8_t physical_pins[PANEL_PINS];
 static bool pin_output[PANEL_PINS], pin_pullup[PANEL_PINS];
 static bool io_failed, retained, reset_held;
 static uint64_t last_sample_ms, operation_deadline;
+enum { PRESENT_NONE = 0, PRESENT_QUEUED = 1, PRESENT_ACTIVE = 2, PRESENT_COMPLETE = 3, PRESENT_FAILED = 5 };
+static uint8_t present_state;
+static risc_display_present_metrics_v1 metrics;
 static void set_reason(const char *text);
 static bool enter(void) {
     return !retained && sync_api && mutex && sync_api->is_owner(sync_api->context) &&
@@ -39,8 +43,9 @@ static bool leave(void) {
 static void pin_failed(void) { io_failed = true; retained = true; set_reason("gpio operation retained"); }
 static void panel_pin_level(unsigned pin, bool level) {
     if (io_failed) return;
-    if (!gpio || pin >= PANEL_PINS || !pin_tokens[pin] || !pin_output[pin] ||
-        !gpio->write(gpio->context, pin_tokens[pin], level)) pin_failed();
+    if (!gpio || pin >= PANEL_PINS || !pin_tokens[pin] || !pin_output[pin]) { pin_failed(); return; }
+    if (present_state == PRESENT_ACTIVE) ++metrics.gpio_write_calls;
+    if (!gpio->write(gpio->context, pin_tokens[pin], level)) pin_failed();
 }
 static void panel_pin_mode(unsigned pin, bool output, bool level, bool pullup) {
     if (io_failed) return;
@@ -78,7 +83,6 @@ static bool previous_seeded, completed_history, partial_update;
 static risc_display_rect_v1 update_area;
 static uint64_t transfer_yielded_ms;
 static unsigned transfer_work;
-static uint8_t present_state;
 static bool transfer_started;
 enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PLANE13, UC_ASYNC_PLANE10,
        UC_ASYNC_SETUP, UC_ASYNC_PON, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE };
@@ -90,7 +94,6 @@ static bool started, held, pins_ready;
 static uint8_t shutdown_stage;
 static uint64_t shutdown_not_before;
 static int controller;
-enum { PRESENT_NONE = 0, PRESENT_QUEUED = 1, PRESENT_ACTIVE = 2, PRESENT_COMPLETE = 3, PRESENT_FAILED = 5 };
 static uint64_t frame_serial, token_serial, pending_token;
 static char last_error_text[64];
 
@@ -140,6 +143,10 @@ static bool sample_now(uint64_t *out) {
     *out = now;
     return true;
 }
+static bool sample_metric(uint64_t *out, uint32_t flag) {
+    if (!sample_now(out)) return false;
+    metrics.valid_times |= flag; return true;
+}
 static bool wait_idle(uint64_t deadline_ms) {
     bool saw_busy = false;
     while (!saw_busy) {
@@ -149,7 +156,9 @@ static bool wait_idle(uint64_t deadline_ms) {
             return false;
         }
         saw_busy = panel_pin_read(X4PRO_PIN_EPD_BUSY);
-        if (saw_busy && !busy_before && !busy_assert_ms) busy_assert_ms = now;
+        if (saw_busy && !busy_before && !busy_assert_ms) {
+            busy_assert_ms = now; metrics.valid_times |= RISC_DISPLAY_METRICS_BUSY_ASSERT;
+        }
         if (!saw_busy) sleep_ms(10);
     }
     while (panel_pin_read(X4PRO_PIN_EPD_BUSY)) {
@@ -160,7 +169,7 @@ static bool wait_idle(uint64_t deadline_ms) {
         }
         sleep_ms(10);
     }
-    return sample_now(&busy_done_ms) && busy_done_ms < deadline_ms;
+    return sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE) && busy_done_ms < deadline_ms;
 }
 static char probe_text[96] = "probe=not-run";
 static bool append(char *destination, size_t capacity, size_t *used, const char *text);
@@ -404,9 +413,9 @@ static bool uc_transfer_plane(uint8_t ram_command, bool white, uint64_t deadline
 static bool uc_transfer_frame(uint64_t deadline_ms) {
     if (transfer_started) { set_reason("invalid state"); return false; }
     transfer_started = true;
-    if (!sample_now(&transfer_start_ms) || !uc_ready_for("uc pre-transfer busy", deadline_ms)) return false;
+    if (!sample_metric(&transfer_start_ms, RISC_DISPLAY_METRICS_TRANSFER_START) || !uc_ready_for("uc pre-transfer busy", deadline_ms)) return false;
     if (!uc_transfer_plane(0x13, false, deadline_ms) || !uc_transfer_plane(0x10, true, deadline_ms)) return false;
-    if (!sample_now(&transfer_end_ms) || transfer_end_ms >= deadline_ms) { set_reason("transfer deadline"); return false; }
+    if (!sample_metric(&transfer_end_ms, RISC_DISPLAY_METRICS_TRANSFER_END) || transfer_end_ms >= deadline_ms) { set_reason("transfer deadline"); return false; }
     command(0x50); data1(partial_update ? 0xD7 : 0x97);
     command(0xE0); data1(0x02);
     command(0xE5); data1(partial_update ? 0x5A : 0x1E);
@@ -428,28 +437,29 @@ static bool uc_transfer_frame(uint64_t deadline_ms) {
     command(0x00); data1(0x17); data1(0x4D);
     busy_before = panel_pin_read(X4PRO_PIN_EPD_BUSY) ? 1u : 0u;
     if (!busy_before) { set_reason("busy already active"); return false; }
+    if (!sample_metric(&metrics.refresh_ms, RISC_DISPLAY_METRICS_REFRESH)) return false;
     command(0x12);
     while (panel_pin_read(X4PRO_PIN_EPD_BUSY)) {
         uint64_t now = 0;
         if (!sample_now(&now) || now >= deadline_ms) { set_reason("busy never asserted"); return false; }
         sleep_ms(1);
     }
-    if (!sample_now(&busy_assert_ms)) return false;
+    if (!sample_metric(&busy_assert_ms, RISC_DISPLAY_METRICS_BUSY_ASSERT)) return false;
     if (!uc_ready_for("busy completion timeout", deadline_ms)) return false;
-    if (!sample_now(&busy_done_ms) || busy_done_ms >= deadline_ms) return false;
+    if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE) || busy_done_ms >= deadline_ms) return false;
     if (partial_update) command(0x92);
     return !io_failed;
 }
 static bool transfer_frame(uint64_t deadline_ms) {
     if (transfer_started) { set_reason("invalid state"); return false; }
     transfer_started = true;
-    if (!sample_now(&transfer_start_ms)) return false;
+    if (!sample_metric(&transfer_start_ms, RISC_DISPLAY_METRICS_TRANSFER_START)) return false;
     if (!ready_for("pre-transfer readiness")) return false;
     set_update_window();
     if (!ready_for("pre-transfer readiness")) return false;
     /* Full absolute SSD1677 refresh starts with matched BW and RED planes. */
     if (!transfer_plane(0x24, deadline_ms) || !transfer_plane(0x26, deadline_ms)) return false;
-    if (!sample_now(&transfer_end_ms) || transfer_end_ms >= deadline_ms) {
+    if (!sample_metric(&transfer_end_ms, RISC_DISPLAY_METRICS_TRANSFER_END) || transfer_end_ms >= deadline_ms) {
         set_reason("transfer deadline");
         return false;
     }
@@ -462,6 +472,7 @@ static bool transfer_frame(uint64_t deadline_ms) {
         set_reason("transfer deadline");
         return false;
     }
+    metrics.refresh_ms = refresh_ms; metrics.valid_times |= RISC_DISPLAY_METRICS_REFRESH;
     command(0x20);
     return wait_idle(deadline_ms);
 }
@@ -489,6 +500,7 @@ static void poll_present(uint32_t budget_ms) {
     if (present_state == PRESENT_QUEUED) {
         if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
         wait_start_ms = transfer_start_ms = now; wait_budget_ms = 10000u;
+        metrics.valid_times |= RISC_DISPLAY_METRICS_TRANSFER_START;
         transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
         bytes_sent = 0; reason = "none"; transfer_started = true;
         async_stage = UC_ASYNC_PRE; async_offset = 0; async_deadline = now + 10000u;
@@ -521,7 +533,7 @@ static void poll_present(uint32_t budget_ms) {
                     panel_pin_level(X4PRO_PIN_EPD_CS, false);
                     async_stage = UC_ASYNC_PLANE10; async_offset = 0;
                 } else {
-                    if (!sample_now(&transfer_end_ms)) goto failed;
+                    if (!sample_metric(&transfer_end_ms, RISC_DISPLAY_METRICS_TRANSFER_END)) goto failed;
                     async_stage = UC_ASYNC_SETUP;
                 }
             }
@@ -548,14 +560,15 @@ static void poll_present(uint32_t budget_ms) {
             command(0x00); data1(0x17); data1(0x4D);
             busy_before = panel_pin_read(X4PRO_PIN_EPD_BUSY) ? 1u : 0u;
             if (!busy_before) { set_reason("busy already active"); goto failed; }
+            if (!sample_metric(&metrics.refresh_ms, RISC_DISPLAY_METRICS_REFRESH)) goto failed;
             command(0x12); async_stage = UC_ASYNC_ASSERT;
         } else if (async_stage == UC_ASYNC_ASSERT) {
             if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
-            if (!sample_now(&busy_assert_ms)) goto failed;
+            if (!sample_metric(&busy_assert_ms, RISC_DISPLAY_METRICS_BUSY_ASSERT)) goto failed;
             async_stage = UC_ASYNC_DONE;
         } else if (async_stage == UC_ASYNC_DONE) {
             if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
-            if (!sample_now(&busy_done_ms)) goto failed;
+            if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE)) goto failed;
             if (partial_update) command(0x92);
             if (io_failed) goto failed;
             remember_completed_frame();
@@ -638,6 +651,19 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
     pending_token = token_serial;
+    memset(&metrics, 0, sizeof(metrics));
+    metrics.token = pending_token;
+    metrics.mode = partial_update ? RISC_DISPLAY_METRICS_PARTIAL : RISC_DISPLAY_METRICS_FULL;
+    metrics.damage_count = (uint32_t)count;
+    for (size_t i = 0; i < count; ++i) metrics.submitted_damage[i] = damage[i];
+    metrics.effective_update = partial_update ? update_area :
+        (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
+    const uint64_t queued = now_ms();
+    if (queued != UINT64_MAX && queued >= last_sample_ms) {
+        metrics.queued_ms = queued; metrics.valid_times |= RISC_DISPLAY_METRICS_QUEUED;
+    }
+    bytes_sent = 0;
+    transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     previous_seeded = completed_history = false; // Invalid until this submission completes.
     present_state = PRESENT_QUEUED;
     transfer_started = false;
@@ -774,11 +800,24 @@ static bool seed_previous(void *c, risc_display_frame_v1 id) {
 }
 static int32_t power_prepare(void *context, uint32_t timeout_ms);
 static int32_t power_resume(void *context, uint32_t timeout_ms);
-static const risc_display_output_api_v1_power api = {
-    {{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
+static bool present_metrics(void *context, risc_display_present_metrics_v1 *out) {
+    (void)context;
+    if (!out || out->api_version != 1u || out->struct_size < sizeof(*out) ||
+        !started || shutdown_stage || retained || !sync_api || !mutex ||
+        !sync_api->is_owner(sync_api->context)) return false;
+    risc_display_present_metrics_v1 copy = metrics;
+    copy.api_version = 1u; copy.struct_size = sizeof(copy);
+    copy.state = present_state; copy.bytes_sent = bytes_sent;
+    copy.transfer_start_ms = transfer_start_ms; copy.transfer_end_ms = transfer_end_ms;
+    copy.busy_assert_ms = busy_assert_ms; copy.busy_done_ms = busy_done_ms;
+    *out = copy; return true;
+}
+static const risc_display_output_api_v1_metrics api = {
+    {{{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
        present_status, wait_present, set_brightness },
      RISC_DISPLAY_HISTORY_TAG, 1u, seed_previous},
-    RISC_DISPLAY_POWER_TAG, 1u, power_prepare, power_resume
+    RISC_DISPLAY_POWER_TAG, 1u, power_prepare, power_resume},
+    RISC_DISPLAY_METRICS_TAG, RISC_DISPLAY_METRICS_VERSION, present_metrics
 };
 /* Typed lifecycle. */
 static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected) {
@@ -850,6 +889,8 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     physical_pins[X4PRO_PIN_EPD_RST] = (uint8_t)configuration->reset;
     shutdown_stage = 0; previous_seeded = completed_history = partial_update = false;
     present_state = PRESENT_NONE; pending_token = 0; last_sample_ms = now;
+    memset(&metrics, 0, sizeof(metrics));
+    bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     reason = "none"; operation_deadline = now + 2000u;
     prepare_pins();
     const int verdict = probe_controller();
@@ -1011,6 +1052,8 @@ static int32_t resume_power_impl(uint64_t deadline) {
     result = power_ready(deadline);
     if (result) return result;
     started = true; shutdown_stage = 0; pending_token = 0; present_state = PRESENT_NONE;
+    memset(&metrics, 0, sizeof(metrics));
+    bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     partial_update = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
     return RISC_DISPLAY_POWER_OK;
 }
@@ -1096,7 +1139,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.20 cause=");
+    append(destination, capacity, &used, "v=0.1.22 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

@@ -1,6 +1,6 @@
 # X4 panel ordinary-provider adapter
 
-`x4pro-panel@0.1.20` ports the source-preserved panel implementation to ordinary
+`x4pro-panel@0.1.22` ports the source-preserved panel implementation to ordinary
 `hardware.device`, device-scoped `platform.gpio`, `platform.clock`,
 `platform.sync` and `board.power.ready` dependencies. It imports no privileged
 CPU entry points and performs no MMIO. The original `Drivers/x4pro_panel` is
@@ -179,3 +179,38 @@ bytes); each UC plane includes 120 blank controller rows, making 800×600 (60,00
 bytes). This change removes unnecessary full waveforms, but does not establish
 physical touch-to-visible latency, introduce paper crossfades or reduce wire
 transfer volume. Hardware qualification remains pending.
+
+## Read-only presentation metrics (0.1.22)
+
+The optional `RiscDisplayOutputMetricsV1.h` descriptor follows the unchanged
+power and history prefixes. The canonical header lives in `minimal/interfaces`
+and is copied, with provenance, into the composed SDK. Discover it using
+`risc_display_output_metrics(display)`. Initialize a
+`risc_display_present_metrics_v1` with API version 1 and its complete size, then
+call `snapshot(display->context, &snapshot)` on the serialized owner.
+
+The snapshot identifies the latest accepted token and state, exact submitted
+damage rectangles, effective aligned/full update rectangle, full/partial mode,
+payload bytes and scoped GPIO-write calls. It records queued, transfer-stage
+start/end, refresh-trigger, BUSY-assert and BUSY-done milliseconds. Check
+`valid_times` before using each timestamp. UC `refresh_ms` is the DRF command,
+after PON completes; the historical text diagnostic's `refresh` remains the
+earlier PON timestamp. Transfer start includes the existing pre-transfer
+readiness check. BUSY completion observes the controller, not physical pixels.
+
+The getter copies bounded state without GPIO reads/writes, clock reads, locks,
+allocation, formatting or progress. Owner, retained, startup and power-state
+gates apply; rejection preserves the caller's output. New submission resets
+the counters and times; restart and successful resume invalidate the snapshot.
+The 32-bit GPIO counter counts actual callback attempts during ACTIVE, including
+failed calls, and excludes initialization/probe and power preparation. Counting
+adds software instructions to the transfer; hardware timing and this overhead
+remain unmeasured. No per-edge timestamp, log, allocation or callback is added.
+
+`uc-async-metrics` checks prefix compatibility, queue/active/completed snapshots,
+unaligned and copied multi-rectangle damage, clean expansion, failure, owner and
+retained rejection, power/resume invalidation, exact write counts and getter
+purity. The [production cadence fixture](../../docs/PANEL_TRANSFER_CADENCE.md)
+also links the actual System adapter, Runtime scheduler and panel and checks the
+reported counts against its GPIO model. This diagnostic change does not alter
+SPI ownership, panel commands, transfer size, waveform or provider slice bounds.
