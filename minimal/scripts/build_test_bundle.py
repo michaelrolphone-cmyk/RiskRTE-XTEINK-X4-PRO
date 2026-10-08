@@ -139,6 +139,7 @@ def build(a):
     desk=getattr(a,'desk_clock',False)
     sparse=getattr(a,'sparse_clock',False)
     if sparse and not desk:raise ValueError('Sparse cohort requires the explicit desk-clock graph')
+    if sparse and not getattr(a,'app_compiler',None):raise ValueError('Native cohort requires the explicit pinned ELF compaction toolchain')
     if subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=ROOT,text=True).strip():raise ValueError('Clean product source required for bundle custody')
     if desk and not getattr(a,'sleep',False):raise ValueError('Desk Clock requires --sleep')
     inputs=json.loads(a.inputs.read_text());out=a.output.resolve()
@@ -150,7 +151,10 @@ def build(a):
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
-    if sparse:custody['native_apps']={}
+    if sparse:
+        custody['native_apps']={}
+        custody['elf_compaction']={}
+        compact_tool=load_module('x4_compact_elf',a.watch/'scripts/compact_current_elf.py')
     lock=custody['shared_source_lock']
     if custody['runtime']['source_sha']!=lock['runtime']['commit'] or custody['runtime']['firmware_version']!=lock['runtime']['version']:raise ValueError('Native candidate differs from locked Runtime source')
     if driver_origin['source_fixture']:raise ValueError('Source-fixture drivers cannot be packaged')
@@ -211,6 +215,9 @@ def build(a):
         m['requires']=requirements
         grants=app_grants(name,m['requires'],getattr(a,'sleep',False),desk,sparse,sparse)
         policies.append({'manifest':name+'.json','grants':grants});(store/(name+'.elf')).write_bytes(blob);(store/(name+'.json')).write_bytes(encoded(m))
+        if sparse:
+            custody['elf_compaction'][name]=compact_tool.compact(store/(name+'.elf'),str(a.app_compiler),debug_path=out/'debug-originals'/(name+'.elf'))
+            blob=(store/(name+'.elf')).read_bytes()
         custody['apps'][name]={'id':m['id'],'version':m['version'],'sha256':sha(blob),'manifest_sha256':sha(encoded(m))}
         records=out/'build-records'/name;records.mkdir(parents=True)
         for record in src.glob('*.json'):
@@ -269,5 +276,6 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
     p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())
