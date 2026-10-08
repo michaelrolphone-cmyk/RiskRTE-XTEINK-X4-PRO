@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.0
+# X4 UC8279 fast provider 0.1.1
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -91,3 +91,23 @@ repeated updates, failed/missed BUSY, touch during transfers, power refusal,
 sleep/resume and fallback selection. Confirm normal fast frames have no DTM1
 sync and that image quality is acceptable for actual UI text and transitions.
 No hardware was accessed or firmware flashed for this change.
+
+## Completed-image snapshot (0.1.1)
+
+The optional `RiscDisplayOutputSnapshotV1.h` suffix follows the unchanged
+history/power/metrics descriptor prefixes. `copy_completed` copies only the
+physically completed MONO1 image into caller-owned memory, in native coordinates.
+It performs no hardware or clock operation, frame acquisition, presentation,
+allocation or sleep. No caller pointer or token is retained. The owner must be
+awake and ready, with valid completed history and no leased or in-flight frame.
+Seed-only images, failed presentations, sleep/resume and retained failures deny
+availability until another frame completes.
+
+The caller supplies MONO1, stride at least 100 and size at least stride×480.
+Only the 100 visible bytes per row are copied; padding is preserved. Invalid
+format/capacity, integer overflow and overlap with provider buffers or descriptor
+are rejected before any destination write. Absence or refusal tells the app to
+render without a transition. Tests cover descriptor size/tag/version/function
+validation, completed-image fidelity, padding, stale lease/history aliases,
+owner/retained/leased/queued/active/seed-only/sleep/resume refusal, destination
+purity and no hardware/clock/lease changes.

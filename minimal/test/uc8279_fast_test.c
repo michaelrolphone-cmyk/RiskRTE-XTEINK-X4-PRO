@@ -99,6 +99,38 @@ static void fast_band(unsigned y,unsigned h){
  assert(commands[0x10]==old_sync&&bytes_sent==100*h);risc_display_present_metrics_v1 m=snapshot();assert(m.mode==RISC_DISPLAY_METRICS_PARTIAL&&m.effective_update.x==0&&m.effective_update.width==800&&m.effective_update.y==(int)y&&m.effective_update.height==h);
  assert(visible[y*100+2]==0x55&&visible[y*100+1]==0xF0);assert(previous_frame[y*100+2]==0xAA&&previous_frame[y*100+1]==0x0F);
 }
+static void test_snapshot(void) {
+ const risc_display_output_api_v1_snapshot *ext=risc_display_output_snapshot(output);assert(ext);
+ static uint8_t buffer[104u*480u], saved[sizeof(buffer)];memset(buffer,0xA5,sizeof(buffer));
+ risc_display_output_api_v1_snapshot legacy=api;
+ legacy.metrics.power.history.base.struct_size=sizeof(risc_display_output_api_v1_metrics);
+ assert(!risc_display_output_snapshot(&legacy.metrics.power.history.base));legacy=api;legacy.snapshot_tag^=1;assert(!risc_display_output_snapshot(&legacy.metrics.power.history.base));
+ legacy=api;legacy.snapshot_version=2;assert(!risc_display_output_snapshot(&legacy.metrics.power.history.base));legacy=api;legacy.copy_completed=NULL;assert(!risc_display_output_snapshot(&legacy.metrics.power.history.base));
+ const unsigned g=gpio_writes,e=exchanges,b=bus_calls;const uint64_t now=tick,serial=frame_serial;
+ assert(ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+ assert(g==gpio_writes&&e==exchanges&&b==bus_calls&&now==tick&&serial==frame_serial&&!locked&&!held);
+ for(unsigned y=0;y<480;++y){assert(!memcmp(buffer+y*104,previous_frame+y*100,100));for(unsigned x=100;x<104;++x)assert(buffer[y*104+x]==0xA5);}
+ memcpy(saved,buffer,sizeof(buffer));
+ assert(!ext->copy_completed(NULL,0,buffer,sizeof(buffer),104));assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer)-1,104));
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),99));assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,SIZE_MAX,UINT32_MAX));
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,(void*)(UINTPTR_MAX-20u),48000,100));
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,frame,sizeof(frame),100));assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,previous_frame,sizeof(previous_frame),100));
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,(void*)&api,48000,100));
+ owner=false;assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));owner=true;
+ retained=true;assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));retained=false;
+ risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[0]^=0xFF;
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));output->release(NULL,f.frame);
+ assert(!memcmp(buffer,saved,sizeof(buffer)));assert(ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));assert(!memcmp(buffer,saved,sizeof(buffer)));
+ f=acquire_frame();assert(risc_display_output_history(output)->seed_previous(NULL,f.frame));output->release(NULL,f.frame);
+ assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+ f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+ ((const risc_driver_poll_v2*)t5_driver_get(2))->poll(8);assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));complete_frame(t);
+ assert(ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+ const risc_display_output_api_v1_power *power=risc_display_output_power(output);assert(power->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);
+ memcpy(saved,buffer,sizeof(buffer));assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));assert(!memcmp(buffer,saved,sizeof(buffer)));
+ assert(power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+ baseline();assert(ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
+}
 int main(int argc,char**argv){
  assert(argc==2);const char*s=argv[1];if(!strcmp(s,"lut69"))lut_id=0x69;
  if(!strcmp(s,"busy-boundary")){command_cost=1;scheduler_gap=50;}
@@ -128,6 +160,7 @@ int main(int argc,char**argv){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);no_busy=!strcmp(s,"busy-absent");stuck_busy=!strcmp(s,"busy-stuck");fail_clock=!strcmp(s,"clock-fail");reverse_clock=!strcmp(s,"clock-rollback");
   risc_display_present_status_v1 status={0};if(fail_clock){assert(!output->wait_present(NULL,t,5000,&status));((const risc_driver_poll_v2*)d)->poll(8);assert(output->present_status(NULL,t,&status));}else assert(output->wait_present(NULL,t,5000,&status));assert(status.state==PRESENT_FAILED&&!completed_history);risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));assert(risc_display_output_power(output)->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());goto done;
  }
+ if(!strcmp(s,"snapshot")){test_snapshot();assert(d->quiesce());goto done;}
  if(!strncmp(s,"spi-",4)||!strcmp(s,"gpio-fail")||!strcmp(s,"unlock-fail")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);(void)t;
   fail_spi_begin=!strcmp(s,"spi-begin");fail_spi_exchange=!strcmp(s,"spi-exchange");fail_spi_end=!strcmp(s,"spi-end");fail_gpio=!strcmp(s,"gpio-fail");fail_unlock=!strcmp(s,"unlock-fail");

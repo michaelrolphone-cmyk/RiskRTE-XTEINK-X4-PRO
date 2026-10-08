@@ -74,7 +74,7 @@ def main():
                             assert frame['max_controller_gap_ms']<=interval+8
                     assert not data['frames'][0]['full']['partial'] and data['frames'][1]['partial']['partial']
                     print(json.dumps(data),flush=True)
-    sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',
+    sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputSnapshotV1.h',
         args.system/'lib/PortableApps/src/adapter.c',
         runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
     receipt={'hardware':'not run','timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',

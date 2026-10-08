@@ -3,7 +3,7 @@
  * 05d811ae3a75b0711540484ccdbee32464042dd6, 20 MHz modes 4/6/7/9. */
 #include "RiscDisplayOutputV1.h"
 #include "RiscDisplayOutputPowerV1.h"
-#include "../../interfaces/RiscDisplayOutputMetricsV1.h"
+#include "../../interfaces/RiscDisplayOutputSnapshotV1.h"
 #include "RiscPlatformClockV1.h"
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
@@ -650,12 +650,44 @@ static bool present_metrics(void *context, risc_display_present_metrics_v1 *out)
     copy.busy_assert_ms = busy_assert_ms; copy.busy_done_ms = busy_done_ms;
     *out = copy; return true;
 }
-static const risc_display_output_api_v1_metrics api = {
-    {{{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
+static const risc_display_output_api_v1_snapshot api;
+static bool overlaps(uintptr_t first, uintptr_t end, const void *storage, size_t size) {
+    const uintptr_t address = (uintptr_t)storage;
+    return first < address + size && address < end;
+}
+static bool copy_completed(void *context, uint32_t format, void *pixels,
+                           size_t size_bytes, uint32_t stride_bytes) {
+    (void)context;
+    if (!pixels || format != RISC_DISPLAY_FORMAT_MONO1 || stride_bytes < 100u ||
+        X4PRO_PANEL_HEIGHT > SIZE_MAX / stride_bytes ||
+        size_bytes < (size_t)stride_bytes * X4PRO_PANEL_HEIGHT ||
+        !started || shutdown_stage || retained || presentation_fault || held ||
+        !completed_history || previous_seeded || present_state == PRESENT_QUEUED ||
+        present_state == PRESENT_ACTIVE || !sync_api || !mutex ||
+        !sync_api->is_owner(sync_api->context)) return false;
+    const uintptr_t first = (uintptr_t)pixels;
+    if (size_bytes > UINTPTR_MAX - first) return false;
+    const uintptr_t end = first + size_bytes;
+    /* Reject stale frame leases and all exported/state buffers before writes.
+     * This callback never returns or retains a provider storage pointer. */
+    if (overlaps(first, end, frame, sizeof(frame)) ||
+        overlaps(first, end, previous_frame, sizeof(previous_frame)) ||
+        overlaps(first, end, &api, sizeof(api)) ||
+        overlaps(first, end, &metrics, sizeof(metrics)) ||
+        overlaps(first, end, probe_text, sizeof(probe_text)) ||
+        overlaps(first, end, last_error_text, sizeof(last_error_text)) ||
+        overlaps(first, end, pin_tokens, sizeof(pin_tokens))) return false;
+    for (size_t y = 0; y < X4PRO_PANEL_HEIGHT; ++y)
+        memcpy((uint8_t *)pixels + y * stride_bytes, previous_frame + y * 100u, 100u);
+    return true;
+}
+static const risc_display_output_api_v1_snapshot api = {
+    {{{{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
        present_status, wait_present, set_brightness },
      RISC_DISPLAY_HISTORY_TAG, 1u, seed_previous},
     RISC_DISPLAY_POWER_TAG, 1u, power_prepare, power_resume},
-    RISC_DISPLAY_METRICS_TAG, RISC_DISPLAY_METRICS_VERSION, present_metrics
+    RISC_DISPLAY_METRICS_TAG, RISC_DISPLAY_METRICS_VERSION, present_metrics},
+    RISC_DISPLAY_SNAPSHOT_TAG, RISC_DISPLAY_SNAPSHOT_VERSION, copy_completed
 };
 /* Typed lifecycle. */
 static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected) {
@@ -964,7 +996,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.0 cause=");
+    append(destination, capacity, &used, "v=0.1.1 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

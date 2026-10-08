@@ -5,18 +5,20 @@
   "reader_sdk_commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
   "system_fixture_commit": "4b72a54e18c114e23774d8579675efd6048de41e",
   "sources": {
-    "minimal/drivers/x4pro_uc8279_fast/driver.c": "69fa2430f52610342c2c5dcea1500ad4f15c84f63e6d76e1b2d7095f80721bb8",
-    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "84e6d36fb6453e0e4e4276b89f5c4dec20e42ef1a2543f014f9e4c5bbd6314ce",
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "cba56ea92f35b6a8f9caa30497a2ff9cd9d215d177063d0970014acc25d27763",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "5251aef2a1221036ff7caea9bc7c5312e73d902ec017246e1e0aac0eabd46e90",
     "minimal/drivers/x4pro_panel/driver.c": "3e8b181828f3d1d17a0a975d412251a83abcc2cf7083a8910b5006ddd3c6f275",
-    "minimal/drivers/x4pro_panel/manifest.json": "75d13bc37c2f1da9b951f25613fc4b09acdd0c2969e84a418f115bce871731b4"
+    "minimal/drivers/x4pro_panel/manifest.json": "75d13bc37c2f1da9b951f25613fc4b09acdd0c2969e84a418f115bce871731b4",
+    "minimal/interfaces/RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6"
   },
   "checks": {
-    "provider_scenarios": 23,
+    "provider_scenarios": 24,
     "provider_asan_ubsan": "passed; LeakSanitizer disabled because executor ptrace is unsupported",
-    "provider_xtensa": "passed; 391 relative pointers verified; exports t5_driver_get only",
+    "provider_xtensa": "passed; 417 relative pointers verified; 64812 bytes; exports t5_driver_get only",
     "fallback_provider_regressions": "passed",
     "profile_materialization": "passed fallback SSD/UC and fast UC with/without sleep; no preflight hardware I/O",
-    "scheduler_cadence": "passed actual System adapter + Runtime scheduler + fast provider; app waits 1,8,20,50 ms; ASan/UBSan"
+    "scheduler_cadence": "passed actual System adapter + Runtime scheduler + fast provider; app waits 1,8,20,50 ms; ASan/UBSan",
+    "completed_snapshot": "passed descriptor, padding, capacity/format, pointer overflow, aliases, owner/retained/frame lease, seed-only, queued/active, sleep/resume and no I/O checks"
   },
   "timing_limits": "Cadence models 20 MHz wire time and a 20 ms BUSY pulse, excluding SDK/CPU costs. Not hardware FPS or latency.",
   "cadence": [
