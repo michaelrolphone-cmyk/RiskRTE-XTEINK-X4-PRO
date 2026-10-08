@@ -12,7 +12,7 @@ static bool ambiguous, unstable;static uint8_t lut_id=0x68;
 static uint64_t tick=100, busy_until, bus_deadline, gpio_serial=10, model_bus_token;
 static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, refreshes, pons, pofs, sleeps, polls;
 static uint32_t payload, max_exchange, max_poll_bytes;
-static unsigned command_cost, scheduler_gap=1;
+static unsigned command_cost, scheduler_gap=1, refresh_pulse_ms=20, reset_assertions;
 static unsigned commands[256], data_index;static uint8_t cmd, regs[256][42];
 static uint8_t ram[60000], visible[48000];
 static bool model_bus_held, ptin;
@@ -33,21 +33,34 @@ static bool gpio_claim(void*c,uint8_t p,bool out,bool level,bool pull,uint64_t*t
  (void)c;assert(owner&&locked);*t=0;assert(p==6||p==14||p==18);assert(!pull);
  if(fail_claim)return false;assert(!pins[p].token);pins[p].token=++gpio_serial;pins[p].output=out;pins[p].level=level;pins[p].held=false;*t=pins[p].token;return true;
 }
-static bool gpio_write(void*c,uint64_t t,bool level){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&pins[p].output&&!pins[p].held);++gpio_writes;if(fail_gpio)return false;pins[p].level=level;if(p==14&&!level){phase=0;busy_until=0;}return true;}
+static bool gpio_write(void*c,uint64_t t,bool level){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&pins[p].output&&!pins[p].held);++gpio_writes;if(fail_gpio)return false;pins[p].level=level;if(p==14&&!level){++reset_assertions;phase=0;busy_until=0;}return true;}
 static bool gpio_read(void*c,uint64_t t,bool*v){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&p==6);if(tick>=busy_until&&!stuck_busy&&!stuck_power)phase=0;*v=!((phase==1&&stuck_busy)||(phase==2&&stuck_power)||tick<busy_until);return true;}
 static bool gpio_release(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);if(fail_release||pins[p].held)return false;pins[p].token=0;return true;}
 static int32_t gpio_hold(void*c,uint64_t t,bool on){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].level);if(fail_unhold&&!on)return RISC_DEEP_SLEEP_RETAINED;if(fail_hold)return RISC_DEEP_SLEEP_PLATFORM;pins[p].held=on;return 0;}
 static bool gpio_retire(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].held);if(fail_retire)return false;pins[p].token=0;return true;}
+/* Lock the selected 05d811ae lab0.1.5 register vocabulary. In particular,
+ * TCON0x60 is never written: no0x00/below0x22 timing experiment is imported. */
 static void model_command(uint8_t value){
+ if(commands[cmd]){
+  if(cmd==0x61||cmd==0x65)assert(data_index==4);
+  if(cmd==0x30)assert(data_index==1);
+ }
+ switch(value){
+ case 0x00:case 0x02:case 0x03:case 0x04:case 0x07:
+ case 0x10:case 0x12:case 0x13:
+ case 0x20:case 0x21:case 0x22:case 0x23:case 0x24:
+ case 0x30:case 0x50:case 0x61:case 0x65:case 0x70:case 0x71:
+ case 0x90:case 0x91:case 0x92:case 0xE0:case 0xE1:case 0xE5:break;
+ default:assert(!"unselected timing/voltage/controller command");
+ }
  cmd=value;++commands[cmd];data_index=0;
- assert(cmd!=0x01&&cmd!=0x06&&cmd!=0x82); /* No voltage/booster programming. */
  if(cmd==0x71)++probe_reads;
  if(cmd==0x91)ptin=true;if(cmd==0x92)ptin=false;
  if(cmd==0x04){++pons;phase=2;busy_until=tick+2;}
  if(cmd==0x02){++pofs;phase=2;busy_until=tick+2;}
  if(cmd==0x07)++sleeps;
  if(cmd==0x12){
-  ++refreshes;phase=1;busy_until=no_busy?tick:tick+20;
+  ++refreshes;phase=1;busy_until=no_busy?tick:tick+refresh_pulse_ms;
   unsigned top=0,height=480;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
@@ -59,6 +72,11 @@ static void model_command(uint8_t value){
  }
 }
 static void model_data(uint8_t value){
+ /* Every initialization/resume write must preserve normal600-gate geometry,
+  * zero gate/source start and selected PLLs, not merely the last refresh. */
+ if(cmd==0x61){const uint8_t tres[]={0x03,0x20,0x02,0x58};assert(data_index<sizeof(tres)&&value==tres[data_index]);}
+ if(cmd==0x65)assert(data_index<4&&value==0);
+ if(cmd==0x30)assert(data_index==0&&(value==0x0E||value==0x0F));
  if(data_index<42)regs[cmd][data_index]=value;
  if(cmd==0x10||cmd==0x13){
   ++payload;
@@ -134,6 +152,7 @@ static void test_snapshot(void) {
 int main(int argc,char**argv){
  assert(argc==2);const char*s=argv[1];if(!strcmp(s,"lut69"))lut_id=0x69;
  if(!strcmp(s,"busy-boundary")){command_cost=1;scheduler_gap=50;}
+ if(!strcmp(s,"busy-short"))refresh_pulse_ms=1; /* Observed pulse; no invented minimum. */
  garden_gpio_v1 g={.api_version=1,.struct_size=sizeof(g),.claim=gpio_claim,.write=gpio_write,.read=gpio_read,.release=gpio_release,.deep_sleep_hold=gpio_hold,.retire_held_output=gpio_retire};
  garden_spi_v1 b={.api_version=1,.struct_size=sizeof(b),.begin=spi_begin,.exchange=spi_exchange,.end=spi_end,.release=spi_release,.claim_three_wire=spi_claim};
  risc_platform_clock_api_v1 clock={1,sizeof(clock),NULL,time_now,delay};risc_provider_sync_api_v1 sync={1,sizeof(sync),NULL,own,create,lock,unlock,destroy};x4_power_ready_api_v1 power={1,sizeof(power),NULL,ready};risc_frontlight_api_v1 light_api={1,sizeof(light_api),NULL,light,NULL};
@@ -143,7 +162,10 @@ int main(int argc,char**argv){
  const risc_driver_v2*d=t5_driver_get(2);assert(!t5_driver_get(1)&&!strcmp(d->driver_id,"x4pro-uc8279-fast"));output=d->capability;
  if(!strcmp(s,"validation")){
   assert(!d->start(deps,6));b.struct_size=GARDEN_SPI_THREE_WIRE_V1_SIZE-1;assert(!d->start(deps,7));b.struct_size=sizeof(b);
-  cfg.bus.frequency_hz=40000000;assert(!d->start(deps,7));cfg.bus.frequency_hz=20000000;
+  cfg.bus.frequency_hz=40000000;assert(!d->start(deps,7));
+  cfg.bus.frequency_hz=80000000;assert(!d->start(deps,7));cfg.bus.frequency_hz=20000000;
+  cfg.height=80;assert(!d->start(deps,7));cfg.height=480;
+  cfg.offset_y=0;assert(!d->start(deps,7));cfg.offset_y=120;
   device.compatible="solomon-systech,ssd1677";assert(!d->start(deps,7));device.compatible="ultrachip,uc8279";
   cfg.bus.miso=11;assert(!d->start(deps,7));cfg.bus.miso=-1;owner=false;assert(!d->start(deps,7));owner=true;
   assert(!bus_calls&&!gpio_writes&&!lock_exists&&d->quiesce());goto done;
@@ -155,10 +177,14 @@ int main(int argc,char**argv){
  if(!strcmp(s,"claim-fail")){fail_claim=true;assert(!d->start(deps,7)&&!d->quiesce());goto done;}
  if(!strcmp(s,"probe-spi-fail")){fail_spi_exchange=true;assert(!d->start(deps,7)&&!d->quiesce()&&!model_bus_held);goto done;}
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
+ assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);baseline();
  if(!strcmp(s,"busy-absent")||!strcmp(s,"busy-stuck")||!strcmp(s,"clock-fail")||!strcmp(s,"clock-rollback")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);no_busy=!strcmp(s,"busy-absent");stuck_busy=!strcmp(s,"busy-stuck");fail_clock=!strcmp(s,"clock-fail");reverse_clock=!strcmp(s,"clock-rollback");
-  risc_display_present_status_v1 status={0};if(fail_clock){assert(!output->wait_present(NULL,t,5000,&status));((const risc_driver_poll_v2*)d)->poll(8);assert(output->present_status(NULL,t,&status));}else assert(output->wait_present(NULL,t,5000,&status));assert(status.state==PRESENT_FAILED&&!completed_history);risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));assert(risc_display_output_power(output)->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());goto done;
+  risc_display_present_status_v1 status={0};if(fail_clock){assert(!output->wait_present(NULL,t,5000,&status));((const risc_driver_poll_v2*)d)->poll(8);assert(output->present_status(NULL,t,&status));}else assert(output->wait_present(NULL,t,5000,&status));assert(status.state==PRESENT_FAILED&&!completed_history);risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));assert(risc_display_output_power(output)->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());
+  const unsigned old_bus_calls=bus_calls,old_resets=reset_assertions;
+  assert(risc_display_output_power(output)->resume(NULL,1500)==RISC_DISPLAY_POWER_RETAINED);
+  assert(!d->start(deps,7)&&bus_calls==old_bus_calls&&reset_assertions==old_resets);goto done;
  }
  if(!strcmp(s,"snapshot")){test_snapshot();assert(d->quiesce());goto done;}
  if(!strncmp(s,"spi-",4)||!strcmp(s,"gpio-fail")||!strcmp(s,"unlock-fail")){
@@ -177,7 +203,10 @@ int main(int argc,char**argv){
  {const risc_display_output_api_v1_power*p=risc_display_output_power(output);assert(p);
   if(!strcmp(s,"hold-retry")){fail_hold=true;assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_PLATFORM);fail_hold=false;}
   assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK&&reset_held&&!completed_history);
-  assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK&&!completed_history&&!screen_powered);baseline();
+  const unsigned resets_before=reset_assertions,tres_before=commands[0x61],gsst_before=commands[0x65];
+  assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK&&!completed_history&&!screen_powered);
+  assert(reset_assertions==resets_before+1&&commands[0x61]==tres_before+1&&commands[0x65]==gsst_before+1&&regs[0x30][0]==0x0E);
+  baseline();assert(!fast_update&&regs[0x00][0]==0x17&&regs[0x30][0]==0x0E);
  }
  if(!strcmp(s,"release-retry")){fail_spi_release=true;assert(!d->quiesce()&&model_bus_token);fail_spi_release=false;}
  if(!strcmp(s,"retire-retry")){fail_retire=true;assert(!d->quiesce());fail_retire=false;}
