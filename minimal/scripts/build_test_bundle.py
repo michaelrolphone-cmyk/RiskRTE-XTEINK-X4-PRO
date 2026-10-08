@@ -3,17 +3,20 @@
 import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zipfile
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
+import native_time_cohort
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
-CAPS={'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
+CAPS={'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
 KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
 APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
-def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False):
+def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False):
     if desk_clock and not sleep:raise ValueError('Desk clock requires the explicit sleep graph')
     if sparse_clock and not desk_clock:raise ValueError('Sparse clock requires the explicit desk-clock profile')
     grants=[]
     for req in requirements:
         cap=req['capability']
+        if cap=='runtime.realtime' and (not native_time or name in ('default','settings') or type(req['api']) is not int or req['api']!=1):
+            raise ValueError('Readonly native time restricted to explicit native foreground apps')
         if cap=='runtime.provider-promotion' and (name!='default' or not sparse_clock or type(req['api']) is not int or req['api']!=1):
             raise ValueError('Provider promotion restricted to explicit sparse default Clock')
         if cap=='runtime.realtime-control' and (name not in ('default','settings') or not sparse_clock or type(req['api']) is not int or req['api']!=1):
@@ -81,14 +84,15 @@ DESK_REQUIREMENTS={('display.output',1),('input.touch.raw',1),('rtc.clock',2),('
     ('storage.key-value',1),('input.navigation',1),('alarm.service',1),('x4.power',1),
     ('runtime.retained-wake',1),('storage.volume',1),('net.wifi',1),('bluetooth.hci',1)}
 SPARSE_REQUIREMENTS=DESK_REQUIREMENTS|{('runtime.realtime-control',1),('runtime.provider-promotion',1)}
-def validate_sparse_clock_profile(manifest,blob,record,source,local_source,headers):
+def validate_sparse_clock_profile(manifest,blob,record,source,local_source,headers,tagged_alarm=False):
     """Unselected future-profile gate; does not enable demand activation."""
     required_headers={'RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h',
                       'RiscRetainedWakeV1.h','RiscDisplayOutputPowerV1.h','RiscTouchPowerV1.h',
                       'RiscStorageVolumeV1.h','RiscTimedSleepV1.h','RiscDeepSleepV1.h','RiscLightSleepV1.h'}
     if not required_headers.issubset(headers) or any(not re.fullmatch(r'[0-9a-f]{64}',value) for value in headers.values()):
         raise ValueError('Sparse Clock requires exact canonical lifecycle/native SDK hashes')
-    expected={'working_tree_dirty':False,'desk_clock':True,'version':'0.3.2',
+    version='0.3.3' if tagged_alarm else '0.3.2'
+    expected={'working_tree_dirty':False,'desk_clock':True,'version':version,
               'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
               'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
               'display_rotation':90,'launcher_app':'springboard.elf','navigation':True,'sleep_capability':'x4.power',
@@ -96,10 +100,11 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
               'repository_commit':source,'sha256':sha(blob),'size_bytes':len(blob),
               'local_sleep_source_sha256':sha(local_source),'desk_sdk_headers':headers,
               'retained_wake_sdk_sha256':headers['RiscRetainedWakeV1.h']}
-    if manifest.get('id')!='paper_clock' or manifest.get('version')!='0.3.2' or any(record.get(k)!=v for k,v in expected.items()):
+    if manifest.get('id')!='paper_clock' or manifest.get('version')!=version or any(record.get(k)!=v for k,v in expected.items()):
         raise ValueError('Sparse Clock source, feature or artifact identity mismatch')
     requirements=manifest.get('requires',[])
-    if len(requirements)!=14 or {(r['capability'],r['api']) for r in requirements}!=SPARSE_REQUIREMENTS:
+    expected_requirements=(SPARSE_REQUIREMENTS-{('alarm.service',1)}|{('alarm.service',2)}) if tagged_alarm else SPARSE_REQUIREMENTS
+    if len(requirements)!=14 or {(r['capability'],r['api']) for r in requirements}!=expected_requirements:
         raise ValueError('Sparse Clock requires exactly its fourteen typed capabilities')
     return {'record_type':'0x44434c4b','record_schema':1,'grant_count':14,
             'provider_activation':'demand','timer_preferences':'retained-only',
@@ -132,6 +137,8 @@ def load_module(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
 def build(a):
     desk=getattr(a,'desk_clock',False)
+    sparse=getattr(a,'sparse_clock',False)
+    if sparse and not desk:raise ValueError('Sparse cohort requires the explicit desk-clock graph')
     if subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=ROOT,text=True).strip():raise ValueError('Clean product source required for bundle custody')
     if desk and not getattr(a,'sleep',False):raise ValueError('Desk Clock requires --sleep')
     inputs=json.loads(a.inputs.read_text());out=a.output.resolve()
@@ -139,9 +146,11 @@ def build(a):
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
+    if sparse:boot['provider_activation']='demand'
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
+    if sparse:custody['native_apps']={}
     lock=custody['shared_source_lock']
     if custody['runtime']['source_sha']!=lock['runtime']['commit'] or custody['runtime']['firmware_version']!=lock['runtime']['version']:raise ValueError('Native candidate differs from locked Runtime source')
     if driver_origin['source_fixture']:raise ValueError('Source-fixture drivers cannot be packaged')
@@ -156,12 +165,14 @@ def build(a):
         (path/'driver.elf').write_bytes(blob)
     for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider'),('wifi','wifi_provider'),('hid','hid_provider'),('iq','iq_provider')]:
         src=Path(inputs[key]);dest=store/folder;dest.mkdir();m=json.loads((src/'manifest.json').read_text());blob=(src/'driver.elf').read_bytes()
+        if sparse and key=='alarm_service':native_time_cohort.validate_alarm(m,blob,json.loads((src/'build-evidence.json').read_text()))
         (dest/'manifest.json').write_bytes(encoded(m));(dest/'driver.elf').write_bytes(blob)
         custody[key]={'id':m['id'],'version':m['version'],'sha256':sha(blob)}
         evidence=out/'build-records'/'providers'/m['id'];evidence.mkdir(parents=True,exist_ok=True)
         notices=out/'licenses'/'providers'/m['id'];notices.mkdir(parents=True,exist_ok=True)
         for record in src.glob('*.json'):
             if record.name!='manifest.json':shutil.copyfile(record,evidence/record.name)
+        if (src/'licenses').is_dir():shutil.copytree(src/'licenses',notices,dirs_exist_ok=True)
         for notice in src.iterdir():
             if notice.is_file() and ('LICENSE' in notice.name or 'NOTICE' in notice.name or notice.name.endswith('SOURCE.json')):shutil.copyfile(notice,notices/notice.name)
     board['devices'].append({'instance_id':16,'chip':{'vendor':'espressif','model':'esp32s3-ble','revision':'unspecified'},'compatible':'espressif,esp32s3-ble','config_type':'radio.integrated','config_version':1,'config':{'unit':0,'features':1}})
@@ -172,15 +183,23 @@ def build(a):
     boot['drivers'].append({'manifest':'iq/manifest.json'})
     boot['drivers'].append({'manifest':'hid/manifest.json','key_value':[{'key':k,'namespace':10,'access':'read-write'} for k in ('hid_ours','hid_peer','hid_ccc','hid_identity')]})
     keys=[('alarm_cfg',3,'read'),('timer_cfg',3,'read'),('alarm_occ',4,'read-write'),('timer_occ',4,'read-write'),('alert_mode',1,'read'),('points_cfg',5,'read'),('points_occ',4,'read-write'),('alert_dnd',1,'read')]
+    if sparse:keys=native_time_cohort.ALARM_KEYS
     boot['drivers'].append({'manifest':'alarm/manifest.json','key_value':[{'key':k,'namespace':n,'access':v} for k,n,v in keys]})
     policies=[];licenses=out/'licenses';licenses.mkdir(exist_ok=True)
     for name in APPS:
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
-        if name=='settings':custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
+        if sparse:
+            custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name])
+        if name=='settings' and not sparse:custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
+        if name=='settings' and sparse:custody['settings_power_ui']={'manual_light_sleep':True,'sleep_mode_selector':True,'deep_desk_clock':True,'hybrid':False,'default_mode':'light','native_time_editing':True}
         if name=='default' and desk:
             headers={name:sha(((a.runtime/'sdk/app' if name=='RiscRetainedWakeV1.h' else a.runtime/'sdk/driver' if name in ('RiscTimedSleepV1.h','RiscLightSleepV1.h','RiscDeepSleepV1.h') else a.drivers/'sdk')/name).read_bytes()) for name in ('RiscDisplayOutputV1.h','RiscDisplayOutputPowerV1.h','RiscTouchV1.h','RiscTouchPowerV1.h','RiscStorageVolumeV1.h','RiscRetainedWakeV1.h','RiscTimedSleepV1.h','RiscLightSleepV1.h','RiscDeepSleepV1.h')}
-            custody['desk_clock']=validate_desk_clock_profile(m,blob,json.loads((src/'build-evidence.json').read_text()),app_sources['desk_clock_system_apps'],(ROOT/'minimal/apps/portable_sleep.c').read_bytes(),headers)
+            if sparse:
+                for header in ('RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h'):
+                    headers[header]=sha((a.runtime/'sdk/app'/header).read_bytes())
+            validator=validate_sparse_clock_profile if sparse else validate_desk_clock_profile
+            custody['desk_clock']=validator(m,blob,json.loads((src/'build-evidence.json').read_text()),app_sources['desk_clock_system_apps'],(ROOT/'minimal/apps/portable_sleep.c').read_bytes(),headers,**({'tagged_alarm':True} if sparse else {}))
             for notice in ('LICENSE-NotoSans.txt','LICENSE-NotoSerif.txt','SOURCES.json'):
                 if not (src/'licenses/desk_clock'/notice).is_file():raise ValueError('Desk Clock font custody is missing: '+notice)
         # The shared adapter exposes battery telemetry only with explicit grants.
@@ -190,7 +209,7 @@ def build(a):
             normalized={'capability':req['capability'],'api':req['api']}
             if normalized not in requirements:requirements.append(normalized)
         m['requires']=requirements
-        grants=app_grants(name,m['requires'],getattr(a,'sleep',False),desk)
+        grants=app_grants(name,m['requires'],getattr(a,'sleep',False),desk,sparse,sparse)
         policies.append({'manifest':name+'.json','grants':grants});(store/(name+'.elf')).write_bytes(blob);(store/(name+'.json')).write_bytes(encoded(m))
         custody['apps'][name]={'id':m['id'],'version':m['version'],'sha256':sha(blob),'manifest_sha256':sha(encoded(m))}
         records=out/'build-records'/name;records.mkdir(parents=True)
@@ -235,6 +254,10 @@ def build(a):
         readme=out/'README.txt'
         text=readme.read_text().replace('requests manual light sleep from Clock; GPIO3 wakes it. Deep/hybrid/idle/touch wake is not implemented; unsupported sleep mode preferences are hidden in Settings.', 'requests the selected Light or Deep Desk Clock mode from Clock; Light is the default and GPIO3 wakes either mode. Deep mode preserves a six-face clock image and uses timer wakes for minute updates. Hybrid, automatic idle entry and touch wake are unavailable. GPIO/other/reset wakes return to normal UI.').replace('QuickActions radio toggles remain unselected;', 'Clock QuickActions includes radio policy controls; other apps keep their existing selection;').replace('Deep-sleep desk clock is pending.', 'Deep entry checks radio shutdown, alarms and panel/touch/SD/board power custody. Ordinary refusal returns to the Clock with radios off. Timer wakes currently start the full admitted driver graph. Native timer-arm latency, rail behavior and battery current remain unqualified.')
         readme.write_text(text)
+    if sparse:
+        readme=out/'README.txt';text=readme.read_text().replace('RTC uses unconverted wall time.', 'Native UTC is projected through the selected Reader/IANA timezone. Settings explicitly saves time with verified RTC/native updates.').replace('Timer wakes currently start the full admitted driver graph.', 'Valid retained minute wakes activate only the Clock/alarm dependency closure; normal interaction explicitly promotes the admitted foreground graph.').replace('other apps keep their existing selection;', 'other apps expose their selected controls;')
+        text+='\nNative UTC alarm/countdown/Points records and Stopwatch state use isolated keys. Existing civil Timecard history is not reinterpreted. Reader timezone/language/flip and six clock faces are selected in Settings. Automatic idle sleep is still unavailable. This is a development test image, not hardware qualification.\n'
+        readme.write_text(text)
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
@@ -246,4 +269,5 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
     p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())
