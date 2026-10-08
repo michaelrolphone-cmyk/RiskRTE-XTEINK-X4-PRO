@@ -19,6 +19,7 @@ static_assert(sizeof(Record) == 140, "Boot diagnostic record layout changed");
 RTC_NOINIT_ATTR Record retained;
 Record previous{};
 bool initialized = false, previousValid = false, wasConnected = false;
+uint32_t stageStartedMs = 0;
 uint32_t digest(const Record& record) {
   const auto* bytes = reinterpret_cast<const unsigned char*>(&record);
   uint32_t value = 2166136261u;
@@ -62,12 +63,18 @@ void begin(uint32_t resetReason) {
   next.checksum = digest(next);
   retained = next;
   initialized = true;
+  stageStartedMs = next.stageAtMs;
   wasConnected = false;
 }
 void mark(Stage stage) {
   if (!initialized || stage >= Stage::Count) return;
+  const uint32_t now = static_cast<uint32_t>(millis());
+  LOG_INF("X4TIMING", "phase=boot-stage stage=%s duration_ms=%lu total_ms=%lu",
+      name(retained.stage), static_cast<unsigned long>(now - stageStartedMs),
+      static_cast<unsigned long>(now));
+  stageStartedMs = now;
   retained.stage = static_cast<uint32_t>(stage);
-  retained.stageAtMs = static_cast<uint32_t>(millis());
+  retained.stageAtMs = now;
   retained.checksum = digest(retained);
 }
 void fail(const char* reason) {
