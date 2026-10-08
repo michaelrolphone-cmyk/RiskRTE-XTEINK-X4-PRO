@@ -19,11 +19,12 @@
 using namespace RiscCpu;
 uint64_t native_sleep_test_output_mask=native_sleep_test_gpio_mask;
 static gpio_mode_t modes[49]{};
-static bool levels[49]{}, forcedLow[49]{};
+static bool levels[49]{}, forcedLow[49]{}, held[49]{};
 static unsigned io;
 extern "C" esp_err_t gpio_set_level(gpio_num_t pin,uint32_t level){++io;levels[pin]=level!=0;return ESP_OK;}
 extern "C" esp_err_t gpio_config(const gpio_config_t* c){++io;for(unsigned p=0;p<49;++p)if(c->pin_bit_mask&(UINT64_C(1)<<p))modes[p]=c->mode;return ESP_OK;}
-extern "C" esp_err_t gpio_hold_dis(gpio_num_t){++io;return ESP_OK;}
+extern "C" esp_err_t gpio_hold_dis(gpio_num_t p){++io;held[p]=false;return ESP_OK;}
+extern "C" esp_err_t gpio_hold_en(gpio_num_t p){++io;held[p]=true;return ESP_OK;}
 extern "C" bool rtc_gpio_is_valid_gpio(gpio_num_t p){return p<=21;}
 extern "C" esp_err_t rtc_gpio_deinit(gpio_num_t){++io;return ESP_OK;}
 static bool padRead(uint8_t p,bool* out){++io;*out=(unsigned(modes[p])&1) && levels[p] && !forcedLow[p];return true;}
@@ -32,7 +33,7 @@ static bool owner(){return true;}
 static bool bind(RiscBoot::Runtime&r){return active->bind(r);}
 static Hardware hardware(){
  Hardware h{};h.owner=owner;h.now=[]()->uint64_t{return 0;};h.sleep=[](uint32_t){++io;};
- h.gpioOpen=NativeSleep::openPin;h.gpioRead=padRead;
+ h.gpioOpen=NativeSleep::openPin;h.gpioRead=padRead;h.deepHold=NativeSleep::hold;
  h.gpioWrite=[](uint8_t p,bool v){return gpio_set_level(static_cast<gpio_num_t>(p),v)==ESP_OK;};
  h.gpioClose=[](uint8_t p){++io;modes[p]=GPIO_MODE_DISABLE;return NativeSleep::canClose(p);};
  h.gpioPwm=[](uint8_t,uint32_t,uint16_t,uint16_t){return false;};
@@ -57,7 +58,7 @@ int main(int argc,char**argv){
  if(expectBroken){assert(!driver->quiesce());puts("Original readback failure safely retained PASS");return 0;}
  pid_t child=fork();assert(child>=0);if(!child){forcedLow[1]=true;assert(!power->ready(power->context));assert(!driver->quiesce());_exit(0);}
  int status=0;assert(waitpid(child,&status,0)==child && WIFEXITED(status) && !WEXITSTATUS(status));
- assert(driver->quiesce());driver->stop();assert(port.quiescent());
+ assert(driver->quiesce());driver->stop();assert(port.quiescent()&&held[1]&&levels[1]);
  // Native SD CLK is the second materialized bank pin (GPIO41). Its tick()
  // waits for BOTH output levels through the same scoped readback contract.
  auto& bank=runtime.board().device(9)->config.gpio;assert(bank.pins[1]==41);

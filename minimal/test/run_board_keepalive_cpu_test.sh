@@ -16,5 +16,5 @@ c++ -std=c++17 "${flags[@]}" -I"$runtime/test/native_sleep_shim" -I"$runtime/src
  "$root/minimal/test/board_keepalive_cpu_test.cpp" "$build/board.o" "$build/power.o" -ldl -o "$build/keepalive"
 for panel in ssd1677 uc8279;do
  python3 "$root/minimal/scripts/generate_profile.py" --panel "$panel" --sleep --output "$build/$panel"
- for case in refused arm-refusal timer-refusal hold-refusal arm-retained timer-retained hold-retained unhold-retained restore-read native-return-retained terminal;do "$build/keepalive" "$build/$panel" "$case";done
+ for case in refused arm-refusal timer-refusal arm-retained timer-retained restore-read native-return-retained terminal forced-low startup-hold-refusal startup-hold-retained startup-unhold-retained;do "$build/keepalive" "$build/$panel" "$case";done
 done

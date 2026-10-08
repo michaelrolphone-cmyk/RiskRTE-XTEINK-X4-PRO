@@ -12,7 +12,9 @@ cohort and verifies it with the production Runtime admission harness. The user
 reported a rendered frame from an earlier candidate; new controls, sleep and
 performance changes still require physical verification.
 
-The board-power provider establishes the peripheral rail; panel candidates
+The X4 native composition establishes GPIO1 HIGH before Runtime setup; the
+board-power provider transfers its permanent hold into CPU custody after graph
+admission. See `NATIVE_BOOT_COMPOSITION.md` and `BOARD_KEEPALIVE.md`. Panel candidates
 explicitly select SSD1677 or UC8279 protocol and matching reset/BUSY/offset
 configuration. No physical controller identity is guessed. SD remains native
 one-bit CLK/CMD/DAT0, not SPI. Battery and RTC are included and versioned in this
