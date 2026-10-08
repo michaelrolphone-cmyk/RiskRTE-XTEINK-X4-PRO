@@ -4,6 +4,9 @@
 #include "PortableAppSleep.h"
 #include "../drivers/x4pro_power/X4PowerV1.h"
 #include <RiscTimedSleepV1.h>
+#ifdef ALARM_SERVICE_TAGGED_V2
+#include <AlarmServiceV2.h>
+#endif
 #ifdef PORTABLE_QUICK_ACTIONS
 extern unsigned portable_quick_brightness(void);
 #endif
@@ -24,8 +27,13 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     int result=0;
     if(!power || power->api_version!=1 || power->struct_size<sizeof(*power) ||
        !power->read_key || !power->light_sleep || !display || !display->set_brightness ||
+#ifdef ALARM_SERVICE_TAGGED_V2
+       !alarm_service_descriptor(alarms) ||
+       !(alarm_service_descriptor(alarms)->features&ALARM_DESCRIPTOR_RESUME_SLEEP))goto done;
+#else
        !alarms || alarms->api_version!=1 || alarms->struct_size<sizeof(*alarms) ||
        !alarms->prepare_sleep || !alarms->step || !alarms->status)goto done;
+#endif
     /* Bounded release barrier; no initial held/waking key becomes an action. */
     bool neutral=false;
     risc_runtime_health_v1 health={.struct_size=sizeof(health)};
@@ -45,7 +53,16 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     for(unsigned n=0;n<64 && ready==ALARM_PENDING;n++) {
         decision=(alarm_sleep_v1){.struct_size=sizeof(decision)};
         ready=alarms->prepare_sleep(alarms->context,&decision);
+#ifdef ALARM_SERVICE_TAGGED_V2
+        if(ready==ALARM_RETAINED || ready==ALARM_OUTPUT)return -2;
+        if(ready==ALARM_PENDING) {
+            int32_t stepped=alarms->step(alarms->context);
+            if(stepped==ALARM_RETAINED || stepped==ALARM_OUTPUT)return -2;
+            if(stepped!=ALARM_OK && stepped!=ALARM_PENDING){ready=stepped;break;}
+        }
+#else
         if(ready==ALARM_PENDING)(void)alarms->step(alarms->context);
+#endif
     }
     if(ready==ALARM_OK) {
         uint32_t duration=0;
@@ -58,6 +75,15 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
         /* Native retained ownership forbids even grant release or restoration. */
         if(status==RISC_LIGHT_SLEEP_RETAINED)return -2;
         result=status==RISC_LIGHT_SLEEP_OK?1:0;
+#ifdef ALARM_SERVICE_TAGGED_V2
+        if(status==RISC_LIGHT_SLEEP_OK) {
+            /* This unchanged successful prepare ticket belongs to this exact
+             * native Light return. No mutating service call may intervene. */
+            int32_t resumed=alarm_service_resume(alarms,&decision);
+            if(resumed==ALARM_RETAINED || resumed==ALARM_OUTPUT)return -2;
+            if(resumed!=ALARM_OK)result=-1;
+        }
+#endif
     }
     if(!display->set_brightness(display->context,
 #ifdef PORTABLE_QUICK_ACTIONS
@@ -206,9 +232,15 @@ static int desk_refuse(x4_desk_sleep *s) { return desk_resume(s)==1?0:-2; }
 /* Status is copied only while the alarm service outcome is still confirmed.
  * Output uncertainty is terminal, including uncertainty discovered by step. */
 static int desk_alarm_state(x4_desk_sleep *s,int32_t rc) {
+#ifdef ALARM_SERVICE_TAGGED_V2
+    if(rc==ALARM_RETAINED)return desk_retain(s);
+#endif
     if(rc==ALARM_OUTPUT)return desk_retain(s);
     alarm_status_v1 status={.struct_size=sizeof(status)};
     int32_t got=s->alarms->status(s->alarms->context,&status);
+#ifdef ALARM_SERVICE_TAGGED_V2
+    if(got==ALARM_RETAINED || status.error==ALARM_RETAINED)return desk_retain(s);
+#endif
     if(got==ALARM_OUTPUT || status.output_uncertain)return desk_retain(s);
     if(got!=ALARM_OK || (rc!=ALARM_OK && rc!=ALARM_PENDING))return 0;
     return 1;
@@ -367,8 +399,12 @@ static int desk_timer_sleep(const risc_runtime_api_v1 *rt,const risc_display_out
                             const alarm_service_v1 *alarms) {
     if(!display || display->api_version!=RISC_DISPLAY_OUTPUT_API_V1 ||
        display->struct_size<sizeof(*display) || !display->set_brightness ||
+#ifdef ALARM_SERVICE_TAGGED_V2
+       !alarm_service_descriptor(alarms)) {
+#else
        !alarms || alarms->api_version!=ALARM_SERVICE_API_V1 ||
        alarms->struct_size<sizeof(*alarms) || !alarms->prepare_sleep || !alarms->step || !alarms->status) {
+#endif
         portable_desk_clock_refused();return 0;
     }
     const char *names[]={X4_POWER_CAPABILITY,RISC_DISPLAY_OUTPUT_CAPABILITY,RISC_RETAINED_WAKE_CAPABILITY};
@@ -422,8 +458,12 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     if(mode!=PORTABLE_SLEEP_DEEP)return portable_x4_light_sleep(rt,display,gauge,alarms);
     if(!display || display->api_version!=RISC_DISPLAY_OUTPUT_API_V1 ||
        display->struct_size<sizeof(*display) || !display->set_brightness ||
+#ifdef ALARM_SERVICE_TAGGED_V2
+       !alarm_service_descriptor(alarms)) {
+#else
        !alarms || alarms->api_version!=ALARM_SERVICE_API_V1 ||
        alarms->struct_size<sizeof(*alarms) || !alarms->prepare_sleep || !alarms->step || !alarms->status) {
+#endif
         portable_desk_clock_refused();return 0;
     }
     const char *names[]={X4_POWER_CAPABILITY,RISC_DISPLAY_OUTPUT_CAPABILITY,
