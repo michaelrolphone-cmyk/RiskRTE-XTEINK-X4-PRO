@@ -16,6 +16,10 @@ for panel in ssd1677 uc8279; do
  python3 "$root/minimal/scripts/generate_profile.py" --panel "$panel" --sleep --output "$build/$panel-sleep"
  "$build/materialize" "$build/$panel-sleep" sleep
 done
+python3 "$root/minimal/scripts/generate_profile.py" --panel uc8279 --panel-driver uc8279-fast --output "$build/uc-fast"
+"$build/materialize" "$build/uc-fast"
+python3 "$root/minimal/scripts/generate_profile.py" --panel uc8279 --panel-driver uc8279-fast --sleep --output "$build/uc-fast-sleep"
+"$build/materialize" "$build/uc-fast-sleep" sleep
 python3 - "$build" <<'PY'
 import json,shutil,sys
 from pathlib import Path

@@ -20,6 +20,7 @@ def main():
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--sleep', action='store_true', help='Build explicit power and split-navigation packages')
     p.add_argument('--source-fixture', action='store_true', help='Allow non-Git host fixture sources; never production packaging')
+    p.add_argument('--panel-driver', choices=['fallback', 'uc8279-fast'], default='fallback')
     args = p.parse_args()
     runtime, reader, out = args.runtime.resolve(), args.reader.resolve(), args.output.resolve()
     lock = json.loads((ROOT/'minimal/sources.lock.json').read_text())
@@ -38,7 +39,8 @@ def main():
     subprocess.run([sys.executable, str(ROOT/'minimal/scripts/prepare_sdk.py'), '--runtime', str(runtime), '--reader', str(reader), '--output', str(out/'sdk')], check=True)
     tools = args.cc.removesuffix('gcc')
     products = []
-    for name in PROVIDERS + (('power', 'power_buttons') if args.sleep else ()):
+    providers = tuple('uc8279_fast' if name == 'panel' and args.panel_driver == 'uc8279-fast' else name for name in PROVIDERS)
+    for name in providers + (('power', 'power_buttons') if args.sleep else ()):
         source = ROOT/'minimal/drivers'/('x4pro_'+name)
         manifest = json.loads((source/'manifest.json').read_text())
         target = out/manifest['id']; target.mkdir(exist_ok=True)
@@ -58,7 +60,7 @@ def main():
             raise SystemExit(f'{name}: provider-BSS compare-and-set is forbidden')
         raw = elf.read_bytes()
         (target/'manifest.json').write_text(json.dumps(manifest, indent=2)+'\n')
-        products.append({'id': manifest['id'], 'version': manifest['version'], 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'imports': sorted(imports), 'source_sha256': hashlib.sha256((source/'driver.c').read_bytes()).hexdigest(), 'local_source_hashes': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in ([source/'driver.c'] + ([ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h'] if name=='panel' else []) + ([ROOT/'minimal/drivers/x4pro_buttons/driver.c'] if name=='power_buttons' else []) + ([ROOT/'minimal/drivers/x4pro_power/X4PowerV1.h'] if name in ('power','buttons','power_buttons') else []) + ([ROOT/'minimal/drivers/x4pro_power/X4PowerDeepV1.h'] if name=='power' else []) + ([ROOT/'minimal/drivers/x4pro_board_power/PowerReadyV1.h', ROOT/'minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h'] if name in ('power','board_power') else []))}})
+        products.append({'id': manifest['id'], 'version': manifest['version'], 'bytes': len(raw), 'sha256': hashlib.sha256(raw).hexdigest(), 'imports': sorted(imports), 'source_sha256': hashlib.sha256((source/'driver.c').read_bytes()).hexdigest(), 'local_source_hashes': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in ([source/'driver.c'] + ([ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h'] if name in ('panel','uc8279_fast') else []) + ([ROOT/'minimal/drivers/x4pro_buttons/driver.c'] if name=='power_buttons' else []) + ([ROOT/'minimal/drivers/x4pro_power/X4PowerV1.h'] if name in ('power','buttons','power_buttons') else []) + ([ROOT/'minimal/drivers/x4pro_power/X4PowerDeepV1.h'] if name=='power' else []) + ([ROOT/'minimal/drivers/x4pro_board_power/PowerReadyV1.h', ROOT/'minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h'] if name in ('power','board_power') else []))}})
     (out/'products.json').write_text(json.dumps(products, indent=2)+'\n')
     print(json.dumps(products, indent=2))
 

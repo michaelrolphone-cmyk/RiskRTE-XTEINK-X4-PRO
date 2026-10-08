@@ -200,12 +200,12 @@ def build(a):
     native_candidate=json.loads((a.native/'candidate.json').read_text())
     validate_native_composition(a.native,native_candidate,a.runtime)
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
-    out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False))
+    out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False),getattr(a,"panel_driver","fallback"))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
     if sparse:boot['provider_activation']='demand'
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
-    custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':native_candidate,'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
+    custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'panel_driver':getattr(a,'panel_driver','fallback'),'runtime':native_candidate,'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
     if sparse:
         custody['native_apps']={}
         custody['elf_compaction']={}
@@ -218,7 +218,7 @@ def build(a):
         source=driver_origin['sources'][name]
         if source['commit']!=lock[name]['commit'] or source['dirty']:raise ValueError('Driver dependency source custody mismatch: '+name)
     custody['driver_build_origin']=driver_origin
-    for name,(_,folder,_) in selections(getattr(a,"sleep",False)).items():
+    for name,(_,folder,_) in selections(getattr(a,"sleep",False),getattr(a,"panel_driver","fallback")).items():
         path=store/folder;m=json.loads((path/'manifest.json').read_text());src=a.drivers/m['id'];blob=(src/'driver.elf').read_bytes()
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
         validate_provider_source(products[m['id']],ROOT)
@@ -337,4 +337,4 @@ if __name__=='__main__':
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
-    p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())
+    p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--panel-driver',choices=['fallback','uc8279-fast'],default='fallback');p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())

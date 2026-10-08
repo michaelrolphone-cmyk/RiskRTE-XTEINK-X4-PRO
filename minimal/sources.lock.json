@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "44dfe25ce8e5fac0e73e005ffe0b304a7b003440",
-    "version": "0.1.57"
+    "commit": "4bcadc6e19a1cde40673ec2defa38a083c43ce61",
+    "version": "0.1.58"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "X4 early native boot and persistent board keepalive candidate; physical battery/RST timing unqualified"
+  "status": "Explicit UC8279 fast provider with scoped three-wire SPI; integrated hardware qualification pending"
 }
