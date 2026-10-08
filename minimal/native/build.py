@@ -2,8 +2,10 @@
 import hashlib
 import json
 import os
+import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 Import('env')
 root = Path(env.subst('$PROJECT_DIR'))
 record = json.loads((root / 'x4-native-composition.json').read_text())

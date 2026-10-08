@@ -4,6 +4,7 @@ import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zip
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 import native_time_cohort
+import prepare_native_runtime as native_composition
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
 CAPS={'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
@@ -57,6 +58,55 @@ def cohort_identity(product,native,firmware,revision):
     return {'schema':'riscrte.cohort','schema_version':1,'product':product['product'],'version':product['version'],
             'source_repo':product['source_repo'],'source_revision':revision,'runtime_version':native['firmware_version'],
             'layout':native['layout'],'store_abi':2,'firmware_size':len(firmware),'firmware_sha256':sha(firmware)}
+
+def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
+    """Require the exact platform boot hook, not just the shared Runtime version."""
+    folder=Path(folder).resolve();platform_root=Path(platform_root)
+    require=native_composition.require
+    composition=candidate.get('x4_native_composition')
+    require(isinstance(composition,dict),'X4 native composition required; generic Runtime is insufficient')
+    assets=candidate.get('assets',{})
+    required={'firmware.bin','firmware.elf','x4-native-composition.json','x4-native-proof.json'}
+    require(isinstance(assets,dict) and required<=assets.keys(),'X4 native composition assets missing')
+    blobs={}
+    for name,digest in assets.items():
+        native_composition.safe_relative(name)
+        path=folder/name
+        require(path.is_file() and not path.is_symlink() and path.resolve().is_relative_to(folder),
+                'Unsafe or missing native candidate asset: '+name)
+        blob=path.read_bytes()
+        require(digest=={'bytes':len(blob),'sha256':sha(blob)},'Native candidate asset hash mismatch: '+name)
+        blobs[name]=blob
+    record=json.loads(blobs['x4-native-composition.json'])
+    require(record.get('schema')==native_composition.SCHEMA and record.get('schema_version')==1,
+            'Invalid staged X4 composition schema')
+    payload={key:value for key,value in record.items() if key!='composition_sha256'}
+    require(sha(native_composition.encoded(payload))==record.get('composition_sha256'),
+            'Staged X4 composition digest mismatch')
+    lock=json.loads((platform_root/'minimal/sources.lock.json').read_text())['runtime']
+    require(candidate.get('source_sha')==lock['commit'] and candidate.get('firmware_version')==lock['version'] and
+            record['runtime']['commit']==lock['commit'] and record['runtime']['version']==lock['version'] and
+            record['runtime']['repository']==lock['repository'],'Composed Runtime differs from the product lock')
+    require(record.get('build_environment') in native_composition.ENVIRONMENTS and
+            candidate.get('build_environment')==record['build_environment'] and
+            candidate.get('target')==native_composition.ENVIRONMENTS[0] and
+            candidate.get('layout')=='riscrte-paired-appdata-v2' and candidate.get('store_abi')==2,
+            'Composed native environment/ABI mismatch')
+    native_composition.verify_source_custody(runtime,record,platform_root)
+    markers=('RTE_SOURCE='+lock['commit'],'RISC_RUNTIME_VERSION:'+lock['version'],
+             'RISC_PAIRED_STORE_ABI:2','X4_NATIVE_COMPOSITION:'+record['composition_sha256'])
+    for name in ('firmware.bin','firmware.elf'):
+        require(all(marker.encode()+b'\0' in blobs[name] for marker in markers),
+                'Compiled native composition/source marker mismatch: '+name)
+        require(b'RISC_PAIRED_STORE_ABI:1\0' not in blobs[name],'Mixed compiled native ABI')
+    proof=native_composition.startup_proof(blobs['firmware.elf'],record)
+    require(json.loads(blobs['x4-native-proof.json'])==proof,'Staged X4 startup proof mismatch')
+    expected={'composition_sha256':record['composition_sha256'],'runtime':record['runtime'],
+              'platform':record['platform'],'platform_source_sha256':record['platform_source_sha256'],
+              'startup_proof':proof}
+    require(composition==expected,'Native candidate composition summary mismatch')
+    return expected
+
 def validate_settings_profile(manifest,blob,record,desk_clock=False,source=None):
     # The selected X4 power hook supports manual light sleep only. A generic
     # Light/Deep/Hybrid preference would promise modes this deployment ignores.
@@ -147,13 +197,15 @@ def build(a):
     if desk and not getattr(a,'sleep',False):raise ValueError('Desk Clock requires --sleep')
     inputs=json.loads(a.inputs.read_text());out=a.output.resolve()
     app_sources=json.loads((ROOT/'minimal/apps/sources.json').read_text())
+    native_candidate=json.loads((a.native/'candidate.json').read_text())
+    validate_native_composition(a.native,native_candidate,a.runtime)
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
     if sparse:boot['provider_activation']='demand'
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
-    custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':json.loads((a.native/'candidate.json').read_text()),'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
+    custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'runtime':native_candidate,'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
     if sparse:
         custody['native_apps']={}
         custody['elf_compaction']={}

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -110,6 +111,7 @@ class CompositionTest(unittest.TestCase):
         env = Environment(ENV={}, environment=record['build_environment'], appended=[])
         script = self.output / 'x4-native/build.py'
         exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
+        self.assertTrue(sys.dont_write_bytecode)
         self.assertEqual(env['sources'][2], '+<X4EarlyBoot.cpp>')
         self.assertIn(record['composition_sha256'], (self.root / 'objects/X4NativeBuildIdentity.h').read_text())
         env['environment'] = 'esp32s3'
