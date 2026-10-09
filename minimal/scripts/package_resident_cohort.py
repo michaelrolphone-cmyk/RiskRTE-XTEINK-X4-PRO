@@ -195,6 +195,7 @@ def build(a):
               'partitions': [{'offset': o, 'bytes': len(b), 'sha256': sha(b)} for o, b in parts],
               'image': {'name': name, 'bytes': len(image), 'sha256': sha(image)}, 'hardware_tested': False,
               'known_unresolved': ['Windows MSC disk access hang', 'USB exit/serial restoration target remains unverified',
+                                   'GameBoy uses clean legacy handoff and has no in-app resident overlay',
                                    'Manual low-power policy control is queued', 'Physical resident-shell/wake validation pending']}
     (a.output / 'build-custody.json').write_bytes(encoded(record))
     print(json.dumps(record['image']))
