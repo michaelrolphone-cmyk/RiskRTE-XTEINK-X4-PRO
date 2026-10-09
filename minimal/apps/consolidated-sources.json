@@ -31,10 +31,14 @@
       "source": "b87bcf9cc4c35f273e67eb10aca588ab821da1d1",
       "version": "0.1.9",
       "elf_sha256": "d35def1c97411fae9e976ab7d1bd18d8289d99d343f2d39bdf93e74c8e0a9ee0"
+    },
+    "springboard": {
+      "source": "9a463073dd461a29ab9f03e61af7c08c6b08e434",
+      "version": "1.7.18",
+      "elf_sha256": "5187a984db9c849af657f15e7b5b5e363ae1cfa540b297f62b5817bf6120b59d"
     }
   },
   "pending": [
-    "Springboard1.7.18 exact19-entry catalog target",
     "USB Windows sector-stall and mode-exit restoration diagnosis",
     "Runtime.82 and System single resident default shell",
     "Desk/Home requested typography, default face, wake lighting",

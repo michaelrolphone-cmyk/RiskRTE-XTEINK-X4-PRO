@@ -48,6 +48,11 @@ def stage(args):
         receipts[name]={'receipt':receipt,'elf_sha256':sha(blob),'bytes':len(blob)}
         return manifest
 
+    sb=read_json(args.springboard/'springboard-build-record.json')
+    require(sb['catalog']['count']==19 and sb['catalog']['apps']==read_json(ROOT/'minimal/apps/catalog.json')['apps'], 'Springboard catalog differs')
+    require(sb['working_tree_dirty'] is False and sb['repository_commit']==spec['ready']['springboard']['source'], 'Springboard build source differs')
+    install('springboard',args.springboard,'x4-native-app.json',spec['ready']['springboard'],
+            'elf_bytes','elf_sha256','source_revision')
     for app in ('ble_touchpad','ble_buttons'):
         install(app,args.hid_apps/app,'x4-native-app.json',spec['ready']['hid_apps'],
                 'elf_bytes','elf_sha256','source_revision')
@@ -70,7 +75,7 @@ def stage(args):
         for x in manifest['requires']]})
     files['boot.json']=encoded(boot)
     receipts['gameboy']={'receipt':gb,'elf_sha256':sha(blob),'bytes':len(blob)}
-    expected_changes={'ble_buttons.elf','ble_buttons.json','ble_touchpad.elf','ble_touchpad.json',
+    expected_changes={'springboard.elf','springboard.json','ble_buttons.elf','ble_buttons.json','ble_touchpad.elf','ble_touchpad.json',
         'hid/driver.elf','hid/manifest.json','touch/driver.elf','touch/manifest.json',
         'gameboy.elf','gameboy.json','boot.json'}
     changed={name for name in files if files[name]!=original.get(name)}
@@ -78,7 +83,7 @@ def stage(args):
     args.output.mkdir(parents=True)
     for name, blob in files.items():
         path=args.output/'store'/name; path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(blob)
-    for name,folder in [('gameboy',args.gameboy),('hid-apps',args.hid_apps),('hid-provider',args.hid_provider),('touch',args.touch)]:
+    for name,folder in [('springboard',args.springboard),('gameboy',args.gameboy),('hid-apps',args.hid_apps),('hid-provider',args.hid_provider),('touch',args.touch)]:
         dest=args.output/'inputs'/name; dest.mkdir(parents=True)
         for path in folder.rglob('*'):
             if path.is_file() and (path.suffix in ('.json','.elf') or 'licenses' in path.parts):
@@ -90,12 +95,12 @@ def stage(args):
         'source_revision':subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip(),
         'baseline':spec['baseline'],'inputs':receipts,'changed_paths':sorted(changed),
         'store_files':digest_inventory(files),'admission':admission,
-        'delivery_ready':False,'remaining':'Select matching 19-app Springboard and final native/cohort, then package and qualify'}
+        'delivery_ready':False,'remaining':'Select final shell/USB native and matched cohort identity, then package and qualify'}
     (args.output/'integration.json').write_bytes(encoded(result))
     print(json.dumps({'files':len(files),'changed_paths':sorted(changed),'admission':admission}))
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
-    for key in ('baseline','hid-apps','hid-provider','touch','gameboy','runtime','native','watch','output'):
+    for key in ('baseline','springboard','hid-apps','hid-provider','touch','gameboy','runtime','native','watch','output'):
         p.add_argument('--'+key,type=Path,required=True)
     stage(p.parse_args())
