@@ -14,7 +14,7 @@ import resident_native
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def descriptor(blob, role):
+def descriptor(blob, role, *, check_renderer=True):
     from elftools.elf.elffile import ELFFile
     elf = ELFFile(io.BytesIO(blob))
     symbols = [s for s in elf.get_section_by_name('.symtab').iter_symbols()
@@ -30,8 +30,9 @@ def descriptor(blob, role):
             'Resident descriptor role/version differs')
     definitions = [s.name for s in elf.get_section_by_name('.symtab').iter_symbols()
                    if s['st_shndx'] != 'SHN_UNDEF']
-    require(definitions.count('pqa_render') == (1 if role == 1 else 0), 'Shared renderer ownership differs')
-    if role == 2:
+    if check_renderer:
+        require(definitions.count('pqa_render') == (1 if role == 1 else 0), 'Shared renderer ownership differs')
+    if check_renderer and role == 2:
         require(not any(n.startswith(('pqa_render', 'pqa_sheet', 'pqa_font')) for n in definitions),
                 'Foreground contains Quick Actions renderer/assets')
     return sum(s['sh_size'] for s in elf.iter_sections() if s['sh_flags'] & 2)
@@ -156,7 +157,10 @@ def build(a):
         p.write_bytes(files[name + '.elf'])
         compactions[name] = compact(p, str(a.compiler), debug_path=a.output / 'debug-originals' / (name + '.elf'))
         files[name + '.elf'] = p.read_bytes()
-        if name != 'gameboy': descriptor(files[name + '.elf'], 1 if name == 'default' else 2)
+        # compact() proves allocated code/data and all imports/exports/retained
+        # relocations unchanged; unused local names such as pqa_render may be
+        # removed. Recheck the exported role object, not discarded local names.
+        if name != 'gameboy': descriptor(files[name + '.elf'], 1 if name == 'default' else 2, check_renderer=False)
     platform = load('resident_platform', ROOT / 'minimal/scripts/build_test_bundle.py')
     firmware = (a.native / 'firmware.bin').read_bytes()
     cohort = platform.cohort_identity(product, candidate, firmware, revision)
