@@ -1,0 +1,57 @@
+name: Apply UC8279 post-PON profile fix
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['.github/workflows/x4-uc8279-019-fix.yml']
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integrate/x4-resident-loader-repair-046
+          fetch-depth: 0
+      - name: Reapply clean and quality profile after PON
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('minimal/drivers/x4pro_uc8279_fast/driver.c')
+          text=path.read_text()
+          old='''            const unsigned finish = fast_update ? 14u : (quality_partial ? 5u : 3u);
+'''
+          new='''            const unsigned finish = fast_update ? 14u : (quality_partial ? 6u : 4u);
+'''
+          assert text.count(old)==1
+          text=text.replace(old,new)
+          old='''            } else {
+                if (setup_step == 0u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
+                else if (setup_step == 1u) reg1(0xE0, 0x02);
+                else if (setup_step == 2u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
+                else if (quality_partial && setup_step == 3u) reg1(0x03, 0x20);
+                else if (quality_partial && setup_step == 4u) reg1(0xE1, 0x02);
+            }
+'''
+          new='''            } else {
+                /* PON may restore MTP defaults. Replay every clean/quality
+                 * register that the following OTP DRF depends on. */
+                if (setup_step == 0u) reg1(0x30, 0x0E);
+                else if (setup_step == 1u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
+                else if (setup_step == 2u) reg1(0xE0, 0x02);
+                else if (setup_step == 3u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
+                else if (quality_partial && setup_step == 4u) reg1(0x03, 0x20);
+                else if (quality_partial && setup_step == 5u) reg1(0xE1, 0x02);
+            }
+'''
+          assert text.count(old)==1
+          path.write_text(text.replace(old,new))
+          PY
+          rm .github/workflows/x4-uc8279-019-fix.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(x4): replay OTP profile after UC8279 power-on'
+          git push origin HEAD:integrate/x4-resident-loader-repair-046
