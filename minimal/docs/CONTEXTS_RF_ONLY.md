@@ -48,3 +48,14 @@ Use the complete store/ELF admission and packed-image verification for the final
 exact product commit. A full16MiB first-install BIN replaces NVS and app-data;
 it is not a preserving update. Generic provisioning and a preserving update
 remain separate workflows.
+
+## Dense store packing
+
+The final store selects the official Espressif v4.4.7 spiffsgen.py producer,
+SHA256 5779792a4d98a12383233267511735769a201b5c2c79b582186a40c22b7c6466,
+through the shared Watch current_bootfs.build tool selected by --static-spiffs. It uses the unchanged target geometry and
+lexicographic flat leading-slash names, constructing final pages without
+intermediate deleted-page churn. Every unpacked file must equal the admitted
+store. This is offline packing, not a relaxed Runtime capacity limit or a new
+filesystem format. The same raw image is also mounted by the pinned production
+SPIFFS source in a host read-only qualification. No flash layout changes.

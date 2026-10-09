@@ -12,7 +12,7 @@
   "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
   "settings_system_apps": "72af94bb9d0f0afc5e680175ed654ba7c8dedfa9",
   "desk_clock_system_apps": "ce76cbe5e43cb8e7929223d87da3ac56226228ac",
-  "cohort_admission_watch_tools": "03c2d295e0a35c48d49fa04f9cf73ca2ee1a54b5",
+  "cohort_admission_watch_tools": "85cf8559e089c7fdbd17398a947874078e9f890f",
   "native_cohort": {
     "default": "ce76cbe5e43cb8e7929223d87da3ac56226228ac",
     "settings": "72af94bb9d0f0afc5e680175ed654ba7c8dedfa9",

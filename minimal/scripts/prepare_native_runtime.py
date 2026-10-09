@@ -452,6 +452,7 @@ def stage(runtime, workspace, output, appdata):
             len(blobs['firmware.bin']) <= shared.APP_DATA_EXPECTED['app0'][3], 'Native ABI/size mismatch')
     proof = shared.native_proof(blobs['firmware.elf'])
     proof['radio_iq'] = iq_tool.prove(blobs['firmware.elf'])
+    proof['app_policy'] = shared.policy_rows_proof(blobs,record['build_options']['app_policy_rows'])
     performance = environment.endswith('-perf')
     if performance:
         from elftools.elf.elffile import ELFFile

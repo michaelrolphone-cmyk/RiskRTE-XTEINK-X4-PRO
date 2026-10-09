@@ -391,7 +391,15 @@ def build(a):
     native=load_module('x4_native_candidate',a.runtime/'scripts/paired_bank_images.py')
     loader=(a.native/'bootloader.bin').read_bytes();table=(a.native/'partitions.bin').read_bytes();data=(a.native/'appdata.bin').read_bytes()
     if sha(loader)!=native.BOOTLOADER_SHA256 or len(data)!=0x80000:raise ValueError('Native first-install inputs differ')
-    image=out/'bootfs.bin';subprocess.run([str(a.mkspiffs),'-c',str(store),'-p','256','-b','4096','-s',str(0x510000),str(image)],check=True)
+    image=out/'bootfs.bin'
+    if getattr(a,'static_spiffs',False):
+        shared_packer=load_module('x4_shared_bootfs',a.watch/'scripts/current_bootfs.py')
+        filesystem,custody['store_generator']=shared_packer.build(files)
+        image.write_bytes(filesystem)
+    else:
+        subprocess.run([str(a.mkspiffs),'-c',str(store),'-p','256','-b','4096','-s',str(0x510000),str(image)],check=True)
+        custody['store_generator']={'producer':'legacy mkspiffs','partition_bytes':0x510000}
+
     filesystem=image.read_bytes()
     if len(filesystem)!=0x510000:raise ValueError('SPIFFS geometry mismatch')
     if not a.skip_extended_checks:
@@ -442,6 +450,7 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--static-spiffs',action='store_true',help='Use the shared qualified static producer for dense immutable stores')
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
     p.add_argument('--contexts-rf-only',action='store_true',help='Explicit Contexts UI, RF model owner and sparse Clock rendezvous')
