@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 
-from generate_profile import IDS, PATHS, profile
+from generate_profile import profile, selections as profile_selections
 
 ROOT = Path(__file__).resolve().parents[2]
 LAYOUT = 'riscrte-paired-appdata-v2'
@@ -65,13 +65,18 @@ def create(runtime, bundle, native, panel, base_url, profile_url, output):
     assets = candidate['assets']
     p.require({'firmware.bin', 'firmware.elf', 'bootloader.bin', 'partitions.bin',
                'appdata.bin', 'appdata-image.json'} <= assets.keys(), 'incomplete native candidate')
+    native_blobs = {}
     for name, digest in assets.items():
         p.relative(name)
-        blob = p.read(native / name)
+        # Match the shared release/candidate bound for the debug-bearing native
+        # ELF. It is not an installed store file or a larger firmware slot.
+        blob = p.read(native / name, 32 * 1024 * 1024 if name == 'firmware.elf'
+                      else 16 * 1024 * 1024)
         p.require(digest == {'bytes': len(blob), 'sha256': p.sha(blob)}, 'native asset hash mismatch')
-    firmware = p.read(native / 'firmware.bin')
+        native_blobs[name] = blob
+    firmware = native_blobs['firmware.bin']
     for name in ('firmware.bin', 'firmware.elf'):
-        blob = p.read(native / name)
+        blob = native_blobs[name]
         for marker in ('RTE_SOURCE=' + lock['commit'], 'RISC_RUNTIME_VERSION:' + lock['version'],
                        'RISC_PAIRED_STORE_ABI:2'):
             p.require(marker.encode() + b'\0' in blob, 'compiled native identity mismatch')
@@ -84,7 +89,11 @@ def create(runtime, bundle, native, panel, base_url, profile_url, output):
         name: {'bytes': len(data), 'sha256': p.sha(data)} for name, data in files.items()},
         'absent or stale store manifest')
     board = p.decode(files['board.json'])
-    expected = profile(panel)
+    sleep = custody.get('sleep', False)
+    panel_driver = custody.get('panel_driver', 'fallback')
+    p.require(type(sleep) is bool and panel_driver in ('fallback', 'uc8279-fast'),
+              'invalid selected X4 provider profile')
+    expected = profile(panel, sleep, panel_driver)
     p.require(all(board.get(k) == v for k, v in expected.items() if k != 'devices') and
               all(board['devices'].count(device) == 1 for device in expected['devices']) and
               len({d['instance_id'] for d in board['devices']}) == len(board['devices']),
@@ -95,8 +104,8 @@ def create(runtime, bundle, native, panel, base_url, profile_url, output):
     # Require all X4 providers and every referenced manifest/ELF, not just the
     # three generic shared-tool bootstrap files. Graph/ELF admission remains a
     # prerequisite of the completed builder, not something this wrapper claims.
-    for name, instance in IDS.items():
-        manifest_path = PATHS[name] + '/manifest.json'
+    for _, (instance, folder, _) in profile_selections(sleep, panel_driver).items():
+        manifest_path = folder + '/manifest.json'
         p.require(sum(d.get('manifest') == manifest_path and d.get('instance_id') == instance
                       for d in boot['drivers']) == 1, 'missing X4 driver selection')
     for kind, selections in [('driver', boot['drivers']),

@@ -33,3 +33,22 @@ assert imports <= {'strcmp', 'memcpy', 'memmove', 'memset', 'memcmp', 'strlen', 
 assert 's32c1i' not in (root/'disassembly.txt').read_text().lower()
 print('X4 SD Xtensa structure PASS:', len(blob), hashlib.sha256(blob).hexdigest(), 'imports:', ','.join(sorted(imports)))
 PY
+if [[ -n "${X4_SD_TARGET_OUT:-}" ]]; then
+  mkdir "$X4_SD_TARGET_OUT"
+  cp "$build/driver.elf" "$build/symbols.txt" "$build/disassembly.txt" "$X4_SD_TARGET_OUT/"
+  cp "$build/sdk/source-hashes.json" "$X4_SD_TARGET_OUT/sdk-source-hashes.json"
+  cp "$root/minimal/drivers/x4pro_sd/manifest.json" "$X4_SD_TARGET_OUT/manifest.json"
+  "$python" - "$root" "$X4_SD_TARGET_OUT" "$NATIVE_DRIVER_CC" <<'PY'
+import hashlib,json,subprocess,sys
+from pathlib import Path
+root,out,cc=Path(sys.argv[1]),Path(sys.argv[2]),sys.argv[3]
+sha=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
+record={'source_commit':subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True).strip(),
+        'working_tree_dirty':bool(subprocess.check_output(['git','-C',str(root),'status','--porcelain'],text=True).strip()),
+        'compiler':subprocess.check_output([cc,'--version'],text=True).splitlines()[0],
+        'elf_sha256':sha(out/'driver.elf'),'elf_bytes':(out/'driver.elf').stat().st_size,
+        'source_sha256':{p:sha(root/p) for p in ('minimal/drivers/x4pro_sd/driver.c','minimal/drivers/x4pro_sd/BootLog.h','minimal/drivers/x4pro_sd/Export.h','minimal/drivers/x4pro_sd/manifest.json','minimal/test/run_sd_target_test.sh')},
+        'target_structure_passed':True,'device_tested':False}
+(out/'target-proof.json').write_text(json.dumps(record,indent=2)+'\n')
+PY
+fi

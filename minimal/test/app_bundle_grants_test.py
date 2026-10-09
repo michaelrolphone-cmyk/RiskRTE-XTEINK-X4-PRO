@@ -3,9 +3,9 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from build_test_bundle import app_grants,APPS
 class Grants(unittest.TestCase):
- def test_sixteen_completed_apps(self):
-  self.assertEqual(len(APPS),16)
-  self.assertEqual(len(set(APPS)),16)
+ def test_eighteen_completed_apps(self):
+  self.assertEqual(len(APPS),18)
+  self.assertEqual(len(set(APPS)),18)
  def test_storage_namespaces(self):
   for name,expected in [('points_in_time',[5,1]),('stopwatch',[2,1]),('countdown',[3,1]),('timecard',[1]),('calculator',[1])]:
    req={'capability':'storage.key-value','api':1,'instance_id':999,'access':'read-write'}

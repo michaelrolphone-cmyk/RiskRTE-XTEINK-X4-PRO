@@ -19,7 +19,7 @@ cases=(foreground-light foreground-acquire-prefs foreground-acquire-power foregr
  dark-failed brightness-rollback catchup record-changed entry-expired entry-delay stage-delay
  alarm-due alarm-past alarm-near alarm-expired alarm-future alarm-pending alarm-stuck alarm-busy alarm-output
  alarm-step-busy alarm-step-output alarm-status-output alarm-status-busy alarm-uncertain
- boot-timer boot-gpio boot-corrupt boot-acquire boot-release)
+ boot-cold boot-reset boot-other boot-timer boot-gpio boot-corrupt boot-acquire boot-release)
 for rc in -1 -2 -3 -4 -5 1 -99;do cases+=("panel-$rc" "resume-$rc");done
 for rc in -1 -2 1 2 99 -99;do cases+=("stage-$rc" "clear-$rc" "boot-read-$rc");done
 for rc in -1 -2 -3 -4 -5 -6 -7 -8 0 1 -99;do cases+=("native-$rc");done

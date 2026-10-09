@@ -7,7 +7,9 @@
  * exact prefix and gain no GPIO or sleep entry authority. Only x4pro-power
  * invokes this suffix. Zero means prepared/restored; negative values use
  * RISC_DEEP_SLEEP_*. RETAINED and unknown results require external restart.
- * prepare retains the board owner lock and GPIO1 HIGH hold until restore.
+ * prepare retains the board owner lock until checked restore. GPIO1 HIGH is
+ * permanently held in CPU custody from successful board start, including after
+ * ordinary refusal and provider quiescence; neither method writes or unholds it.
  * restore is ONLY for an ordinary native entry refusal, never after terminal
  * entry, RETAINED or an unknown native return. A fresh boot claims HIGH before
  * the scoped CPU port removes the old pad hold. No rail-OFF policy is implied. */

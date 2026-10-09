@@ -1,0 +1,48 @@
+{
+  "schema": 1,
+  "provider": "x4pro-uc8279-fast",
+  "version": "0.1.5",
+  "scope": "Normal OTP QUALITY partial refresh with completed or caller-reconstructed history; interactive LOW_LATENCY retains A2 and 2300 ms resident settling",
+  "baseline_product": "3ccdda3345c119e705558f85be814169d7d69ae7",
+  "runtime": "a8a91061b5ff5dd9c6c683fa0fae00a2ae7eee4e",
+  "reader_sdk": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "source_sha256": "79edb375590f87e78b2328f811a3e75b0c9add72a04d786b1544b6e05c44c184",
+  "elf": {
+    "bytes": 71092,
+    "sha256": "f9793fc3a61d09e2123ba2781e8eac3b77e610e04648634fc49d803ff7291e68",
+    "relative_pointers_verified": 474,
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ]
+  },
+  "checks": {
+    "host_scenarios": 56,
+    "normal": "passed",
+    "asan_ubsan": "passed; leak detection disabled",
+    "typed_profile": "passed",
+    "target_provider": "passed",
+    "all_provider_build": "passed against exact clean Runtime and Reader SDK",
+    "quality_cycle": "fast -> normal partial -> power prepare/resume -> reconstruct/seed -> normal partial -> fast; OLD, NEW and visible planes coherent",
+    "quality_failures": "missing/stuck BUSY and OLD restore failure fail closed; no resident repeats",
+    "cold_baseline": "unqualified QUALITY damage uses full OTP; seeded cold controller RAM restored before exact partial refresh",
+    "interactive_cadence": "actual adapter with PORTABLE_PAPER_TRANSITIONS, Runtime scheduler and provider passed at app waits 1,8,20,50 ms under ASan/UBSan"
+  },
+  "cadence_sources": {
+    "/workspace/scratch/c744abbbbd60/x4-desk-quality-panel/minimal/drivers/x4pro_uc8279_fast/driver.c": "79edb375590f87e78b2328f811a3e75b0c9add72a04d786b1544b6e05c44c184",
+    "/workspace/scratch/c744abbbbd60/x4-desk-quality-panel/minimal/interfaces/RiscDisplayOutputMetricsV1.h": "5be17adbae2ec26a855894e0d6443ac29572002c21efe53b2a913a5a0f0c642d",
+    "/workspace/scratch/c744abbbbd60/x4-desk-quality-panel/minimal/interfaces/RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6",
+    "../x4-app-sheet-motion/lib/PortableApps/src/adapter.c": "37bc9581d73a1787c092743f68a05e7092bdf5326cad399ef0bee413c8cd7a17",
+    "/workspace/scratch/c744abbbbd60/x4-quality-runtime-fixture/src/bootstrap/Runtime.cpp": "66597d0aa0c927281a6b4510a1e5a689d4ad089f771d8c23e747519f93c1b78d",
+    "/workspace/scratch/c744abbbbd60/x4-quality-runtime-fixture/src/runtime/drivers/ProviderGraphV2.cpp": "0416793cc3c0193cd4a769d26a42b06bbb5d4aa62bcb75644ddeb1676deb0033"
+  },
+  "normal_partial": {
+    "payload_bytes": 180000,
+    "planes": "full 600 gate NEW + canonical OLD restore + post-BUSY NEW-to-OLD sync",
+    "refresh_window": "exact byte-aligned damage bounding box, 120 gate visible offset",
+    "sequence": "stock OTP DU: PLL0E, CDI D7, E0 02, E5 5A, PFS03 20, E1 02, PSR17 4D; no external LUT or repeated settling"
+  },
+  "compatibility": "Interactive apps must explicitly select LOW_LATENCY; QUALITY now selects normal OTP. Selected PortableApps paper-motion define supplies this intent. CLEAN uses full OTP.",
+  "hardware": "not run; physical partial quality and contrast remain to be confirmed"
+}

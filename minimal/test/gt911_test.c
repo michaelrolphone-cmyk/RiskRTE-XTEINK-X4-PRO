@@ -583,12 +583,37 @@ int main(int argc,char **argv) {
         good_address=0;assert(!start() && bus_claims==2 && bus_releases==2 && !bus_token);
         assert(!api->snapshot(NULL,&out));done(0);
     } else if(!strcmp(argv[1],"subscriptions")) {
-        assert(start());uint64_t sub=api->subscribe(NULL);assert(sub && !api->subscribe(NULL));
-        assert(!api->unsubscribe(NULL,sub+1) && !driver->quiesce());assert(api->snapshot(NULL,&out));
+        assert(start());uint64_t sub=api->subscribe(NULL);assert(sub);
+        uint64_t other[RISC_TOUCH_MAX_SUBSCRIBERS-1];
+        for(unsigned i=0;i<RISC_TOUCH_MAX_SUBSCRIBERS-1;++i){other[i]=api->subscribe(NULL);assert(other[i]>sub);}
+        assert(!api->subscribe(NULL));
+        assert(!api->unsubscribe(NULL,UINT64_MAX) && !driver->quiesce());assert(api->snapshot(NULL,&out));
+        for(unsigned i=0;i<RISC_TOUCH_MAX_SUBSCRIBERS-1;++i)assert(api->unsubscribe(NULL,other[i]));
         packet(1,7,9,false);assert(api->poll(NULL,1));expect_event(sub,RISC_TOUCH_EVENT_DOWN,7,9,1);
         assert(api->unsubscribe(NULL,sub));no_event(sub,-1);
         uint64_t newer=api->subscribe(NULL);assert(newer>sub);no_event(newer,0);out=snapshot();assert(out.contact_count==1);
         done(newer);assert(start());uint64_t newest=api->subscribe(NULL);assert(newest>newer);no_event(newer,-1);done(newest);
+    } else if(!strcmp(argv[1],"parallel-consumers")) {
+        assert(start());uint64_t ui=api->subscribe(NULL),hid=api->subscribe(NULL);assert(ui && hid && ui!=hid);
+        packet(1,348,732,false);assert(api->poll(NULL,1));
+        expect_event(ui,RISC_TOUCH_EVENT_DOWN,348,732,1);no_event(ui,0);
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY);
+        assert(!driver->quiesce());
+        expect_event(hid,RISC_TOUCH_EVENT_DOWN,348,732,1);no_event(hid,0);
+        for(unsigned i=0;i<RISC_TOUCH_QUEUE_LENGTH+2;++i){
+            packet(1,(uint16_t)(20+i),400,false);assert(api->poll(NULL,1));
+            expect_event(ui,RISC_TOUCH_EVENT_MOVE,(uint16_t)(20+i),400,(uint64_t)i+2);
+        }
+        no_event(hid,-1);no_event(hid,0);no_event(ui,0);
+        packet(0,0,0,false);assert(api->poll(NULL,1));
+        risc_touch_event_v1 a={0},b={0};assert(api->next(NULL,ui,&a)==1&&api->next(NULL,hid,&b)==1);
+        assert(!memcmp(&a,&b,sizeof(a))&&a.kind==RISC_TOUCH_EVENT_UP);
+        assert(api->unsubscribe(NULL,ui));no_event(ui,-1);
+        assert(power->prepare(NULL,1000)==RISC_TOUCH_POWER_BUSY && !driver->quiesce());
+        uint64_t fresh=api->subscribe(NULL);assert(fresh>hid);no_event(fresh,0);
+        packet(1,55,77,true);assert(api->poll(NULL,1));
+        assert(api->next(NULL,hid,&a)==1&&api->next(NULL,fresh,&b)==1&&!memcmp(&a,&b,sizeof(a)));
+        assert(api->unsubscribe(NULL,hid));done(fresh);
     } else if(!strcmp(argv[1],"events")) {
         assert(start());uint64_t sub=api->subscribe(NULL);assert(sub);
         packet(1,100,700,false);assert(api->poll(NULL,16));expect_event(sub,RISC_TOUCH_EVENT_DOWN,100,700,1);no_event(sub,0);
@@ -678,4 +703,5 @@ int main(int argc,char **argv) {
         unlock_ok=true;assert(!driver->quiesce() && !start() && locked && mutex && !bus_releases);driver->stop();
     } else assert(!"Unknown scenario");
     printf("X4 ordinary GT911 PASS: %s\n",argv[1]);
+    return 0;
 }

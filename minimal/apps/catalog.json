@@ -69,6 +69,26 @@
       "display_name": "RF Spectrogram",
       "file_name": "waterfall.elf",
       "icon": "solid:f550"
+    },
+    {
+      "display_name": "OTA Update",
+      "file_name": "ota_update.elf",
+      "icon": "solid:f019"
+    },
+    {
+      "display_name": "App Store",
+      "file_name": "app_store.elf",
+      "icon": "solid:f187"
+    },
+    {
+      "display_name": "Contexts",
+      "file_name": "contexts.elf",
+      "icon": "solid:f015"
+    },
+    {
+      "display_name": "USB Transfer",
+      "file_name": "usb_sd_transfer.elf",
+      "icon": "solid:f0ec"
     }
   ]
 }

@@ -6,7 +6,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 IDS={'board_power':1,'i2c':2,'panel':3,'gt911':4,'frontlight':5,'buttons':6,'battery':7,'rtc':8,'sd':9}
 PATHS={'board_power':'board','i2c':'i2c','panel':'panel','gt911':'touch','frontlight':'light','buttons':'buttons','battery':'battery','rtc':'rtc','sd':'sd'}
-def profile(panel, sleep=False):
+def profile(panel, sleep=False, panel_driver="fallback"):
+    if panel_driver not in ("fallback", "uc8279-fast"):raise ValueError("Unknown panel provider")
+    if panel_driver == "uc8279-fast" and panel != "uc8279":raise ValueError("Fast provider requires UC8279")
     if panel not in ('ssd1677','uc8279'):raise ValueError('Explicit supported panel required')
     uc=panel=='uc8279'
     devices=[]
@@ -31,17 +33,17 @@ def profile(panel, sleep=False):
     add('sd','xteink,x4-pro-sd-native1','gpio.bank',bank([5,41,42,40],True,True),{'board.power.ready':1})
     return {'schema':'riscrte.board-hardware','schema_version':1,'board_id':'xteink-x4-pro','revision':'unspecified','buses':[
         {'instance_id':100,'kind':'i2c','controller_namespace':'esp32.peripheral','controller':0,'frequency_hz':400000,'mode':0,'pins':{'sda':39,'scl':38}},
-        {'instance_id':101,'kind':'spi','controller_namespace':'esp32.peripheral','controller':2,'frequency_hz':1000000,'mode':0,'pins':{'sclk':12,'mosi':11,'miso':-1}}], 'devices':devices}
-def selections(sleep=False):
-    return {**{name:(instance,PATHS[name],'power_buttons' if sleep and name=='buttons' else name) for name,instance in IDS.items()},**({'power':(17,'power','power')} if sleep else {})}
-def stage(panel,out,sleep=False):
+        {'instance_id':101,'kind':'spi','controller_namespace':'esp32.peripheral','controller':2,'frequency_hz':20000000 if panel_driver=='uc8279-fast' else 1000000,'mode':0,'pins':{'sclk':12,'mosi':11,'miso':-1}}], 'devices':devices}
+def selections(sleep=False, panel_driver="fallback"):
+    return {**{name:(instance,PATHS[name],'uc8279_fast' if name=='panel' and panel_driver=='uc8279-fast' else ('power_buttons' if sleep and name=='buttons' else name)) for name,instance in IDS.items()},**({'power':(17,'power','power')} if sleep else {})}
+def stage(panel,out,sleep=False,panel_driver="fallback"):
     out=Path(out);out.mkdir(parents=True,exist_ok=True)
-    (out/'board.json').write_text(json.dumps(profile(panel,sleep),indent=2)+'\n')
+    (out/'board.json').write_text(json.dumps(profile(panel,sleep,panel_driver),indent=2)+'\n')
     drivers=[]
-    for name,(instance,folder,provider) in selections(sleep).items():
+    for name,(instance,folder,provider) in selections(sleep,panel_driver).items():
         manifest=json.loads((ROOT/'minimal/drivers'/('x4pro_'+provider)/'manifest.json').read_text())
         relative=folder+'/manifest.json';path=out/relative;path.parent.mkdir(exist_ok=True);path.write_text(json.dumps(manifest,indent=2)+'\n')
         drivers.append({'manifest':relative,'instance_id':instance})
     (out/'boot.json').write_text(json.dumps({'board':'board.json','default_app':'default.elf','drivers':drivers},indent=2)+'\n')
 if __name__=='__main__':
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--sleep',action='store_true');a=p.parse_args();stage(a.panel,a.output,a.sleep)
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--output',type=Path,required=True);p.add_argument('--sleep',action='store_true');p.add_argument('--panel-driver',choices=['fallback','uc8279-fast'],default='fallback');a=p.parse_args();stage(a.panel,a.output,a.sleep,a.panel_driver)

@@ -14,7 +14,8 @@ def prepare(runtime, reader, output):
     headers = {}
     for label, folder in (('runtime/driver', Path(runtime)/'sdk/driver'),
                           ('runtime/hardware', Path(runtime)/'sdk/hardware'),
-                          ('reader/driver', Path(reader)/'sdk/driver')):
+                          ('reader/driver', Path(reader)/'sdk/driver'),
+                          ('x4/interfaces', Path(__file__).resolve().parents[1]/'interfaces')):
         if not folder.is_dir():
             raise ValueError('Missing SDK input: ' + label)
         for path in sorted(folder.glob('*.h')):

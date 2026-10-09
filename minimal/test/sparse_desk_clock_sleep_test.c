@@ -48,7 +48,7 @@ unsigned portable_quick_brightness(void){io();assert(foreground);return 73;}
 static bool seed(void*c,risc_display_frame_v1 f){(void)c;(void)f;assert(0);return false;}
 static int32_t panel_prepare(void*c,uint32_t ms){(void)c;safe();assert(dark&&pending&&ms==RISC_DISPLAY_POWER_MAX_BUDGET_MS);panel_off=true;uptime+=panel_cost;point(3);if(panel_rc==RISC_DISPLAY_POWER_RETAINED || panel_rc>0 || panel_rc<RISC_DISPLAY_POWER_PLATFORM)terminal=true;return panel_rc;}
 static int32_t panel_resume(void*c,uint32_t ms){(void)c;io();assert(panel_off&&ms==RISC_DISPLAY_POWER_MAX_BUDGET_MS);resumes++;if(resume_rc!=RISC_DISPLAY_POWER_OK){terminal=true;return resume_rc;}panel_off=false;point(4);return RISC_DISPLAY_POWER_OK;}
-static int32_t read_wake(void*c,uint32_t type,uint32_t schema,risc_retained_wake_record_v1*out,uint32_t*cause){(void)c;safe();assert(boot&&grants==1&&type==PORTABLE_DESK_CLOCK_RECORD_TYPE&&schema==1);*cause=is("boot-gpio")?RISC_BOOT_DEEP_GPIO:RISC_BOOT_DEEP_TIMER;
+static int32_t read_wake(void*c,uint32_t type,uint32_t schema,risc_retained_wake_record_v1*out,uint32_t*cause){(void)c;safe();assert(boot&&grants==1&&type==PORTABLE_DESK_CLOCK_RECORD_TYPE&&schema==1);*cause=is("boot-cold")?RISC_BOOT_POWER_ON:is("boot-reset")?RISC_BOOT_RESET:is("boot-other")?RISC_BOOT_DEEP_OTHER:is("boot-gpio")?RISC_BOOT_DEEP_GPIO:RISC_BOOT_DEEP_TIMER;
  if(read_rc!=RISC_RETAINED_WAKE_OK){if(read_rc!=RISC_RETAINED_WAKE_ABSENT&&read_rc!=RISC_RETAINED_WAKE_MISMATCH&&read_rc!=RISC_RETAINED_WAKE_INVALID)terminal=true;return read_rc;}
  *out=(risc_retained_wake_record_v1){.struct_size=sizeof(*out),.type=type,.schema_version=schema,.size=PORTABLE_DESK_CLOCK_RECORD_BYTES};portable_desk_record r=record();assert(portable_desk_encode(&r,out->payload,out->size));if(is("boot-corrupt"))out->payload[0]=0;return RISC_RETAINED_WAKE_OK;
 }
@@ -157,7 +157,7 @@ static void check(void){
 }
 int main(int argc,char **argv){assert(argc==2);scenario=argv[1];unsigned rounds=is("repeat")?8:1;
  for(unsigned n=0;n<rounds;++n){setup();int result;
-  if(boot){portable_desk_record r={0};result=portable_desk_clock_boot_read(&runtime,&r);assert(result==(terminal?-2:is("boot-timer")?1:0));if(result==1)assert(r.has_image);}
+  if(boot){portable_desk_record r={0};result=portable_desk_clock_boot_read(&runtime,&r);assert(result==(terminal?-2:is("boot-timer")?1:0));if(result==1)assert(r.has_image);assert(portable_desk_clock_boot_is_cold()==(is("boot-cold")||is("boot-reset")));}
   else if(setjmp(entry)){check();puts("terminal sparse client PASS");return 0;}
   else {result=portable_app_alarm_sleep(&runtime,&display.history.base,NULL,&alarms);assert(result==(terminal?-2:0));}
   check();

@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "version": "0.1.2",
+  "qualification": "Corroborated stock-source inference, pending physical confirmation; no directly retrieved UC8279 silicon truth table",
+  "reference_commit": "425d200a8ea447326b4b9696e4e47dc84ad9d7f6",
+  "sources": {
+    "absolute_lsb_msb_encoding": "https://github.com/Free-Ink/freeink-sdk/blob/425d200a8ea447326b4b9696e4e47dc84ad9d7f6/libs/display/FreeInkDisplay/include/GrayscaleCapabilities.h#L16",
+    "x4_inverted_plane_writes": "https://github.com/Free-Ink/freeink-sdk/blob/425d200a8ea447326b4b9696e4e47dc84ad9d7f6/libs/display/FreeInkDisplay/src/driver/Uc8279X4Driver.cpp#L595",
+    "source_quality_row_order": "https://github.com/Free-Ink/freeink-sdk/blob/425d200a8ea447326b4b9696e4e47dc84ad9d7f6/libs/display/FreeInkDisplay/src/driver/Uc8279Driver.cpp#L63",
+    "x4_empirical_register_assignment": "https://github.com/Free-Ink/freeink-sdk/blob/425d200a8ea447326b4b9696e4e47dc84ad9d7f6/libs/display/FreeInkDisplay/src/driver/Uc8279X4Driver.cpp#L207",
+    "x4_aa_rail_encoding": "https://github.com/Free-Ink/freeink-sdk/blob/425d200a8ea447326b4b9696e4e47dc84ad9d7f6/libs/display/FreeInkDisplay/src/driver/Uc8279X4Driver.cpp#L50"
+  },
+  "inferred_wire_old_new_to_register": {
+    "00": "0x24",
+    "01": "0x22",
+    "10": "0x23",
+    "11": "0x21"
+  },
+  "inferred_rails": {
+    "0x40": "black-directed",
+    "0x80": "white-directed"
+  },
+  "prior_lut_21_through_24": [
+    "0x41",
+    "0x81",
+    "0x41",
+    "0x81"
+  ],
+  "corrected_lut_21_through_24": [
+    "0x81",
+    "0x81",
+    "0x41",
+    "0x41"
+  ],
+  "unchanged": [
+    "SDK-to-wire complement",
+    "one-frame duration",
+    "20MHz SPI",
+    "48KB fast full transfer",
+    "DTM1 omitted in fast mode",
+    "600-gate geometry",
+    "0x0F fast and0x0E OTP PLL",
+    "strict probe/BUSY/retained failures"
+  ],
+  "tests": "Emitted-plane/LUT oracle fails before fix; all four transitions and repeated white/black/alternating targets pass with old plane unchanged; no physical execution claimed"
+}

@@ -19,11 +19,21 @@ static const risc_platform_clock_api_v1 *clock_api;
 static const garden_gpio_v1 *gpio;
 static const risc_provider_sync_api_v1 *sync_api;
 static uint64_t mutex, power_pin, reset_pin, irq_pin, claim;
-static uint64_t token, token_serial = 1, sequence;
+static uint64_t token_serial = 1, sequence;
 static risc_touch_snapshot_v1 state;
-static risc_touch_event_v1 events[RISC_TOUCH_QUEUE_LENGTH];
-static uint8_t head, queued;
-static bool started, closing, gap, held, retained, neutral_gate;
+typedef struct {
+    uint64_t token;
+    risc_touch_event_v1 events[RISC_TOUCH_QUEUE_LENGTH];
+    uint8_t head, queued;
+    bool gap;
+} touch_subscriber;
+static touch_subscriber subscribers[RISC_TOUCH_MAX_SUBSCRIBERS];
+static bool started, closing, held, retained, neutral_gate;
+static bool has_subscribers(void) {
+    for (unsigned i = 0; i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i)
+        if (subscribers[i].token) return true;
+    return false;
+}
 /* Each fallible operation has its own persisted stage. No returned failure can
  * forget an owned pin/claim or repeat an already completed hold transition. */
 enum power_stage {
@@ -109,7 +119,11 @@ static bool probe(uint8_t address) {
     claim = 0; return false;
 }
 static void invalidate(void) {
-    gap = true; head = queued = 0;
+    for (unsigned i = 0; i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i) {
+        if (!subscribers[i].token) continue;
+        subscribers[i].gap = true;
+        subscribers[i].head = subscribers[i].queued = 0;
+    }
     if (sequence != UINT64_MAX) ++sequence;
     state.sequence = sequence; state.contact_count = 0; state.buttons = 0;
     state.timestamp_ms = now_ms();
@@ -119,24 +133,38 @@ static void emit(uint8_t kind, uint8_t id, uint16_t x, uint16_t y, uint64_t when
     risc_touch_event_v1 event = {0};
     event.sequence = ++sequence; event.timestamp_ms = when;
     event.kind = kind; event.id = id; event.x = x; event.y = y;
-    if (!token || gap) return;
-    if (queued == RISC_TOUCH_QUEUE_LENGTH) { gap = true; head = queued = 0; return; }
-    events[(head + queued) % RISC_TOUCH_QUEUE_LENGTH] = event; ++queued;
+    for (unsigned i = 0; i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i) {
+        touch_subscriber *sub = &subscribers[i];
+        if (!sub->token || sub->gap) continue;
+        if (sub->queued == RISC_TOUCH_QUEUE_LENGTH) {
+            sub->gap = true; sub->head = sub->queued = 0; continue;
+        }
+        sub->events[(sub->head + sub->queued) % RISC_TOUCH_QUEUE_LENGTH] = event;
+        ++sub->queued;
+    }
 }
 static uint64_t subscribe(void *context) {
     (void)context;
     if (!enter()) return 0;
     uint64_t result = 0;
-    if (started && !closing && power_stage == POWER_ACTIVE && !token && token_serial != UINT64_MAX) {
-        result = token = token_serial++; head = queued = 0; gap = false;
+    if (started && !closing && power_stage == POWER_ACTIVE && token_serial != UINT64_MAX) {
+        for (unsigned i = 0; i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i) {
+            if (subscribers[i].token) continue;
+            subscribers[i] = (touch_subscriber){0};
+            result = subscribers[i].token = token_serial++;
+            break;
+        }
     }
     return leave() ? result : 0;
 }
 static bool unsubscribe(void *context, uint64_t sub) {
     (void)context;
     if (!enter()) return false;
-    const bool okay = token && sub == token;
-    if (okay) { token = 0; head = queued = 0; gap = false; }
+    bool okay = false;
+    for (unsigned i = 0; sub && i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i) {
+        if (subscribers[i].token != sub) continue;
+        subscribers[i] = (touch_subscriber){0}; okay = true; break;
+    }
     return leave() && okay;
 }
 static bool poll_locked(void) {
@@ -197,12 +225,19 @@ static int32_t next(void *context, uint64_t sub, risc_touch_event_v1 *out) {
     if (!out || !enter()) return -1;
     int32_t result = -1;
     risc_touch_event_v1 event = {0};
-    if (started && !closing && power_stage == POWER_ACTIVE && token && sub == token) {
-        if (gap) { gap = false; head = queued = 0; }
-        else if (!queued) result = 0;
-        else {
-            event = events[head]; head = (uint8_t)((head + 1u) % RISC_TOUCH_QUEUE_LENGTH);
-            --queued; result = 1;
+    if (started && !closing && power_stage == POWER_ACTIVE && sub) {
+        for (unsigned i = 0; i < RISC_TOUCH_MAX_SUBSCRIBERS; ++i) {
+            touch_subscriber *subscriber = &subscribers[i];
+            if (subscriber->token != sub) continue;
+            if (subscriber->gap) {
+                subscriber->gap = false; subscriber->head = subscriber->queued = 0;
+            } else if (!subscriber->queued) result = 0;
+            else {
+                event = subscriber->events[subscriber->head];
+                subscriber->head = (uint8_t)((subscriber->head + 1u) % RISC_TOUCH_QUEUE_LENGTH);
+                --subscriber->queued; result = 1;
+            }
+            break;
         }
     }
     if (!leave()) return -1;
@@ -219,7 +254,7 @@ static bool snapshot(void *context, risc_touch_snapshot_v1 *out) {
 }
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (started || retained || bus || clock_api || gpio || sync_api || mutex || claim ||
-        token || power_pin || reset_pin || irq_pin || !deps || count != 6u) return false;
+        has_subscribers() || power_pin || reset_pin || irq_pin || !deps || count != 6u) return false;
     const risc_hardware_device_v1 *hardware = NULL;
     const risc_i2c_bus_api_v1 *candidate_bus = NULL;
     const risc_platform_clock_api_v1 *clock = NULL;
@@ -279,7 +314,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     }
     if (okay) {
         memset(&state, 0, sizeof(state)); state.width = 480; state.height = 800;
-        state.timestamp_ms = now_ms(); sequence = 0; head = queued = 0; gap = false; started = true;
+        state.timestamp_ms = now_ms(); sequence = 0; memset(subscribers, 0, sizeof(subscribers)); started = true;
     }
     return leave() && okay;
 }
@@ -355,7 +390,7 @@ static int32_t power_prepare(void *context, uint32_t timeout_ms) {
     if (!enter()) return RISC_TOUCH_POWER_BUSY;
     if (!started || closing) return power_finish(RISC_TOUCH_POWER_UNAVAILABLE);
     /* A rejected prepare cannot invalidate events or retire a subscriber. */
-    if (token) return power_finish(RISC_TOUCH_POWER_BUSY);
+    if (has_subscribers()) return power_finish(RISC_TOUCH_POWER_BUSY);
     if (!timeout_ms) return power_finish(power_stage == POWER_PREPARED ?
         RISC_TOUCH_POWER_OK : RISC_TOUCH_POWER_BUSY);
     const uint64_t current = now_ms();
@@ -489,10 +524,10 @@ static int32_t power_resume(void *context, uint32_t timeout_ms) {
 }
 static bool quiesce(void) {
     if (retained) return false;
-    if (!mutex) return !claim && !token && !power_pin && !reset_pin && !irq_pin;
+    if (!mutex) return !claim && !has_subscribers() && !power_pin && !reset_pin && !irq_pin;
     if (!enter()) return false;
     /* Rejected unload must leave an existing subscription fully usable. */
-    if (token) { (void)leave(); return false; }
+    if (has_subscribers()) { (void)leave(); return false; }
     closing = true; started = false;
     if (claim) {
         if (!bus->release_device(bus->context, claim)) {
