@@ -126,10 +126,11 @@ static bool sync_destroy(void *ctx,uint64_t token){(void)ctx;++destroys;assert(o
 static bool power_is_ready(void *ctx){(void)ctx;return power_ready;}
 static bool budget_jump,realistic_latency;
 static unsigned timed_reads,timed_writes;
+static unsigned modeled_read_ms=8,modeled_write_ms=20;
 static uint64_t modeled_sd_ms;
 static uint64_t monotonic(void *ctx){
  (void)ctx;
- if(realistic_latency){const uint64_t cost=(card_reads-timed_reads)*8u+(card_writes-timed_writes)*20u;now_ms+=cost;modeled_sd_ms+=cost;timed_reads=card_reads;timed_writes=card_writes;}
+ if(realistic_latency){const uint64_t cost=(card_reads-timed_reads)*modeled_read_ms+(card_writes-timed_writes)*modeled_write_ms;now_ms+=cost;modeled_sd_ms+=cost;timed_reads=card_reads;timed_writes=card_writes;}
  if(budget_jump && bootlog_servicing)now_ms+=250;
  return now_ms;
 }
@@ -479,26 +480,46 @@ static void trace_cases(const char *scenario) {
  if(!strcmp(scenario,"log-trace-invalid"))source_trace_invalid=true;
  if(!strcmp(scenario,"log-trace-timeout"))budget_jump=true;
  unsigned iterations=0;
- if(!strcmp(scenario,"log-trace-export") || early) {
+ const bool expected_failure=strcmp(scenario,"log-full-trace") && strcmp(scenario,"log-trace-export") && !early;
+ const unsigned idle_io=card_reads+card_writes;
+ bootlog_service(1000);assert(card_reads+card_writes==idle_io);
+ if(!strcmp(scenario,"log-trace-export") || early || expected_failure) {
+  const risc_storage_volume_api_v1_export_prepare *prepare=risc_storage_volume_export_prepare((const risc_storage_volume_api_v1 *)&logging_api);
+  assert(prepare);
   risc_storage_export_token_t token=0;uint64_t blocks=0;uint32_t block_size=0;
-  assert(export_begin(NULL,&token,&blocks,&block_size)==RISC_STORAGE_EXPORT_READY);
+  if(!expected_failure) {
+   assert(export_begin(NULL,&token,&blocks,&block_size)==RISC_STORAGE_EXPORT_REFUSED);
+   assert(!token && !blocks && !block_size && !has_handles() && !bootlog_retained);
+  }
+  assert(prepare->begin_prepare(NULL,&token)==RISC_STORAGE_EXPORT_PREPARING && token);
+  int32_t result=RISC_STORAGE_EXPORT_PREPARING;
+  while(result==RISC_STORAGE_EXPORT_PREPARING) {
+   const unsigned writes=log_writes,sectors=card_reads+card_writes;
+   result=prepare->prepare_step(NULL,token,&blocks,&block_size);assert(++iterations<512);
+   assert(log_writes-writes<=1 && card_reads+card_writes-sectors<=2048);
+   if(result==RISC_STORAGE_EXPORT_PREPARING)assert(!blocks && !block_size && !has_handles() && bootlog_paused);
+  }
+  if(expected_failure) {
+   assert(result==RISC_STORAGE_EXPORT_RETAINED || result==RISC_STORAGE_EXPORT_REFUSED);
+   assert(bootlog_disabled && bootlog_error && !bootlog_cursor && !blocks && !block_size);
+   const unsigned writes=log_writes;bootlog_service(1000);assert(log_writes==writes);
+   if(result==RISC_STORAGE_EXPORT_RETAINED)assert(bootlog_retained && has_handles() && !quiesce());
+   else assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY);
+   printf("Full trace SD %s stopped safely; result=%d cursor=%llu retained=%u sectors=%u PASS\n",scenario,result,(unsigned long long)bootlog_cursor,(unsigned)bootlog_retained,operation_sectors);
+   return;
+  }
+  assert(result==RISC_STORAGE_EXPORT_READY && blocks && block_size==512 && !mounted);
   assert(bootlog_cursor==source_trace_available && bootlog_paused);
   const unsigned writes=card_writes;bootlog_service(1000);assert(card_writes==writes);
   assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY);
- }
- while(bootlog_cursor<source_trace_available && !bootlog_disabled){
-  const unsigned sectors=card_writes+card_reads,writes=log_writes;const uint64_t cursor=bootlog_cursor;
-  bootlog_service(1000);assert(++iterations<512);
-  if(bootlog_cursor==cursor)now_ms+=2001;
-  assert(log_writes-writes<=1);
-  assert(card_writes+card_reads-sectors<=64);
- }
- if(strcmp(scenario,"log-full-trace") && strcmp(scenario,"log-trace-export") && !early){
-  assert(bootlog_disabled && bootlog_error && bootlog_cursor==0);
-  const unsigned writes=log_writes;bootlog_service(1000);assert(log_writes==writes);
-  if(!strcmp(scenario,"log-trace-close"))assert(bootlog_retained && has_handles() && !quiesce());
-  printf("Full trace SD %s disabled safely; cursor=%llu retained=%u sectors=%u elapsed_ms=%llu PASS\n",scenario,(unsigned long long)bootlog_cursor,(unsigned)bootlog_retained,operation_sectors,(unsigned long long)(now_ms-operation_start));
-  return;
+ } else {
+  while(bootlog_cursor<source_trace_available && !bootlog_disabled){
+   const unsigned sectors=card_writes+card_reads,writes=log_writes;const uint64_t cursor=bootlog_cursor;
+   bootlog_service(1000);assert(card_reads+card_writes==sectors);
+   assert(ready(NULL));assert(++iterations<512);
+   if(bootlog_cursor==cursor)now_ms+=2001;
+   assert(log_writes-writes<=1 && card_writes+card_reads-sectors<=2048);
+  }
  }
  char actual[262144];const size_t count=read_log(actual,sizeof(actual));
  assert(count==source_trace_size && !memcmp(actual,source_trace,count));
@@ -528,10 +549,11 @@ static void batching_latency_case(void) {
  // preceding four lines, rather than an already-complete artificial transcript.
  for(size_t i=0;i<source_trace_size;++i)if(source_trace[i]=='\n') {
   source_trace_available=i+1;++lines;now_ms+=2;
-  if(lines%4==0)bootlog_service(1000);
+  if(lines%4==0){const unsigned io=card_reads+card_writes;bootlog_service(1000);assert(card_reads+card_writes==io);}
+  if(lines%24==0){const unsigned writes=log_writes;assert(ready(NULL));assert(log_writes-writes<=1);}
   assert(!bootlog_disabled);
  }
- for(unsigned tries=0;bootlog_cursor<source_trace_size;++tries){assert(tries<128);now_ms+=2001;bootlog_service(1000);assert(!bootlog_disabled);}
+ for(unsigned tries=0;bootlog_cursor<source_trace_size;++tries){assert(tries<128);now_ms+=2001;assert(ready(NULL));assert(!bootlog_disabled);}
  const uint64_t cost=modeled_sd_ms;const unsigned r=card_reads-timed_reads,w=card_writes-timed_writes;
  (void)r;(void)w;
  const unsigned persisted=log_closes;
@@ -545,6 +567,74 @@ static void batching_latency_case(void) {
  printf("Boot cadence bytes=%zu lines=%u append_close_pairs=%u modeled_sd_ms=%llu zero_work_calls=1000 PASS\n",source_trace_size,lines,persisted,(unsigned long long)cost);
  verify_cleanup();
 }
+/* Complete SD-side cold-boot flow. The paired MSC test uses the same actual
+ * native producer through the USB provider; this additionally stresses the
+ * maximum bounded text capacity and slow but successful sector transactions. */
+static void preparation_flow_case(bool capacity_stress) {
+ const char* fixture=getenv("X4_TRACE_FIXTURE");assert(fixture);
+ FILE* input=fopen(fixture,"rb");assert(input);
+ source_trace_size=fread(source_trace,1,sizeof(source_trace)-1,input);assert(!ferror(input) && feof(input));fclose(input);
+ const size_t native_bytes=source_trace_size;
+ if(capacity_stress) {
+  size_t offset=0;
+  while(source_trace_size<128u*1024u) {
+   const char* newline=memchr(source_trace+offset,'\n',native_bytes-offset);assert(newline);
+   const size_t bytes=(size_t)(newline-source_trace-offset)+1;
+   if(source_trace_size+bytes>128u*1024u)break;
+   memcpy(source_trace+source_trace_size,source_trace+offset,bytes);source_trace_size+=bytes;
+   offset+=bytes;if(offset==native_bytes)offset=0;
+  }
+ }
+ source_trace[source_trace_size]=0;
+ const char* current=strstr(source_trace,"X4_TRACE session=3 event=1 ");assert(current);
+ const char* mount=strstr(current,"boot app-data end result=ok");assert(mount);
+ source_trace_available=(size_t)(strchr(mount,'\n')-source_trace)+1;
+ realistic_latency=true;modeled_read_ms=60;modeled_write_ms=100;
+ deps[5].api=&fixture_trace.base;assert(START());
+ assert(bootlog_cursor && !bootlog_retained && !io_failed);
+ const unsigned initial_io=card_reads+card_writes;unsigned lines=0;
+ for(size_t i=source_trace_available;i<source_trace_size;++i)if(source_trace[i]=='\n') {
+  source_trace_available=i+1;now_ms+=2;
+  if(++lines%4==0)bootlog_service(1000);
+  assert(card_reads+card_writes==initial_io && !bootlog_retained && !io_failed);
+ }
+ // A long ordinary volume operation may drain exactly one closed batch.
+ const unsigned local_writes=log_writes;assert(ready(NULL));assert(log_writes-local_writes==1);
+ const risc_storage_volume_api_v1_export_prepare* prepare=risc_storage_volume_export_prepare((const risc_storage_volume_api_v1 *)&logging_api);assert(prepare);
+ risc_storage_export_token_t token=0;uint64_t blocks=0;uint32_t size=0;
+ const unsigned before_refusal=card_reads+card_writes;
+ assert(export_begin(NULL,&token,&blocks,&size)==RISC_STORAGE_EXPORT_REFUSED && !token && !blocks && !size);
+ assert(card_reads+card_writes==before_refusal && !has_handles() && !bootlog_retained);
+ assert(prepare->begin_prepare(NULL,&token)==RISC_STORAGE_EXPORT_PREPARING && token);
+ const uint64_t cancelled=token;
+ assert(prepare->prepare_step(NULL,token,&blocks,&size)==RISC_STORAGE_EXPORT_PREPARING && !blocks && !size && !has_handles());
+ const uint64_t committed=bootlog_cursor;
+ assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY && mounted && !bootlog_paused && !has_handles());
+ assert(bootlog_cursor==committed);
+ assert(prepare->begin_prepare(NULL,&token)==RISC_STORAGE_EXPORT_PREPARING && token!=cancelled);
+ const unsigned before_stale=card_reads+card_writes;uint8_t sector[512];
+ assert(prepare->prepare_step(NULL,cancelled,&blocks,&size)==RISC_STORAGE_EXPORT_REFUSED);
+ assert(export_read(NULL,token,0,1,sector)==RISC_STORAGE_EXPORT_REFUSED && card_reads+card_writes==before_stale);
+ const uint64_t begun=now_ms;uint64_t max_step=0;unsigned steps=0;
+ int32_t result=RISC_STORAGE_EXPORT_PREPARING;
+ while(result==RISC_STORAGE_EXPORT_PREPARING) {
+  const unsigned writes=log_writes,sectors=card_reads+card_writes;const uint64_t start_ms=now_ms;
+  result=prepare->prepare_step(NULL,token,&blocks,&size);++steps;assert(steps<128);
+  const uint64_t elapsed=now_ms-start_ms;if(elapsed>max_step)max_step=elapsed;
+  assert(log_writes-writes<=1 && card_reads+card_writes-sectors<=2048 && elapsed<15000);
+  assert(!bootlog_retained && !io_failed && !has_handles());
+  if(result==RISC_STORAGE_EXPORT_PREPARING)assert(!blocks && !size && bootlog_paused);
+ }
+ assert(result==RISC_STORAGE_EXPORT_READY && blocks && size==512 && bootlog_cursor==source_trace_size);
+ const uint64_t elapsed=now_ms-begun;if(capacity_stress)assert(elapsed>15000);
+ assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY);
+ char actual[262144];assert(read_log(actual,sizeof(actual))==source_trace_size && !memcmp(actual,source_trace,source_trace_size));
+ const unsigned no_work_io=card_reads+card_writes;
+ for(unsigned i=0;i<1000;++i)bootlog_service(1000);
+ assert(card_reads+card_writes==no_work_io);
+ printf("SD preparation flow capacity_stress=%u bytes=%zu steps=%u elapsed_ms=%llu max_step_ms=%llu exact_saved_text=PASS cancel_restart=PASS zero_service_io=PASS\n",capacity_stress,source_trace_size,steps,(unsigned long long)elapsed,(unsigned long long)max_step);
+ verify_cleanup();
+}
 #include "sd_export_test.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
@@ -552,6 +642,7 @@ int main(int argc,char **argv){
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver.poll.streams.driver && !t5_driver_get(1));
     if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
+    if(!strcmp(scenario,"log-preparation-flow") || !strcmp(scenario,"log-preparation-capacity")){preparation_flow_case(!strcmp(scenario,"log-preparation-capacity"));return 0;}
     if(!strcmp(scenario,"log-batching-latency")){batching_latency_case();return 0;}
     if(!strcmp(scenario,"log-full-trace") || !strncmp(scenario,"log-trace-",10)){trace_cases(scenario);return 0;}
     if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}

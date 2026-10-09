@@ -164,3 +164,24 @@ append/seek/close on every acquisition. Partial batches flush after two seconds
 at an available safe boundary; explicit USB export forces the remaining text.
 Runtime 0.1.81 removes synchronous service from display/input app yields. The
 existing mutex, checked close, failure retention and USB custody remain in force.
+
+
+0.2.11 keeps the short Runtime service RAM-only. The 1-second scheduler slice
+never starts a FatFs write transaction. The existing internal persistent boot
+trace retains the full text while the SD copy is pending. Explicit long local
+SD operations drain one batch at their normal checked owner boundary.
+
+USB export now uses the tagged preparation suffix. begin_prepare reserves a
+generation-safe token and snapshots a finite trace high-water mark, freezes
+local operations and pauses ordinary drains. Each prepare_step closes at most
+one <=4095-byte append under its own 15-second/2048-sector operation guard.
+PREPARING never admits raw I/O or PHY ownership. A later empty-tail step checks
+sync/unmount and returns READY plus capacity. Progress diagnostics after the
+snapshot stay pending for post-export drainage. Checked export_end can cancel
+between transactions without remounting, or perform the existing host return.
+The legacy synchronous begin cleanly refuses a pending trace tail.
+
+This corrects the software path where a healthy but slower card crossed the
+old 1-second service or whole-backlog export deadline inside FatFs and retained
+the writable log. Actual transport, hard transaction deadline, write and close
+failures still retain custody and their first media error is preserved.
