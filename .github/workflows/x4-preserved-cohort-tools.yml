@@ -1,0 +1,68 @@
+name: X4 preserved-cohort packaging tools
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['.github/workflows/x4-preserved-cohort-tools.yml', 'minimal/scripts/build_preserved_driver_update.py']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE-T-Watch-S3
+          ref: db5f6c5ba1a71ed3fcc22ff29847397a050b7ee4
+          path: .tools/watch
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: 1113ad2af1974b261addd09cfabc311a95b088ce
+          path: .tools/runtime
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Export pinned packaging sources, not older firmware
+        run: |
+          mkdir -p build/cohort-tools/watch build/cohort-tools/runtime
+          cp -a .tools/watch/scripts .tools/watch/vendor build/cohort-tools/watch/
+          cp -a .tools/runtime/scripts build/cohort-tools/runtime/
+          git -C .tools/watch rev-parse HEAD > build/cohort-tools/watch-source.txt
+          git -C .tools/runtime rev-parse HEAD > build/cohort-tools/runtime-tools-source.txt
+          git rev-parse HEAD > build/cohort-tools/product-source.txt
+          if test -f minimal/scripts/build_preserved_driver_update.py; then
+            cp minimal/scripts/build_preserved_driver_update.py build/cohort-tools/
+          fi
+          python - <<'PY'
+          import hashlib, json, pathlib, sys
+          root=pathlib.Path('build/cohort-tools')
+          sys.path.insert(0,str(root/'watch/scripts'))
+          from current_bootfs import build
+          from read_only_spiffs import read_image
+          store={'cohort.json':b'{}\n','panel/driver.elf':bytes(range(256))*281,'sd/driver.elf':bytes(range(251))*345}
+          image,proof=build(store)
+          assert read_image(image,len(image))==store
+          (root/'generator-smoke-test.json').write_text(json.dumps(proof,indent=2)+'\n')
+          receipt={str(p.relative_to(root)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(root.rglob('*')) if p.is_file() and '__pycache__' not in p.parts}
+          (root/'source-sha256.json').write_text(json.dumps(receipt,indent=2)+'\n')
+          PY
+      - name: Install independent C SPIFFS reader
+        run: |
+          pip install platformio==6.1.19
+          pio pkg install --global --tool 'platformio/tool-mkspiffs@2.230.0'
+          mkdir -p build/cohort-tools/mkspiffs
+          cp -a "$HOME/.platformio/packages/tool-mkspiffs/." build/cohort-tools/mkspiffs/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-preserved-cohort-tools-${{ github.sha }}
+          path: build/cohort-tools/
+          if-no-files-found: error
+          retention-days: 14
