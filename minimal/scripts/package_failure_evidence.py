@@ -38,6 +38,7 @@ def build(a):
     sys.path.insert(0, str(a.watch / 'scripts'))
     from compact_current_elf import compact
     from check_runtime_store_admission import admit_cohort
+    import verify_update_elf
     from current_bootfs import build as pack
     from read_only_spiffs import read_image
     require(read_image(original_image[0x2f0000:0x800000], 0x510000) == original,
@@ -92,7 +93,25 @@ def build(a):
     require(changed == {'default.elf', 'default.json', 'cohort.json'} and set(files) == set(original),
             'Unexpected store change')
     require(files['boot.json'] == original['boot.json'], 'Boot grants, namespaces or provider policy changed')
-    admission = admit_cohort(a.runtime, (a.native / 'firmware.elf').read_bytes(), files, files, app_policy_rows=17)
+    # Frozen packaging tooling extracts the complete production admission body.
+    # Runtime .91 added this inline policy-validation dependency; preserve that
+    # include too, without changing the body or selecting a provider policy.
+    policy_header = 'runtime/drivers/NativeProviderPolicyValidationV1.h'
+    policy_include = '#include "' + policy_header + '"\n'
+    require(policy_include in (a.runtime / 'src/ports/esp32s3/NativeBankStore.cpp').read_text(),
+            'Selected native admission no longer declares the expected policy dependency')
+    original_header = verify_update_elf.cohort_admission_header
+    def header_with_production_dependency(runtime, elf):
+        return policy_include + original_header(runtime, elf)
+    verify_update_elf.cohort_admission_header = header_with_production_dependency
+    try:
+        admission = admit_cohort(a.runtime, (a.native / 'firmware.elf').read_bytes(), files, files, app_policy_rows=17)
+    finally:
+        verify_update_elf.cohort_admission_header = original_header
+    admission['preserved_production_dependency'] = {
+        'path': 'src/' + policy_header, 'sha256': sha((a.runtime / 'src' / policy_header).read_bytes()),
+        'admission_function_changed': False}
+
     require(admission['cohort_validated'] and admission['elf_count'] == 44, 'Complete store/native admission failed')
     bootfs, capacity_record = pack(files)
     require(read_image(bootfs, 0x510000) == files, 'Final SPIFFS round-trip differs')
