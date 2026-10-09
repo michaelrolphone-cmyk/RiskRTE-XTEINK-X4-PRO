@@ -38,6 +38,7 @@ class UsbTransferAdmission(unittest.TestCase):
   with self.assertRaises(ValueError):self.validate()
  def test_catalog_retains_existing_entries(self):
   data=json.loads((app.ROOT/'minimal/apps/catalog.json').read_text())['apps']
-  self.assertEqual(len(data),18);self.assertEqual(data[-1]['file_name'],'usb_sd_transfer.elf')
-  self.assertEqual(len({a['file_name'] for a in data}),18)
+  self.assertEqual(len(data),19);self.assertEqual(data[-2]['file_name'],'usb_sd_transfer.elf')
+  self.assertEqual(data[-1],{'display_name':'GameBoy','file_name':'gameboy.elf','icon':'solid:f11b'})
+  self.assertEqual(len({a['file_name'] for a in data}),19)
 if __name__=='__main__':unittest.main()
