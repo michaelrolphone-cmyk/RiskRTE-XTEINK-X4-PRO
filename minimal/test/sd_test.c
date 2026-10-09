@@ -117,6 +117,41 @@ static void format(bool partitioned){
 }
 static void verify_cleanup(void){assert(quiesce());stop();assert(!fixture_lock && !gpio_api && !clock_api && !sync_api);for(unsigned i=0;i<49;++i)assert(!tokens[i]);assert(!card_bad_pin);}
 static void write_sample(void){const uint32_t file=file_open_write(NULL,"/sample.bin");assert(file);uint8_t bytes[2048];for(unsigned i=0;i<sizeof(bytes);++i)bytes[i]=(uint8_t)i;assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));assert(file_sync(NULL,file));assert(file_close(NULL,file,true));}
+static void files_paths(void){
+    /* Files passes volume-relative paths. /sd is a broker/VFS prefix, never
+     * prepended to ordinary storage.volume operations. Exercise the exported
+     * production API over native SD transport and shared FatFs. */
+    const risc_storage_volume_api_v1 *v=(const risc_storage_volume_api_v1 *)&api;
+    const risc_storage_volume_api_v1_ext *ext=risc_storage_volume_extension(v);
+    assert(ext&&ext->mkdir&&ext->rename&&ext->dir_close_checked);
+    uint64_t size=0;bool directory=false;char bytes[6]={0};
+    assert(v->stat(v->context,"/",&size,&directory)&&directory);
+    assert(ext->mkdir(v->context,"/Books")&&ext->mkdir(v->context,"/Archive"));
+    uint32_t writer=v->file_open_write(v->context,"/Books/read.txt");assert(writer);
+    assert(v->file_write(v->context,writer,"hello",5)==5&&v->file_close(v->context,writer,true));
+    uint32_t dir=v->dir_open(v->context,"/");assert(dir);
+    risc_storage_dirent_v1 entry;bool books=false;
+    while(v->dir_next(v->context,dir,&entry))if(!strcmp(entry.name,"Books")){assert(entry.is_directory);books=true;}
+    assert(books&&!ext->handle_error(v->context,dir,true)&&ext->dir_close_checked(v->context,dir));
+    dir=v->dir_open(v->context,"/Books");assert(dir);
+    assert(v->dir_next(v->context,dir,&entry)&&!strcmp(entry.name,"read.txt")&&!entry.is_directory&&entry.size==5);
+    assert(!v->dir_next(v->context,dir,&entry)&&!ext->handle_error(v->context,dir,true)&&ext->dir_close_checked(v->context,dir));
+    assert(!v->file_open_read(v->context,"/sd/Books/read.txt",&size));
+    owner=false;const unsigned before=calls;
+    assert(!v->file_open_read(v->context,"/Books/read.txt",&size)&&calls==before);owner=true;
+    uint32_t reader=v->file_open_read(v->context,"/Books/read.txt",&size);assert(reader&&size==5);
+    assert(v->file_read(v->context,reader,bytes,5)==5&&!strcmp(bytes,"hello"));
+    assert(v->file_close(v->context,reader,true));
+    assert(ext->rename(v->context,"/Books/read.txt","/Books/renamed.txt"));
+    assert(ext->rename(v->context,"/Books/renamed.txt","/Archive/renamed.txt"));
+    assert(!v->stat(v->context,"/Books/read.txt",&size,&directory));
+    assert(v->stat(v->context,"/Archive/renamed.txt",&size,&directory)&&size==5&&!directory);
+    writer=v->file_open_write(v->context,"/Books/copy.txt");assert(writer);
+    assert(v->file_write(v->context,writer,bytes,5)==5&&v->file_close(v->context,writer,true));
+    assert(v->remove(v->context,"/Archive/renamed.txt")&&v->remove(v->context,"/Books/copy.txt"));
+    assert(v->remove(v->context,"/Archive")&&v->remove(v->context,"/Books")&&!has_handles());
+    verify_cleanup();
+}
 static void frozen_io(void){
     const unsigned before=calls;char byte=0,text[80];uint64_t size=0,position=0;bool directory=false;risc_storage_dirent_v1 entry;
     assert(!refresh(NULL) && !ready(NULL) && !label(NULL,text,sizeof(text)));
@@ -277,6 +312,7 @@ int main(int argc,char **argv){
     if(!strncmp(scenario,"sleep-",6)){sleep_cases(scenario);goto done;}
     if(!strcmp(scenario,"absent")){assert(!ready(NULL));char text[80];assert(last_error_api(NULL,text,sizeof(text)) && !strcmp(text,"CMD8 no response"));assert(refresh(NULL));assert(now_ms==400 && clock_edges<2000);verify_cleanup();goto done;}
     assert(ready(NULL));
+    if(!strcmp(scenario,"files-paths")){files_paths();goto done;}
     if(!strcmp(scenario,"nonowner")){owner=false;rejected_calls();owner=true;verify_cleanup();goto done;}
     if(!strcmp(scenario,"destroy-fail")){fail_destroy=true;const uint64_t lock=operation_mutex;assert(!quiesce() && quiescing && operation_mutex==lock);assert(!refresh(NULL));fail_destroy=false;verify_cleanup();goto done;}
     if(!strcmp(scenario,"shutdown-write")){fail_write=true;const uint64_t power_token=pins[0].token;assert(!quiesce() && pins[0].token==power_token && operation_mutex);fail_write=false;verify_cleanup();goto done;}
