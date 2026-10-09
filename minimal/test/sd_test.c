@@ -10,13 +10,21 @@ static uint32_t fixture_cycles(void);
 #define f_open fixture_f_open
 #define f_write fixture_f_write
 #define f_close fixture_f_close
+#define f_mount fixture_f_mount
 #include "../drivers/x4pro_sd/driver.c"
 #undef f_open
 #undef f_write
 #undef f_close
+#undef f_mount
 FRESULT f_open(FIL*,const TCHAR*,BYTE);
 FRESULT f_write(FIL*,const void*,UINT,UINT*);
 FRESULT f_close(FIL*);
+FRESULT f_mount(FATFS*,const TCHAR*,BYTE);
+static bool export_fail_unmount;
+FRESULT fixture_f_mount(FATFS *fs,const TCHAR *path,BYTE opt) {
+    if (!fs && export_fail_unmount) return FR_DISK_ERR;
+    return f_mount(fs,path,opt);
+}
 static bool log_deny_open,log_partial_write,log_fail_close,log_opened;
 static unsigned log_opens,log_writes,log_closes;
 FRESULT fixture_f_open(FIL *file,const TCHAR *path,BYTE mode) {
@@ -61,7 +69,13 @@ static bool owner=true, locked, fail_create, fail_take, fail_unlock, fail_destro
 static bool fail_claim, fail_release, fail_read, fail_write, stuck_cycles, absent, reenter, nested;
 static int fail_claim_pin=-1, fail_release_pin=-1, fail_write_pin=-1, fail_write_level=-1;
 static int32_t fail_hold, fail_unhold;
-static bool clock_level, power_ready=true, force_dat_busy;
+static bool clock_level, power_ready=true, force_dat_busy, export_bad_csd;
+static void fixture_wire_release(uint32_t pin) {
+    const bool csd = pin == 42 && cmd_count == 48 && cmd_bits[2] == 0 && cmd_bits[3] == 0 &&
+        cmd_bits[4] == 1 && cmd_bits[5] == 0 && cmd_bits[6] == 0 && cmd_bits[7] == 1;
+    wire_pin_release(pin);
+    if (csd && export_bad_csd) reply_bits[135] = 0; /* Invalid CSD end bit. */
+}
 static uint64_t tokens[49];
 static bool outputs[49], levels[49], holds[49];
 static uint32_t fixture_cycles(void) { if (!stuck_cycles) cycles+=8; return cycles; }
@@ -74,7 +88,7 @@ static bool gpio_claim(void *ctx,uint8_t pin,bool output,bool initial,bool pullu
     tokens[pin]=*out=++next_token;outputs[pin]=output;levels[pin]=initial;holds[pin]=false;
     if(pin==5){wire_pin_hold(5,false);wire_pin_output(5,initial);}
     else if(output){if(pin==41){clock_level=initial;++clock_edges;}wire_pin_output(pin,initial);}
-    else if(pullup)wire_pin_release(pin);else wire_pin_input(pin,false);
+    else if(pullup)fixture_wire_release(pin);else wire_pin_input(pin,false);
     return true;
 }
 static bool gpio_write(void *ctx,uint64_t token,bool level) {
@@ -121,6 +135,13 @@ static void rejected_calls(void) {
     assert(!prepare_sleep(NULL) && !commit_sleep(NULL));
     const int32_t sleep_result=resume_sleep(NULL);
     assert(sleep_result==RISC_STORAGE_SLEEP_REFUSED || sleep_result==RISC_STORAGE_SLEEP_RETAINED);
+    risc_storage_export_token_t lease=0;uint64_t blocks=0;uint32_t block_size=0;
+    int32_t er=export_begin(NULL,&lease,&blocks,&block_size);
+    assert(er==RISC_STORAGE_EXPORT_REFUSED || er==RISC_STORAGE_EXPORT_RETAINED);
+    er=export_read(NULL,1,0,1,&byte);assert(er==RISC_STORAGE_EXPORT_REFUSED || er==RISC_STORAGE_EXPORT_RETAINED);
+    er=export_write(NULL,1,0,1,&byte);assert(er==RISC_STORAGE_EXPORT_REFUSED || er==RISC_STORAGE_EXPORT_RETAINED);
+    er=export_sync(NULL,1);assert(er==RISC_STORAGE_EXPORT_REFUSED || er==RISC_STORAGE_EXPORT_RETAINED);
+    er=export_end(NULL,1);assert(er==RISC_STORAGE_EXPORT_REFUSED || er==RISC_STORAGE_EXPORT_RETAINED);
     assert(!last_error_api(NULL,text,sizeof(text)) && !strcmp(text,"untouched"));assert(!quiesce());stop();assert(calls==before);
 }
 static void sleep_ms(void *ctx,uint32_t ms){(void)ctx;++sleeps;now_ms+=ms;assert(owner && locked);if(reenter && !nested){nested=true;rejected_calls();nested=false;}}
@@ -413,11 +434,13 @@ static void bootlog_cases(const char *scenario) {
     }
     verify_cleanup();
 }
+#include "sd_export_test.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver.base && !t5_driver_get(1));
+    if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
     if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}
     if(!strcmp(scenario,"validation")){
         assert(!start(NULL,0));const void *saved=deps[0].api;deps[0].api=NULL;assert(!START());deps[0].api=saved;

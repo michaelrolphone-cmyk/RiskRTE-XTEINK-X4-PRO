@@ -1,6 +1,6 @@
 # X4 native one-bit SD ordinary provider
 
-`x4pro-sd@0.2.7` adapts the X4 native CLK/CMD/DAT0 transport to scoped
+`x4pro-sd@0.2.8` adapts the X4 native CLK/CMD/DAT0 transport to scoped
 `platform.gpio@1`, `platform.clock@1` and `platform.sync@1`, with explicit
 `board.power.ready@1` admission. It is not SPI and imports no firmware SD,
 FreeRTOS, task identity, MMIO or filesystem service.
@@ -108,3 +108,46 @@ the provider across the whole transaction, and distinguish all resume results.
 0.2.7 adds the read-only `platform.diagnostic-source@1` dependency and writes
 `/x4-boot.log` through this same FatFs owner after a usable mount. No app grant
 or second SD stack is added. See [capture, ownership, failure and test details](../../docs/BOOT_LOGGING.md).
+
+
+## Exclusive USB raw-media export
+
+0.2.8 adds the optional `RiscStorageExportV1.h` tail after the existing sleep
+prefix. A USB provider retains its `storage.volume` dependency and invokes this
+tail only on the normal SD owner task, never from a USB task, ISR or callback.
+The begin/read/write/sync/end callbacks return READY, REFUSED or RETAINED; end
+may also return MEDIA_UNAVAILABLE after checking local custody. Consumers must
+inspect the result, including failed begin, and keep every dependency pinned on
+RETAINED. Successful end consumes the token; old tokens never become valid again
+through refresh, quiesce/start or another export. Generation exhaustion refuses.
+
+Begin rejects every caller file/directory, drains a bounded pending diagnostic
+batch, pauses the logger, checks card sync and checks FatFs unregistration.
+CMD9 supplies the physical block count: CRC-checked CSD v1/SDSC or v2/SDHC/SDXC,
+with an explicit unsupported-version/address-range rejection. It never derives
+capacity from FAT or a partition table. Unformatted media can be exported;
+absent media or invalid CSD cannot. Transfers are whole 512-byte sectors, at
+most eight per call, with checked 64-bit range arithmetic and the existing
+byte/time checkpoints, scheduler yields and transport timeouts.
+
+While the host owns media, every normal file/directory operation, refresh,
+sleep/legacy power transition and quiesce refuses. Logger and diagnostics do
+not touch the filesystem. Once USB has stopped requests on eject/disconnect,
+end checks sync, runs normal native initialization/remount, and resumes logging.
+Absent/unformatted media returns MEDIA_UNAVAILABLE and permits later refresh;
+failed transfer, sync, unmount, remount integrity, logger close or unlock retains
+custody. No uncertain write is retried and no path formats the card.
+
+The 93-scenario native SD suite passes ASan/UBSan, including 26 raw-export cases:
+ABI prefix/tag/size checks, all caller-handle refusals, retained caller/logger
+close, owner/reentry refusal, sleep exclusion, stale generations, exhaustion,
+CSD CRC/version and full 2^32-sector parsing, absent/unformatted media, bounds,
+checked unmount, failed raw I/O/sync/unlock/remount, removal, logger pause/resume,
+and cleanup. The existing 25-case shared X4/T5 admission suite and tagged sleep
+ABI checks pass. Both legacy SD objects remain byte-identical with the optional
+admission hook undefined. Xtensa links and verifies 516 relative pointers,
+exports only `t5_driver_get`, and imports only `memcmp`, `memcpy`, `memset`,
+`strchr`, `strlen`. The tested ELF is 76,160 bytes, SHA-256
+`573e50fd5b8d92665b0310984707c03f823adf0e4c1e80a3c76348592f0b8232`.
+Host simulation and the target build do not establish physical USB/SD timing,
+hot unplug, power-loss or filesystem consistency after an unsafe host removal.

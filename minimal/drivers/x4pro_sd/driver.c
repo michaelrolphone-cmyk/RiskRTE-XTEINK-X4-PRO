@@ -6,7 +6,7 @@
 #include <RiscProviderV2.h>
 #include <RiscProviderSyncV1.h>
 #include <RiscDiagnosticSourceV1.h>
-#include <RiscStorageVolumeV1.h>
+#include <RiscStorageExportV1.h>
 #include <GardenPlatformV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
 #include "../../../Drivers/x4pro_board/x4pro_pins.h"
@@ -21,7 +21,11 @@ static const garden_gpio_v1 *gpio_api;
 static const risc_provider_sync_api_v1 *sync_api;
 static const risc_diagnostic_source_api_v1 *diagnostic_source;
 static void bootlog_drain(void);
-static bool bootlog_mount_pending;
+static bool bootlog_mount_pending, bootlog_paused;
+enum { EXPORT_LOCAL, EXPORT_HOST, EXPORT_RETAINED };
+static unsigned export_state;
+static risc_storage_export_token_t export_generation, export_token;
+static uint64_t card_block_count;
 static bool bootlog_custody_safe(void);
 static uint64_t operation_mutex;
 static bool mutex_poisoned, quiescing, quiesced;
@@ -225,10 +229,36 @@ static bool read_sector(uint32_t lba, uint8_t out[512]) {
     if (!tick()) return false;
     return stop && received_crc == x4pro_sd_crc16(out, 512u);
 }
+/* CMD9 R2 payload is CSD[127:0], following the 8-bit R2 header.
+ * SD Physical Layer 5.3.2/5.3.3: capacity derives from CSD, never FatFs. */
+static bool decode_csd(const uint8_t response[17], bool block_addressed, uint64_t *blocks) {
+    const uint8_t *csd = response + 1;
+    *blocks = 0;
+    if (response[0] != 0x3fu || !(csd[15] & 1u) ||
+        (csd[15] >> 1) != risc_sd_crc7(csd, 15)) return false;
+    const unsigned version = csd[0] >> 6;
+    const unsigned read_length = csd[5] & 15u;
+    uint64_t count;
+    if (version == 1u && block_addressed && read_length == 9u) {
+        const uint32_t size = ((uint32_t)(csd[7] & 63u) << 16) |
+                              ((uint32_t)csd[8] << 8) | csd[9];
+        count = ((uint64_t)size + 1u) << 10;
+    } else if (version == 0u && !block_addressed && read_length >= 9u && read_length <= 11u) {
+        const uint32_t size = ((uint32_t)(csd[6] & 3u) << 10) |
+                              ((uint32_t)csd[7] << 2) | (csd[8] >> 6);
+        const unsigned multiplier = ((csd[9] & 3u) << 1) | (csd[10] >> 7);
+        count = ((uint64_t)size + 1u) << (multiplier + 2u + read_length - 9u);
+        if (count > (UINT64_C(1) << 23)) return false; /* 32-bit byte address. */
+    } else return false; /* Unsupported SDUC or inconsistent OCR/CSD. */
+    if (!count || count > (UINT64_C(1) << 32)) return false;
+    *blocks = count;
+    return true;
+}
 static bool init_card(void) {
     uint8_t response[17] = {0};
     if (gpio_fault) return false;
     high_capacity = false;
+    card_block_count = 0;
     x4pro_pin_hold(X4PRO_PIN_SD_PWR, false);
     x4pro_pin_output(X4PRO_PIN_SD_PWR, true);
     if (clock_api) clock_api->sleep_ms(clock_api->context, 80);
@@ -254,7 +284,11 @@ static bool init_card(void) {
                 fail("CMD3 failed"); return false;
             }
             const uint32_t rca = ((uint32_t)response[1] << 24) | ((uint32_t)response[2] << 16);
-            if (!rca || !command(7, rca, response, 6) || !response_for(7, response) ||
+            if (!rca || !command(9, rca, response, 17) ||
+                !decode_csd(response, high_capacity, &card_block_count)) {
+                fail("CMD9 CSD/capacity invalid"); return false;
+            }
+            if (!command(7, rca, response, 6) || !response_for(7, response) ||
                 !wait_dat0(true, 131072u, 500u)) { fail("CMD7 select failed"); return false; }
             if (!high_capacity && (!command(16, 512u, response, 6) ||
                                    !response_for(16, response))) {
@@ -333,9 +367,11 @@ static bool resume_sleep_media(void) {
 #define STORAGE_VOLUME_EXTERNAL_GUARD
 #define STORAGE_VOLUME_GUARD_ENTER guard_enter
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave
+#define STORAGE_VOLUME_ADMISSION_FROZEN() (export_state != EXPORT_LOCAL)
 #define STORAGE_VOLUME_LABEL "X4PRO"
 #include <volume.c>
 #include "BootLog.h"
+#include "Export.h"
 
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (started || operation_mutex || gpio_api || clock_api || sync_api || mutex_poisoned ||
@@ -408,7 +444,7 @@ static bool quiesce(void) {
     if (!valid_task()) return false;
     if (!quiescing) {
         if (!enter_lifecycle()) return false;
-        if (has_handles() || power_down_committed || sleep_state != SLEEP_ACTIVE) { (void)leave(); return false; }
+        if (has_handles() || export_state != EXPORT_LOCAL || power_down_committed || sleep_state != SLEEP_ACTIVE) { (void)leave(); return false; }
         /* Shutdown failures preserve exact remaining tokens and dependencies. */
         (void)f_mount(NULL, "", 0);
         mounted = card_ready = false;
@@ -436,9 +472,17 @@ static const risc_driver_diagnostics_v2 driver = {{
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
-    if (!logging_api.terminal.power.volume.base.api_version) {
-        logging_api = api;
-        logging_api.terminal.power.volume.base.last_error = bootlog_last_error;
+    if (!logging_api.sleep.terminal.power.volume.base.api_version) {
+        logging_api.sleep = api;
+        logging_api.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
+        logging_api.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
+        logging_api.export_tag = RISC_STORAGE_EXPORT_TAG;
+        logging_api.export_version = 1u;
+        logging_api.export_begin = export_begin;
+        logging_api.export_read = export_read;
+        logging_api.export_write = export_write;
+        logging_api.export_sync = export_sync;
+        logging_api.export_end = export_end;
     }
     return &driver.base;
 }

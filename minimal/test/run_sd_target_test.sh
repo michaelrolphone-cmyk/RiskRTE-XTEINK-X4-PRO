@@ -47,7 +47,7 @@ record={'source_commit':subprocess.check_output(['git','-C',str(root),'rev-parse
         'working_tree_dirty':bool(subprocess.check_output(['git','-C',str(root),'status','--porcelain'],text=True).strip()),
         'compiler':subprocess.check_output([cc,'--version'],text=True).splitlines()[0],
         'elf_sha256':sha(out/'driver.elf'),'elf_bytes':(out/'driver.elf').stat().st_size,
-        'source_sha256':{p:sha(root/p) for p in ('minimal/drivers/x4pro_sd/driver.c','minimal/drivers/x4pro_sd/BootLog.h','minimal/drivers/x4pro_sd/manifest.json','minimal/test/run_sd_target_test.sh')},
+        'source_sha256':{p:sha(root/p) for p in ('minimal/drivers/x4pro_sd/driver.c','minimal/drivers/x4pro_sd/BootLog.h','minimal/drivers/x4pro_sd/Export.h','minimal/drivers/x4pro_sd/manifest.json','minimal/test/run_sd_target_test.sh')},
         'target_structure_passed':True,'device_tested':False}
 (out/'target-proof.json').write_text(json.dumps(record,indent=2)+'\n')
 PY

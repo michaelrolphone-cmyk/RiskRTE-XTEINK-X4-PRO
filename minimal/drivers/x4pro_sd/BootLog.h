@@ -5,7 +5,7 @@
 #define X4_BOOTLOG_SD_PATH "/x4-boot.log"
 #define X4_BOOTLOG_SD_PREVIOUS "/x4-boot.previous.log"
 #define X4_BOOTLOG_SD_MAX_BYTES (128u * 1024u)
-static risc_storage_volume_api_v1_sleep logging_api;
+static risc_storage_volume_api_v1_export logging_api;
 static struct { uint64_t sequence; uint32_t revision; } bootlog_seen[RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS];
 static unsigned bootlog_next;
 static bool bootlog_disabled, bootlog_reporting, bootlog_retained;
@@ -25,7 +25,7 @@ static bool bootlog_result(FRESULT result, const char *reason) {
     return false;
 }
 static bool bootlog_step(void) {
-    if (bootlog_disabled || bootlog_reporting || !diagnostic_source || !started ||
+    if (bootlog_paused || bootlog_disabled || bootlog_reporting || !diagnostic_source || !started ||
         !mounted || !card_ready || io_failed || gpio_fault || gpio_retained ||
         mutex_poisoned || quiescing || power_down_prepared || power_down_committed ||
         sleep_state != SLEEP_ACTIVE || has_handles()) return false;
@@ -108,7 +108,7 @@ finish:
     return exported;
 }
 static void bootlog_drain(void) {
-    if (!clock_api || !started || !mounted || bootlog_reporting || bootlog_disabled ||
+    if (bootlog_paused || !clock_api || !started || !mounted || bootlog_reporting || bootlog_disabled ||
         power_down_prepared || power_down_committed || sleep_state != SLEEP_ACTIVE || has_handles()) return;
     unsigned limit = bootlog_mount_pending ? RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS : 1u;
     bootlog_mount_pending = false;
