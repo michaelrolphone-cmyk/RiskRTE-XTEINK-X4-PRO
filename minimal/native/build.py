@@ -70,4 +70,7 @@ env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1),
 if options.get('usb_phy'):
     env.Append(CPPDEFINES=[('RISC_ENABLE_USB_PHY', 1)])
 env.Append(LINKFLAGS=['-Wl,-u,risc_x4_native_composition_identity', '-Wl,--wrap=app_main'])
-env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp>')
+env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp> +<X4RtcBeforeMspi.c>')
+
+# Isolated startup experiment; not a production product version.
+env.Append(LINKFLAGS=['-Wl,--wrap=spi_flash_init_chip_state', '-Wl,--wrap=rtc_clk_recalib_bbpll', '-Wl,--wrap=rtc_init', '-Wl,--wrap=esp_clk_init', '-Wl,-u,risc_x4_rtc_order_experiment'])

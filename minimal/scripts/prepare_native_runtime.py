@@ -22,7 +22,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
-NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py', 'flash_profile.py')
+NATIVE_FILES = ('X4RtcBeforeMspi.c', 'X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py', 'flash_profile.py')
 _flash_spec = importlib.util.spec_from_file_location('x4_flash_profile', ROOT / 'minimal/native/flash_profile.py')
 flash_profile = importlib.util.module_from_spec(_flash_spec)
 _flash_spec.loader.exec_module(flash_profile)
