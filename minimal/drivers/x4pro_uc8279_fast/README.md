@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.1
+# X4 UC8279 fast provider 0.1.2
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -27,8 +27,9 @@ After reset, the first presentation and every explicit CLEAN use the source's
 OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion,
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
 rows). Normal later presentations use the one-frame absolute target LUT at PLL
-0x0F: white entries 0x41, black entries 0x81, VCOM entry 0x01, with the remaining
-42-byte table fields exactly matching the source. No old-plane transfer occurs
+0x0F: white-target entries 0x81, black-target entries 0x41, VCOM entry 0x01.
+Version0.1.2 corrects registers0x21/0x24 relative to the laboratory; every
+remaining42-byte table field and one-frame duration stays unchanged. No old-plane transfer occurs
 in that mode. Full visible updates transfer **48,000 bytes**; 40/80/160-row
 bands transfer **4,000/8,000/16,000 bytes**.
 
@@ -111,3 +112,25 @@ render without a transition. Tests cover descriptor size/tag/version/function
 validation, completed-image fidelity, padding, stale lease/history aliases,
 owner/retained/leased/queued/active/seed-only/sleep/resume refusal, destination
 purity and no hardware/clock/lease changes.
+
+## Absolute target polarity correction (0.1.2)
+
+The lab's literal register21..24 rails were `41,81,41,81`. The primary FreeInk
+X4 absolute grayscale encoding, inverted plane writes and empirical register
+assignment corroborate wire `{DTM1,DTM2}` selecting `00→24,01→22,10→23,11→21`.
+Its X4 AA bank corroborates `0x4x` as black-directed and `0x8x` as white-directed.
+This implies the old absolute bank selected an inverse of the stale OLD bit;
+it did not make the NEW target independent of OLD as intended.
+
+The correction sets21..24 to `81,81,41,41`: both NEW=1 buckets whiten and both
+NEW=0 buckets blacken. Only21 and24 change. SDK MONO1 remains1=black, and its
+conversion to the controller's complemented wire bytes remains intact. SPI,
+geometry, PLL, one-frame pulse count, transfer volume, BUSY checks and command
+order are unchanged. No settling repetitions or UI changes are included.
+
+This mapping is corroborated stock-source inference, not an independently
+measured four-plane controller truth table or a directly retrieved UC8279
+silicon datasheet. The new test model decodes emitted LUTs and both RAM planes,
+and it reproduces the old failure before the correction. Physical confirmation
+of polarity/contrast remains pending. `polarity-source.json` pins the primary
+sources and the inferred mapping for review.

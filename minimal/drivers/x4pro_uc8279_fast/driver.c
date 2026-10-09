@@ -268,7 +268,10 @@ static void window_data(void) {
 static void absolute_lut_table(unsigned i) {
     uint8_t table[42];
     memset(table, 0, sizeof(table)); table[0] = table[5] = table[6] = 1;
-    table[1] = i == 0u ? 1u : (i == 1u || i == 3u ? 0x41u : 0x81u);
+    /* X4 wire {OLD,NEW}:00->24,01->22,10->23,11->21.
+     * 0x8x whitens and0x4x blackens on this panel. Match each NEW endpoint
+     * across both OLD values; the laboratory's21/24 rails were reversed. */
+    table[1] = i == 0u ? 1u : (i <= 2u ? 0x81u : 0x41u);
     write_register((uint8_t)(0x20u + i), table, sizeof(table));
 }
 static bool begin_plane(uint8_t cmd) {
@@ -996,7 +999,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.1 cause=");
+    append(destination, capacity, &used, "v=0.1.2 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

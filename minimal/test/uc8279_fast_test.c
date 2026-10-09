@@ -14,7 +14,7 @@ static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, ref
 static uint32_t payload, max_exchange, max_poll_bytes;
 static unsigned command_cost, scheduler_gap=1, refresh_pulse_ms=20, reset_assertions;
 static unsigned commands[256], data_index;static uint8_t cmd, regs[256][42];
-static uint8_t ram[60000], visible[48000];
+static uint8_t ram[60000], old_ram[60000], visible[48000];
 static bool model_bus_held, ptin;
 static struct { uint64_t token; bool output, level, held; } pins[49];
 static const risc_display_output_api_v1 *output;
@@ -64,11 +64,26 @@ static void model_command(uint8_t value){
   unsigned top=0,height=480;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
-   for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){uint8_t want=0;if(i==0||i==5||i==6)want=1;if(i==1)want=r==0?1:(r==1||r==3?0x41:0x81);assert(regs[0x20+r][i]==want);}
+   for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){uint8_t want=0;if(i==0||i==5||i==6)want=1;if(i==1)want=r==0?1:(r<=2?0x81:0x41);assert(regs[0x20+r][i]==want);}
    top=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])-120;
    height=(((unsigned)regs[0x90][6]<<8)|regs[0x90][7])-120-top+1;
   }else assert(regs[0x00][0]==0x17&&regs[0x30][0]==0x0E);
-  assert(top+height<=480);memcpy(visible+top*100,ram+(top+120)*100,height*100);
+  assert(top+height<=480);
+  if(regs[0x00][0]==0x37){
+   /* Independent X4 plane-code oracle, derived from FreeInk's absolute
+    * LSB/MSB fold + inverted transfers + empirical quality-bank register map:
+    * {DTM1,DTM2}=00->24,01->22,10->23,11->21. 0x4x darkens,0x8x whitens.
+    * Decode actual emitted LUT/RAM, rather than assuming DTM2 is visible. */
+   const uint8_t selector[4]={0x24,0x22,0x23,0x21};
+   for(unsigned y=top;y<top+height;++y)for(unsigned x=0;x<100;++x){
+    unsigned i=(y+120)*100+x;uint8_t result=0;
+    for(unsigned bit=0;bit<8;++bit){unsigned n=(ram[i]>>bit)&1u,o=(old_ram[i]>>bit)&1u;
+     const uint8_t rail=regs[selector[(o<<1)|n]][1]&0xC0u;assert(rail==0x40||rail==0x80);
+     if(rail==0x80)result|=(uint8_t)(1u<<bit);
+    }
+    visible[y*100+x]=result;
+   }
+  }else memcpy(visible+top*100,ram+(top+120)*100,height*100);
  }
 }
 static void model_data(uint8_t value){
@@ -82,7 +97,7 @@ static void model_data(uint8_t value){
   ++payload;
   unsigned pos=data_index;
   if(ptin){assert(regs[0x90][0]==0&&regs[0x90][1]==0&&regs[0x90][2]==3&&regs[0x90][3]==0x1F);pos+=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])*100;}
-  assert(pos<sizeof(ram));if(cmd==0x13)ram[pos]=value;
+  assert(pos<sizeof(ram));if(cmd==0x13)ram[pos]=value;else old_ram[pos]=value;
  }
  ++data_index;
 }
@@ -116,6 +131,20 @@ static void fast_band(unsigned y,unsigned h){
  const risc_display_rect_v1 d={17,(int32_t)y,1,h};uint64_t t=submit_frame(f,&d,1,false);assert(fast_update&&partial_update);complete_frame(t);
  assert(commands[0x10]==old_sync&&bytes_sent==100*h);risc_display_present_metrics_v1 m=snapshot();assert(m.mode==RISC_DISPLAY_METRICS_PARTIAL&&m.effective_update.x==0&&m.effective_update.width==800&&m.effective_update.y==(int)y&&m.effective_update.height==h);
  assert(visible[y*100+2]==0x55&&visible[y*100+1]==0xF0);assert(previous_frame[y*100+2]==0xAA&&previous_frame[y*100+1]==0x0F);
+}
+static void test_polarity(void) {
+ /* Initial OLD=0xF0 contains both old states. NEW=0xCC exercises all four
+  * {old,new} combinations in one byte. Further targets deliberately leave
+  * DTM1 untouched, so a mistaken old-dependent LUT cannot pass by syncing. */
+ const unsigned syncs=commands[0x10];const uint8_t old=old_ram[12000];assert(old==0xF0);
+ const uint8_t targets[]={0x33,0x66,0x00,0x00,0xFF,0xFF,0x33};
+ for(unsigned n=0;n<sizeof(targets);++n){
+  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,targets[n],48000);
+  uint64_t token=submit_frame(f,NULL,0,false);complete_frame(token);
+  const uint8_t expected=(uint8_t)~targets[n];
+  assert(bytes_sent==48000&&commands[0x10]==syncs&&old_ram[12000]==old);
+  for(unsigned i=0;i<48000;++i)assert(visible[i]==expected&&previous_frame[i]==targets[n]);
+ }
 }
 static void test_snapshot(void) {
  const risc_display_output_api_v1_snapshot *ext=risc_display_output_snapshot(output);assert(ext);
@@ -190,6 +219,7 @@ int main(int argc,char**argv){
   assert(risc_display_output_power(output)->resume(NULL,1500)==RISC_DISPLAY_POWER_RETAINED);
   assert(!d->start(deps,7)&&bus_calls==old_bus_calls&&reset_assertions==old_resets);goto done;
  }
+ if(!strcmp(s,"polarity")){test_polarity();assert(d->quiesce());goto done;}
  if(!strcmp(s,"snapshot")){test_snapshot();assert(d->quiesce());goto done;}
  if(!strncmp(s,"spi-",4)||!strcmp(s,"gpio-fail")||!strcmp(s,"unlock-fail")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);(void)t;
