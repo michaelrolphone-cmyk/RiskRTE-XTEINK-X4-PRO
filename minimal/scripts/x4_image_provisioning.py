@@ -118,32 +118,61 @@ def bind(runtime,platform,tools,payload,revision,output):
     w.publish_files(output,{'inventory.json':p.encode(inventory),'deployment.json':encoded(record),'COMPLETE':DEPLOYMENT_MARKER},p)
     return record
 
-def endpoints(runtime,platform,tools,deployment):
-    m,_=modules(runtime,platform,tools);p=m['provision_profile'];w=m['watch_image_provisioning'];deployment=p.safe_path(deployment)
+def deployment_inputs(deployment,p,w):
+    deployment=p.safe_path(deployment)
     require(w.directory_names(deployment,3)=={'inventory.json','deployment.json','COMPLETE'} and p.read(deployment/'COMPLETE',64)==DEPLOYMENT_MARKER,'Deployment inventory differs')
     inventory_raw=p.read(deployment/'inventory.json',128*1024);inventory=p.decode(inventory_raw);p.validate_inventory(inventory)
     record=p.decode(p.read(deployment/'deployment.json',65536));revision=record.get('payload_revision')
     require(set(record)=={'schema','schema_version','payload_revision','inventory_sha256','downloads'} and record['schema']=='x4.image-deployment' and
             type(record['schema_version']) is int and record['schema_version']==1 and isinstance(revision,str) and re.fullmatch('[0-9a-f]{40}',revision) and
             record['inventory_sha256']==p.sha(inventory_raw) and set(record['downloads'])==NAMES,'Deployment identity differs')
-    base=f'https://raw.githubusercontent.com/{REPOSITORY}/{revision}/{PAYLOAD_PATH}/';opener=urllib.request.build_opener(w.NoRedirect)
+    base=f'https://raw.githubusercontent.com/{REPOSITORY}/{revision}/{PAYLOAD_PATH}/'
     require(inventory['image']==record['downloads']['image.bin'],'Deployment image differs')
+    for name,item in record['downloads'].items():
+        require(set(item)=={'url','bytes','sha256'} and item['url']==base+name and type(item['bytes']) is int and 0<item['bytes']<=32*1024*1024 and
+                isinstance(item['sha256'],str) and re.fullmatch('[0-9a-f]{64}',item['sha256']),'Immutable download identity differs')
+    return inventory,record
+
+def deployment_product(inventory,record,receipt,files,raw,p):
+    p.verify_inventory(inventory,files)
+    require(inventory['layout']==receipt['layout'] and inventory['runtime_target']==receipt['target'] and
+            {k:inventory['image'][k] for k in ('bytes','sha256')}==receipt['image'],'Deployment product identity differs')
+    require(all({k:item[k] for k in ('bytes','sha256')}==meta(raw[name]) for name,item in record['downloads'].items()),'Deployment payload differs')
+
+def endpoints(runtime,platform,tools,deployment):
+    m,_=modules(runtime,platform,tools);p=m['provision_profile'];w=m['watch_image_provisioning']
+    inventory,record=deployment_inputs(deployment,p,w);revision=record['payload_revision']
+    opener=urllib.request.build_opener(w.NoRedirect)
     with tempfile.TemporaryDirectory(prefix='x4-https-') as temp:
         folder=Path(temp)
         for name,item in record['downloads'].items():
-            require(set(item)=={'url','bytes','sha256'} and item['url']==base+name and type(item['bytes']) is int and 0<item['bytes']<=32*1024*1024 and
-                    isinstance(item['sha256'],str) and re.fullmatch('[0-9a-f]{64}',item['sha256']),'Immutable download identity differs')
             with opener.open(item['url'],timeout=60) as response:
                 require(response.status==200,'Download status differs');data=response.read(item['bytes']+1)
             require(meta(data)=={k:item[k] for k in ('bytes','sha256')},'Downloaded bytes differ');w.write_files(folder,{name:data})
-        _,files,_,_,_,_=verify(runtime,platform,tools,folder);p.verify_inventory(inventory,files)
+        receipt,files,raw,_,_,_=verify(runtime,platform,tools,folder)
+        deployment_product(inventory,record,receipt,files,raw,p)
     return {'verified_https_files':6,'complete_store_files':len(files),'payload_revision':revision,'device_accessed':False,'target_instructions_executed':False}
 
-def compose_device(runtime,platform,tools,payload,owner,validator,nvs_generator,output,new_device=False):
-    _,_,_,seed,m,callback=verify(runtime,platform,tools,payload)
+def snapshot_owner(owner,output,p,w):
+    owner=p.safe_path(owner)
+    require(w.directory_names(owner,4)=={'profile.json','owner.json','inputs','COMPLETE'},'Owner input inventory differs')
+    require(w.directory_names(p.safe_path(owner/'inputs'),5)=={'profile.bin','descriptor.bin','time.bin','nvs.csv','COMPLETE'},'Owner NVS inventory differs')
+    limits={'profile.json':16384,'owner.json':4096,'COMPLETE':64,'inputs/profile.bin':16384,
+            'inputs/descriptor.bin':384,'inputs/time.bin':384,'inputs/nvs.csv':40000,'inputs/COMPLETE':64}
+    w.write_files(output,{name:p.read(owner/name,bound) for name,bound in limits.items()})
+    return output
+
+def compose_device(runtime,platform,tools,payload,deployment,owner,validator,nvs_generator,output,new_device=False):
+    receipt,files,raw,seed,m,callback=verify(runtime,platform,tools,payload)
+    p=m['provision_profile'];w=m['watch_image_provisioning'];inventory,record=deployment_inputs(deployment,p,w)
+    deployment_product(inventory,record,receipt,files,raw,p)
     with tempfile.TemporaryDirectory(prefix='x4-private-seed-') as temp:
-        directory=Path(temp)/'seed';m['watch_image_provisioning'].write_files(directory,seed)
-        return m['provision_device'].compose(directory,owner,validator,nvs_generator,output,new_device,callback)
+        directory=Path(temp)/'seed';w.write_files(directory,seed)
+        frozen=snapshot_owner(owner,Path(temp)/'owner',p,w)
+        profile=p.read(frozen/'profile.json',16384);owner_receipt=p.decode(p.read(frozen/'owner.json',4096))
+        require(owner_receipt.get('inventory_sha256')==p.sha(p.encode(inventory)),'Owner inventory differs from selected deployment')
+        require(profile==p.profile_bytes(inventory,p.decode(profile).get('wifi')),'Owner profile differs from selected image/files/URL')
+        return m['provision_device'].compose(directory,frozen,validator,nvs_generator,output,new_device,callback)
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -156,7 +185,7 @@ def main():
     item=commands.add_parser('bind');item.add_argument('--payload',type=Path,required=True);item.add_argument('--revision',required=True);item.add_argument('--output',type=Path,required=True)
     item=commands.add_parser('verify-endpoints');item.add_argument('--deployment',type=Path,required=True)
     item=commands.add_parser('device')
-    for name in ('payload','owner','validator','nvs-generator','output'):item.add_argument('--'+name,type=Path,required=True)
+    for name in ('payload','deployment','owner','validator','nvs-generator','output'):item.add_argument('--'+name,type=Path,required=True)
     item.add_argument('--new-device',action='store_true',required=True)
     args=vars(parser.parse_args());command=args.pop('command')
     if command=='verify':result=verify(**args)[0]

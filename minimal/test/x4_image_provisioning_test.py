@@ -2,6 +2,7 @@
 """Real frozen X4 payload regressions; no network requests or devices."""
 import argparse
 import copy
+import io
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 import x4_image_provisioning as x
 parser=argparse.ArgumentParser(description=__doc__)
@@ -20,6 +22,9 @@ class FrozenProduct(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.receipt,cls.files,cls.raw,cls.seed,cls.m,_=x.verify(*common,args.payload)
+        cls.compiler=tempfile.TemporaryDirectory();cls.addClassCleanup(cls.compiler.cleanup)
+        cls.validator=Path(cls.compiler.name)/'provision-input'
+        subprocess.run(['bash',str(args.runtime/'scripts/build_provision_input_tool.sh'),str(cls.validator)],check=True)
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.addCleanup(self.temp.cleanup);self.root=Path(self.temp.name)
     def payload(self,changes):
@@ -80,5 +85,54 @@ class FrozenProduct(unittest.TestCase):
         for item in record['downloads'].values():item['url']=item['url'].replace('https://','http://')
         (output/'deployment.json').write_bytes(x.encoded(record))
         with self.assertRaisesRegex(ValueError,'Deployment image|Immutable download'):x.endpoints(*common,output)
+
+    def deployment(self):
+        commit,_=self.commit();output=self.root/'deployment';x.bind(*common,args.payload,commit,output)
+        return output
+    def owner(self,inventory,label):
+        p=self.m['provision_profile'];folder=self.root/label;folder.mkdir()
+        pin=folder/'inventory.json';pin.write_bytes(p.encode(inventory))
+        wifi=folder/'wifi.json';wifi.write_bytes(p.encode({'ssid':'test-fixture','password':'test-fixture-only'}))
+        output=folder/'owner';p.build_profile(pin,None,wifi,self.validator,'pool.ntp.org',output)
+        return output
+    def test_private_profile_must_match_selected_image_files_and_url(self):
+        deployment=self.deployment();p=self.m['provision_profile'];inventory=p.decode((deployment/'inventory.json').read_bytes())
+        variants=[]
+        wrong=copy.deepcopy(inventory);wrong['image']['sha256']='0'*64;variants.append(wrong)
+        wrong=copy.deepcopy(inventory);wrong['files'].pop();variants.append(wrong)
+        wrong=copy.deepcopy(inventory);wrong['files'][0]['sha256']='0'*64;variants.append(wrong)
+        wrong=copy.deepcopy(inventory);wrong['image']['url']=wrong['image']['url'].replace(deployment.name,'unused')
+        wrong['image']['url']=wrong['image']['url'].rsplit('/provisioning/',1)[0].rsplit('/',1)[0]+'/main/provisioning/x4-0.1.26/image.bin';variants.append(wrong)
+        with patch.object(self.m['provision_device'],'compose') as compose:
+            for number,variant in enumerate(variants):
+                owner=self.owner(variant,'wrong'+str(number))
+                # Even a rehashed, otherwise syntactically valid owner record
+                # cannot substitute a different image, file inventory or URL.
+                record=p.decode((owner/'owner.json').read_bytes());record['inventory_sha256']=p.sha(p.encode(inventory))
+                (owner/'owner.json').write_bytes(p.encode(record))
+                with self.assertRaisesRegex(ValueError,'Owner profile differs'):
+                    x.compose_device(*common,args.payload,deployment,owner,self.validator,self.root/'unused-generator',self.root/'bad',True)
+            compose.assert_not_called()
+    def test_private_composition_uses_bound_frozen_owner_snapshot(self):
+        deployment=self.deployment();p=self.m['provision_profile'];inventory=p.decode((deployment/'inventory.json').read_bytes())
+        owner=self.owner(inventory,'correct');expected=(owner/'profile.json').read_bytes()
+        def composed(seed,frozen,validator,generator,output,new_device,callback):
+            self.assertNotEqual(frozen,owner);(owner/'profile.json').write_bytes(b'changed after snapshot')
+            self.assertEqual((frozen/'profile.json').read_bytes(),expected)
+            self.assertEqual(validator,self.validator);self.assertTrue(new_device);self.assertTrue(callable(callback))
+            return {'verified_snapshot':True}
+        with patch.object(self.m['provision_device'],'compose',side_effect=composed) as compose:
+            result=x.compose_device(*common,args.payload,deployment,owner,self.validator,self.root/'unused-generator',self.root/'output',True)
+        self.assertEqual(result,{'verified_snapshot':True});compose.assert_called_once()
+    def test_rehashed_wrong_deployment_target_refused(self):
+        deployment=self.deployment();p=self.m['provision_profile'];inventory=p.decode((deployment/'inventory.json').read_bytes())
+        inventory['runtime_target']='esp32s3-16mb-appdata';raw=p.encode(inventory);(deployment/'inventory.json').write_bytes(raw)
+        record=p.decode((deployment/'deployment.json').read_bytes());record['inventory_sha256']=p.sha(raw)
+        (deployment/'deployment.json').write_bytes(x.encoded(record))
+        class Reply(io.BytesIO):status=200
+        class Transport:
+            def open(inner,url,timeout):return Reply(self.raw[url.rsplit('/',1)[1]])
+        with patch.object(x.urllib.request,'build_opener',return_value=Transport()),self.assertRaisesRegex(ValueError,'Deployment product identity'):
+            x.endpoints(*common,deployment)
 
 if __name__=='__main__':unittest.main(argv=[sys.argv[0],*remaining])
