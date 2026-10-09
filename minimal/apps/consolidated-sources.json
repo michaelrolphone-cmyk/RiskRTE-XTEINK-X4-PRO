@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "status": "integration in progress; no delivery claimed",
+  "status": "GameBoy diagnostic repair and three-by-four grid candidate",
   "baseline": {
     "version": "0.1.37",
     "source": "d00eaee1a67826d61cfc04603e35f9696b84cd29",
@@ -8,9 +8,9 @@
   },
   "ready": {
     "gameboy": {
-      "source": "16242c55437134400e8ce4db696530c022bb8575",
-      "version": "1.3.14",
-      "elf_sha256": "b3e032ed64b50eeeffdbf090a01dc399b96b517a88373d83c02b21cda40daf43",
+      "source": "c7cc18b32f671bcdde27722cbbf61b0bcbef2679",
+      "version": "1.3.16",
+      "elf_sha256": "8cc2174ccbcc21efc03d8355f41c5b18afa3654efa2e4b7267d8b09d0b778d4f",
       "grants": {
         "display.output": 3,
         "input.navigation": 6,
@@ -23,9 +23,9 @@
       "version": "0.1.14"
     },
     "hid_provider": {
-      "source": "ce481954318dba6fc41242189ef5df178e0aae8a",
-      "version": "0.1.3",
-      "elf_sha256": "343c132e75d04ee0373337d71b7f3f65e83582fa50462c1b516ab0c180fbb00a"
+      "source": "aa0b9cc08b9a3d8a7a8a9410d1507467cbd980f9",
+      "version": "0.1.4",
+      "elf_sha256": "5db0e3dd59a12cfd33f0934777d8ed32e6a24768ca6bb667212aa3649aeb59f7"
     },
     "touch": {
       "source": "b87bcf9cc4c35f273e67eb10aca588ab821da1d1",
@@ -33,9 +33,9 @@
       "elf_sha256": "d35def1c97411fae9e976ab7d1bd18d8289d99d343f2d39bdf93e74c8e0a9ee0"
     },
     "springboard": {
-      "source": "9a463073dd461a29ab9f03e61af7c08c6b08e434",
-      "version": "1.7.18",
-      "elf_sha256": "5187a984db9c849af657f15e7b5b5e363ae1cfa540b297f62b5817bf6120b59d"
+      "source": "5e33fec83c08a3e6692d198bd229002daa1dc1e7",
+      "version": "1.7.19",
+      "elf_sha256": "4ef603cfd5854cc8a6d3aba84e47c82fe27900033753bd7abfc21e603a65bc0b"
     }
   },
   "pending": [
@@ -44,7 +44,7 @@
     "Desk/Home requested typography, default face, wake lighting",
     "Shared filesystem Points catalog/editor and Runtime.83"
   ],
-  "gameboy_multitouch": "Later optional raw-touch enhancement; does not gate ready app inclusion",
+  "gameboy_multitouch": "Qualified 1.3.15 remains separate; contract fixes are being reconciled before later adoption",
   "hardware_unverified": [
     "New GT911 simultaneous contacts",
     "BLE host descriptor update",
