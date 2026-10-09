@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "aaa77ad11fc66b42430254ab7065590d33fd1fca",
-    "version": "0.1.81"
+    "commit": "5ab1f4e9e3f17efb1153966868b52660bde53be0",
+    "version": "0.1.90"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
+    "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Runtime 0.1.81 removes synchronous provider service from app yields; X4 batches complete boot diagnostics and exports prior early NVS summaries. Hardware qualification pending."
+  "status": "Local consolidated resident-shell candidate from accepted X4 0.1.43. Runtime 0.1.90 preserves the qualified shell/file/retained-payload changes and adds validated GPIO-read hints. USB 0.1.87 remains excluded while its target action is stopped. No device qualification or delivery claimed."
 }

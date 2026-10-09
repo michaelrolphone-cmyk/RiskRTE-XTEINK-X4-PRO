@@ -18,13 +18,18 @@ def main():
     p.add_argument('--reader', type=Path, required=True)
     p.add_argument('--cc', required=True)
     p.add_argument('--output', type=Path, required=True)
+    p.add_argument('--source-lock', type=Path, default=ROOT/'minimal/sources.lock.json',
+                   help='Explicit exact shared-source lock; defaults to the selected product lock')
     p.add_argument('--sleep', action='store_true', help='Build explicit power and split-navigation packages')
     p.add_argument('--source-fixture', action='store_true', help='Allow non-Git host fixture sources; never production packaging')
     p.add_argument('--panel-driver', choices=['fallback', 'uc8279-fast'], default='fallback')
     args = p.parse_args()
     runtime, reader, out = args.runtime.resolve(), args.reader.resolve(), args.output.resolve()
-    lock = json.loads((ROOT/'minimal/sources.lock.json').read_text())
-    origin = {'source_fixture': args.source_fixture, 'sources': {}}
+    lock_bytes = args.source_lock.read_bytes()
+    lock = json.loads(lock_bytes)
+    origin = {'source_fixture': args.source_fixture, 'sources': {},
+              'source_lock': {'path': str(args.source_lock.resolve()),
+                              'sha256': hashlib.sha256(lock_bytes).hexdigest()}}
     for name, checkout in (('runtime', runtime), ('shared', reader)):
         try:
             revision = subprocess.check_output(['git', '-C', str(checkout), 'rev-parse', 'HEAD'], text=True, stderr=subprocess.DEVNULL).strip()

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Offline custody tests using the real pinned shared profile implementation."""
 import hashlib
+import configparser
 import json
 import os
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 
@@ -28,6 +30,22 @@ class ProvisioningProfileTest(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
+        # This is a wrapper-contract fixture, not a qualification of the current
+        # product cohort. CI deliberately supplies its public, locked Runtime.
+        # Keep the real shared_tool identity/clean-source checks active against
+        # that exact checkout instead of borrowing a newer product source pin.
+        product_root = wrapper.ROOT
+        lock = json.loads((product_root / 'minimal/sources.lock.json').read_text())
+        runtime_config = configparser.ConfigParser()
+        runtime_config.read(RUNTIME / 'platformio.ini')
+        lock['runtime']['commit'] = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], cwd=RUNTIME, text=True).strip()
+        lock['runtime']['version'] = runtime_config['riscrte']['version']
+        wrapper.ROOT = self.root / 'product-fixture'
+        self.addCleanup(setattr, wrapper, 'ROOT', product_root)
+        (wrapper.ROOT / 'minimal').mkdir(parents=True)
+        self.fixture_lock = wrapper.ROOT / 'minimal/sources.lock.json'
+        write_json(self.fixture_lock, lock)
         self.bundle = self.root / 'bundle'
         self.bundle.mkdir()
         self.native = self.root / 'native'
@@ -104,6 +122,14 @@ class ProvisioningProfileTest(unittest.TestCase):
     def test_absent_manifest(self):
         (self.bundle / 'build-custody.json').unlink()
         self.refused()
+
+    def test_mismatched_runtime_checkout_is_refused(self):
+        lock = json.loads(self.fixture_lock.read_text())
+        lock['runtime']['commit'] = 'b' * 40
+        write_json(self.fixture_lock, lock)
+        with self.assertRaisesRegex(ValueError, 'exact clean pinned Runtime scripts required'):
+            self.run_create()
+        self.assertFalse(self.output.exists())
 
     def test_sleep_and_fast_panel_profiles_preserve_exact_selection(self):
         for panel, provider in (('ssd1677', 'fallback'), ('uc8279', 'fallback'),

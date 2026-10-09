@@ -134,7 +134,7 @@ typedef struct {
     bool timer_only;
 #endif
     bool record_staged;
-    risc_retained_wake_record_v1 staged_value;
+    uint8_t staged_value[PORTABLE_DESK_CLOCK_RECORD_BYTES];
 } x4_desk_sleep;
 
 static bool desk_runtime_valid(const risc_runtime_api_v1 *rt) {
@@ -147,11 +147,14 @@ static bool desk_wake_valid(const risc_retained_wake_api_v1 *wake) {
 }
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
 static bool desk_boot_is_cold;
+static bool desk_boot_is_interactive;
 bool portable_desk_clock_boot_is_cold(void) { return desk_boot_is_cold; }
+bool portable_desk_clock_boot_is_interactive(void) { return desk_boot_is_interactive; }
 #endif
 int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_record *out) {
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
     desk_boot_is_cold=false;
+    desk_boot_is_interactive=false;
 #endif
     if(!out || !desk_runtime_valid(rt))return 0;
     risc_runtime_capability_v1 grant={.struct_size=sizeof(grant)};
@@ -164,10 +167,31 @@ int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_re
     const risc_retained_wake_api_v1 *wake=grant.api;
     portable_desk_record record={0};int valid=0;
     if(desk_wake_valid(wake)) {
+        uint8_t bytes[PORTABLE_DESK_CLOCK_RECORD_BYTES]={0};
+        uint32_t used=0,cause=UINT32_MAX;
         risc_retained_wake_record_v1 value={.struct_size=sizeof(value)};
-        uint32_t cause=UINT32_MAX;
+#if PORTABLE_DESK_CLOCK_RECORD_BYTES > RISC_RETAINED_WAKE_PAYLOAD_MAX
+        const risc_retained_wake_api_v1_extended *extended=risc_retained_wake_extended(wake);
+        int32_t rc;
+        if(extended && extended->max_payload_bytes>=sizeof(bytes))
+            rc=extended->read_bytes(wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
+                PORTABLE_DESK_CLOCK_RECORD_SCHEMA,bytes,sizeof(bytes),&used,&cause);
+        else {
+            /* An older native can still classify the boot. Its smaller record
+             * is never interpreted as the selected larger schema. */
+            rc=wake->read(wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
+                         PORTABLE_DESK_CLOCK_RECORD_SCHEMA,&value,&cause);
+            if(rc==RISC_RETAINED_WAKE_OK)rc=RISC_RETAINED_WAKE_MISMATCH;
+        }
+#else
         int32_t rc=wake->read(wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
                              PORTABLE_DESK_CLOCK_RECORD_SCHEMA,&value,&cause);
+        if(rc==RISC_RETAINED_WAKE_OK && value.struct_size>=sizeof(value) &&
+           value.type==PORTABLE_DESK_CLOCK_RECORD_TYPE &&
+           value.schema_version==PORTABLE_DESK_CLOCK_RECORD_SCHEMA && value.size<=sizeof(bytes)) {
+            used=value.size;memcpy(bytes,value.payload,used);
+        }
+#endif
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
         /* CONTEXT may indicate retained native custody. Unknown outcomes also
          * give no authority to release, clear, yield or try another provider. */
@@ -175,11 +199,10 @@ int portable_desk_clock_boot_read(const risc_runtime_api_v1 *rt,portable_desk_re
            rc!=RISC_RETAINED_WAKE_MISMATCH && rc!=RISC_RETAINED_WAKE_INVALID)return -2;
         desk_boot_is_cold=rc!=RISC_RETAINED_WAKE_INVALID &&
             (cause==RISC_BOOT_POWER_ON || cause==RISC_BOOT_RESET);
+        desk_boot_is_interactive=rc!=RISC_RETAINED_WAKE_INVALID && cause==RISC_BOOT_DEEP_GPIO;
 #endif
         valid=rc==RISC_RETAINED_WAKE_OK && cause==RISC_BOOT_DEEP_TIMER &&
-            value.struct_size>=sizeof(value) && value.type==PORTABLE_DESK_CLOCK_RECORD_TYPE &&
-            value.schema_version==PORTABLE_DESK_CLOCK_RECORD_SCHEMA &&
-            portable_desk_decode(value.payload,value.size,&record);
+            portable_desk_decode(bytes,used,&record);
     }
     if(!rt->release(&grant))return -2;
     if(valid)*out=record;
@@ -344,15 +367,24 @@ static int desk_stage(void *context,const portable_desk_record *record) {
     x4_desk_sleep *s=context;
     if(s->retained)return -2;
     if(s->panel_touched || s->touch_touched || s->storage_touched)return desk_retain(s);
-    risc_retained_wake_record_v1 value={.struct_size=sizeof(value),
-        .type=PORTABLE_DESK_CLOCK_RECORD_TYPE,.schema_version=PORTABLE_DESK_CLOCK_RECORD_SCHEMA,
-        .size=PORTABLE_DESK_CLOCK_RECORD_BYTES};
-    if(!portable_desk_encode(record,value.payload,value.size))return desk_refuse(s);
+    uint8_t bytes[PORTABLE_DESK_CLOCK_RECORD_BYTES];
+    if(!portable_desk_encode(record,bytes,sizeof(bytes)))return desk_refuse(s);
     /* A confirmed completed image is staged while no provider pad holds exist.
      * Nothing is committed to RTC until the native terminal-entry boundary. */
     s->record_staged=true;
-#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
+#if PORTABLE_DESK_CLOCK_RECORD_BYTES > RISC_RETAINED_WAKE_PAYLOAD_MAX
+    const risc_retained_wake_api_v1_extended *extended=risc_retained_wake_extended(s->wake);
+    int32_t rc=extended && extended->max_payload_bytes>=sizeof(bytes)?
+        extended->stage_bytes(s->wake->context,PORTABLE_DESK_CLOCK_RECORD_TYPE,
+            PORTABLE_DESK_CLOCK_RECORD_SCHEMA,bytes,sizeof(bytes)):RISC_RETAINED_WAKE_INVALID;
+#else
+    risc_retained_wake_record_v1 value={.struct_size=sizeof(value),
+        .type=PORTABLE_DESK_CLOCK_RECORD_TYPE,.schema_version=PORTABLE_DESK_CLOCK_RECORD_SCHEMA,
+        .size=sizeof(bytes)};
+    memcpy(value.payload,bytes,sizeof(bytes));
     int32_t rc=s->wake->stage(s->wake->context,&value);
+#endif
+#ifdef PORTABLE_DESK_CLOCK_SPARSE_START
     if(rc!=RISC_RETAINED_WAKE_OK) {
         /* INVALID is a clean argument refusal. No other non-OK stage outcome
          * proves storage-safe custody, so do not even attempt clear/release. */
@@ -360,9 +392,9 @@ static int desk_stage(void *context,const portable_desk_record *record) {
         return desk_refuse(s);
     }
 #else
-    if(s->wake->stage(s->wake->context,&value)!=RISC_RETAINED_WAKE_OK)return desk_refuse(s);
+    if(rc!=RISC_RETAINED_WAKE_OK)return desk_refuse(s);
 #endif
-    s->staged_value=value;return 1;
+    memcpy(s->staged_value,bytes,sizeof(bytes));return 1;
 }
 static int desk_stage_enter(void *context,const portable_desk_record *record,
                             uint32_t duration,uint32_t sampled_at) {
@@ -371,7 +403,7 @@ static int desk_stage_enter(void *context,const portable_desk_record *record,
     if(!duration || duration>RISC_TIMED_SLEEP_MAX_MS || desk_cancelled(s))return s->retained?-2:0;
     uint8_t encoded[PORTABLE_DESK_CLOCK_RECORD_BYTES];
     if(!s->record_staged || !portable_desk_encode(record,encoded,sizeof(encoded)) ||
-       memcmp(encoded,s->staged_value.payload,sizeof(encoded)))return 0;
+       memcmp(encoded,s->staged_value,sizeof(encoded)))return 0;
     risc_runtime_health_v1 now={.struct_size=sizeof(now)};
     if(!s->rt->health(&now))return 0;
     uint32_t elapsed=now.uptime_ms-sampled_at;

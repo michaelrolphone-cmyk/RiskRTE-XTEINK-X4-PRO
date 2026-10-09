@@ -1,0 +1,98 @@
+{
+  "source": "0189ce87185b545af27015311c3bb4537e84c08d",
+  "public_source": "e80172353fcb9e6519ca9d9b2a4d43c69c1bc91d",
+  "service_version": "0.4.8",
+  "capability": {
+    "capability": "alarm.service",
+    "api": 2,
+    "instance_id": "preserve existing selected instance"
+  },
+  "provider_storage": {
+    "key_value": [
+      {
+        "key": "alarm_utc_cfg",
+        "namespace": 3,
+        "access": "read"
+      },
+      {
+        "key": "timer_utc_cfg",
+        "namespace": 3,
+        "access": "read"
+      },
+      {
+        "key": "alarm_utc_occ",
+        "namespace": 4,
+        "access": "read-write"
+      },
+      {
+        "key": "timer_utc_occ",
+        "namespace": 4,
+        "access": "read-write"
+      },
+      {
+        "key": "alert_mode",
+        "namespace": 1,
+        "access": "read"
+      },
+      {
+        "key": "points_utc_cfg",
+        "namespace": 5,
+        "access": "read"
+      },
+      {
+        "key": "points_utc_occ",
+        "namespace": 4,
+        "access": "read-write"
+      },
+      {
+        "key": "alert_dnd",
+        "namespace": 1,
+        "access": "read"
+      },
+      {
+        "key": "time_zone",
+        "namespace": 1,
+        "access": "read"
+      },
+      {
+        "key": "points_utc_meta",
+        "namespace": 5,
+        "access": "read"
+      }
+    ],
+    "app_data": [
+      {
+        "name": "points.catalog",
+        "namespace": 5,
+        "access": "read"
+      },
+      {
+        "name": "points.ledger",
+        "namespace": 5,
+        "access": "read-write"
+      }
+    ]
+  },
+  "editor_grants_to_preserve_or_add": [
+    {
+      "capability": "storage.key-value",
+      "api": 1,
+      "instance_id": 5
+    },
+    {
+      "capability": "storage.key-value",
+      "api": 1,
+      "instance_id": 1
+    },
+    {
+      "capability": "storage.app-data",
+      "api": 1,
+      "instance_id": 5
+    }
+  ],
+  "retention": "preserve existing provider/app lifecycle selection",
+  "migration": "virtual read-only legacy migration until first catalog save; never overwrite legacy KV records",
+  "preserving_rule": "Retain exact prior bound KV access. This example uses RW points_utc_occ to match the existing provider; change only if the actual prior binding differs. Verify AppData namespace5 is new/unclaimed before selecting it.",
+  "watch24_policy_reference": "/workspace/shared/watch24-points-preserving-qualified/files/boot.json",
+  "destructive_migration_required": false
+}

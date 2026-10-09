@@ -63,7 +63,7 @@ class CompositionTest(unittest.TestCase):
         self.assertEqual((self.runtime / 'platformio.ini').read_bytes(), original)
         self.assertEqual((self.output / 'src/main.cpp').read_bytes(), (self.runtime / 'src/main.cpp').read_bytes())
         self.assertEqual(set(record['platform_source_sha256']), {
-            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/X4BootRecord.h', 'minimal/native/build.py', 'minimal/native/flash_profile.py', 'minimal/scripts/prepare_native_runtime.py'})
+            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/X4BootRecord.h', 'minimal/native/X4Gpio1Handoff.h', 'minimal/native/build.py', 'minimal/native/flash_profile.py', 'minimal/scripts/prepare_native_runtime.py'})
         self.assertIn(b'pre:x4-native/build.py', (self.output / 'platformio.ini').read_bytes())
         self.assertEqual(composition.git(self.runtime, 'status', '--porcelain'), '')
         composition.verify_source_custody(self.runtime, record, self.platform)
@@ -181,7 +181,7 @@ class CompositionTest(unittest.TestCase):
             exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
 
     def test_build_hook_uses_explicit_record_and_rejects_external_option_flags(self):
-        record = self.prepare(app_policy_rows=17, app_image_cache=True, usb_phy=True)
+        record = self.prepare(app_policy_rows=17, app_image_cache=True, usb_phy=True, retained_wake_bytes=512)
         class Environment(dict):
             def subst(env, text):
                 return text.replace('$PROJECT_DIR', str(self.output)).replace('$BUILD_DIR', str(self.root / 'objects')).replace('$PIOENV', record['build_environment'])
@@ -196,6 +196,7 @@ class CompositionTest(unittest.TestCase):
         self.assertIn(('RISC_APP_POLICY_ROWS', 17), defines)
         self.assertIn(('RISC_APP_IMAGE_CACHE', 1), defines)
         self.assertIn(('RISC_ENABLE_USB_PHY', 1), defines)
+        self.assertIn(('RISC_RETAINED_WAKE_BYTES', 512), defines)
         self.assertIs(record['build_options']['usb_phy'], True)
         for key, flags in [('BUILD_FLAGS', '-DRISC_APP_POLICY_ROWS=16'),
                            ('BUILD_FLAGS', ['-D', 'RISC_APP_IMAGE_CACHE=0']),
@@ -205,6 +206,9 @@ class CompositionTest(unittest.TestCase):
                            ('CCFLAGS', ['-DRISC_APP_IMAGE_CACHE=1']),
                            ('BUILD_FLAGS', '-DRISC_ENABLE_USB_PHY=0'),
                            ('BUILD_UNFLAGS', '-URISC_ENABLE_USB_PHY'),
+                           ('BUILD_FLAGS', '-DRISC_RETAINED_WAKE_BYTES=128'),
+                           ('BUILD_UNFLAGS', '-URISC_RETAINED_WAKE_BYTES'),
+                           ('CPPDEFINES', [('RISC_RETAINED_WAKE_BYTES', 512)]),
                            ('BUILD_FLAGS', '-DCONFIG_ESPTOOLPY_FLASHMODE_QIO=1'),
                            ('BUILD_UNFLAGS', '-UCONFIG_SPIRAM_MODE_OCT')]:
             with self.subTest(key=key, flags=flags), self.assertRaisesRegex(ValueError, 'only from the composition record'):
@@ -217,6 +221,15 @@ class CompositionTest(unittest.TestCase):
             self.assertFalse(self.output.exists())
         with self.assertRaisesRegex(ValueError, 'explicit true'):
             composition.validate_build_options({'app_policy_rows':17,'app_image_cache':True,'usb_phy':False})
+
+    def test_extended_retention_requires_exact_opt_in(self):
+        for invalid in (0, 128, 408, 513, True, '512', 512.0):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, '512-byte opt-in'):
+                self.prepare(retained_wake_bytes=invalid)
+            self.assertFalse(self.output.exists())
+        record = self.prepare(retained_wake_bytes=512)
+        self.assertEqual(record['build_options']['retained_wake_bytes'], 512)
+        composition.verify_source_custody(self.runtime, record, self.platform)
 
     @unittest.skipUnless(importlib.util.find_spec('elftools'), 'Requires pinned pyelftools')
     def test_compiled_runtime_option_proof_and_mismatches(self):

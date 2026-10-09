@@ -24,9 +24,19 @@ for rc in -1 -2 -3 -4 -5 1 -99;do cases+=("panel-$rc" "resume-$rc");done
 for rc in -1 -2 1 2 99 -99;do cases+=("stage-$rc" "clear-$rc" "boot-read-$rc");done
 for rc in -1 -2 -3 -4 -5 -6 -7 -8 0 1 -99;do cases+=("native-$rc");done
 for phase in 1 2 3 4 5 6 7;do cases+=("cancel-$phase");done
+profiles=(legacy)
+if [[ -n "${RISCRTE_POINTS_UTILITIES_ROOT:-}" ]];then
+ for name in AlarmRecords PointsRecords PointsSchedule PointsUtcSchedule PointsCatalogProjection;do
+  git -C "$RISCRTE_POINTS_UTILITIES_ROOT" show "9bd572791a8304194ceb2b7542fc9cbd124e911b:lib/Alarm/include/$name.h" > "$build/include/$name.h"
+ done
+ profiles+=(catalog)
+fi
+for profile in "${profiles[@]}";do
 for quick in 0 1;do
- extra=();if [[ "$quick" == 1 ]];then extra+=(-DPORTABLE_QUICK_ACTIONS);fi
+ extra=();if [[ "$profile" == catalog ]];then extra+=(-DPORTABLE_DESK_POINTS_SNAPSHOT -DPORTABLE_DESK_POINTS_FACE);fi
+ if [[ "$quick" == 1 ]];then extra+=(-DPORTABLE_QUICK_ACTIONS);fi
  "${CC:-cc}" "${flags[@]}" "${extra[@]}" -I"$build/include" -I"$RISCRTE_RUNTIME_ROOT/sdk/driver" -I"$RISCRTE_RUNTIME_ROOT/sdk/app" "$root/minimal/test/sparse_desk_clock_sleep_test.c" "$root/minimal/apps/portable_sleep.c" -o "$build/test"
  for scenario in "${cases[@]}";do ASAN_OPTIONS=detect_leaks=0 "$build/test" "$scenario";done
 done
-printf 'Sparse X4 client: %s scenarios x 2 brightness profiles PASS\n' "${#cases[@]}"
+done
+printf 'Sparse X4 client: %s scenarios x 2 brightness profiles per selected schema PASS\n' "${#cases[@]}"
