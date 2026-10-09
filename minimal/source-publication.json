@@ -1,0 +1,41 @@
+{
+  "schema": 1,
+  "product_version": "0.1.33",
+  "scope": "Published source-checkout identities for future reproducible builds. Frozen binaries, embedded original commit markers, package hashes and delivered receipts retain their original identities. This metadata successor does not relabel those artifacts.",
+  "original_sources_lock": {
+    "schema": 1,
+    "runtime": {
+      "repository": "michaelrolphone-cmyk/RiscRTE",
+      "commit": "faa8f62936a5889c65cce3f271758d9d95f21d7b",
+      "version": "0.1.81"
+    },
+    "shared": {
+      "repository": "michaelrolphone-cmyk/T5S3-Reader",
+      "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+      "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
+    },
+    "status": "Runtime 0.1.81 removes synchronous provider service from app yields; X4 batches complete boot diagnostics and exports prior early NVS summaries. Hardware qualification pending."
+  },
+  "frozen_artifact_reader_source": {
+    "commit": "316d2b891b6da0e69e3289f5f8fd7108acd47e7e",
+    "evidence": "build-custody.json reader_source"
+  },
+  "source_equivalence": [
+    {
+      "source": "runtime",
+      "repository": "michaelrolphone-cmyk/RiscRTE",
+      "original_commit": "faa8f62936a5889c65cce3f271758d9d95f21d7b",
+      "published_commit": "aaa77ad11fc66b42430254ab7065590d33fd1fca",
+      "tree": "54c364ab87f6b465ce1ea0a43c0aae82e82ce0f5"
+    },
+    {
+      "source": "shared",
+      "repository": "michaelrolphone-cmyk/T5S3-Reader",
+      "original_commit": "316d2b891b6da0e69e3289f5f8fd7108acd47e7e",
+      "published_commit": "3f59913963840cb5ee8e2a65baa921f8d6af0b4d",
+      "tree": "05b566f11d9c40c59d1f9144b4d03e15553434a0"
+    }
+  ],
+  "verification": "Each mapped commit has the same complete Git root tree as its original commit, including all tracked paths, file modes and blob bytes.",
+  "shared_lock_note": "The recorded original shared lock predates the Reader source actually selected in the frozen build custody. The updated shared lock uses the published equivalent of that selected source."
+}
