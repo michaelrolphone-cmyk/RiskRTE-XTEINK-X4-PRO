@@ -84,6 +84,11 @@
       "display_name": "Contexts",
       "file_name": "contexts.elf",
       "icon": "solid:f015"
+    },
+    {
+      "display_name": "USB Transfer",
+      "file_name": "usb_sd_transfer.elf",
+      "icon": "solid:f0ec"
     }
   ]
 }
