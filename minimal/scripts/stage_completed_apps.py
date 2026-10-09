@@ -19,6 +19,7 @@ def read_json(path):
 
 def stage(args):
     require(not args.output.exists(), 'Output already exists')
+    require(not subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain'],text=True).strip(), 'Clean committed integration source required')
     spec = read_json(ROOT/'minimal/apps/consolidated-sources.json')
     baseline = read_json(args.baseline/'build-custody.json')
     require(baseline['source_revision']==spec['baseline']['source'], 'Wrong baseline source')
