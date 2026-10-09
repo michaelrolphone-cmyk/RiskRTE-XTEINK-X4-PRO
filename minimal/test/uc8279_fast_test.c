@@ -285,6 +285,81 @@ static void test_quality(const char *scenario){
  assert(fast_update&&!quality_partial&&bytes_sent==4000&&commands[0x10]==synced&&settle_stage==SETTLE_READY&&visible[47999]==0xAA);
  assert(d->quiesce());
 }
+static void test_maintenance(const char *scenario) {
+ const risc_driver_v2 *d=t5_driver_get(2);
+ const risc_display_output_api_v1_power *p=risc_display_output_power(output);
+ /* Cold OTP alone cannot repeat the absolute A2 bank. */
+ assert(!maintenance_enabled&&!maintenance_due);tick+=60000;assert_idle();
+ fast_band(440,40);assert(maintenance_enabled&&!maintenance_due&&!maintenance_active);
+ drain_settle();assert(maintenance_enabled&&maintenance_due==last_sample_ms+30000u);
+ const uint64_t due=maintenance_due;const unsigned r=refreshes,bytes=payload,e=exchanges;
+ const risc_display_present_metrics_v1 original=snapshot();
+ tick=due-1;owner_poll(8);assert(!settle_stage&&refreshes==r&&exchanges==e);
+ if(!strcmp(scenario,"idle-sleep-wait")){
+  assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK&&!maintenance_enabled);
+  tick+=60000;assert_idle();assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
+  tick+=60000;assert_idle();assert(!maintenance_enabled&&!maintenance_due);assert(d->quiesce());return;
+ }
+ tick=due;
+ if(!strcmp(scenario,"idle-gates")){
+  owner_poll(0);assert(exchanges==e&&!settle_stage);owner=false;owner_poll(8);owner=true;assert(exchanges==e);
+  risc_display_surface_v1 held_frame=acquire_frame();owner_poll(8);assert(exchanges==e&&!settle_stage);
+  output->release(NULL,held_frame.frame);
+ }
+ if(!strcmp(scenario,"idle-replace-ready")){
+  risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[0]=0x55;
+  const risc_display_rect_v1 damage={0,0,8,1};uint64_t token=submit_frame(f,&damage,1,false);
+  assert(!maintenance_enabled&&!maintenance_due);complete_frame(token);assert(refreshes==r+1);assert(d->quiesce());return;
+ }
+ if(!strcmp(scenario,"idle-busy-absent"))no_busy=true;
+ if(!strcmp(scenario,"idle-busy-stuck"))stuck_busy=true;
+ if(!strcmp(scenario,"idle-spi-failure"))fail_spi_exchange=true;
+ if(!strcmp(scenario,"idle-clock-fail"))fail_clock=true;
+ if(!strcmp(scenario,"idle-clock-rollback")){tick=last_sample_ms;reverse_clock=true;}
+ if(!strcmp(scenario,"idle-replace-window"))command_cost=1;
+ if(!strcmp(scenario,"idle-replace-assert"))refresh_assert_delay=5;
+ owner_poll(!strcmp(scenario,"idle-replace-window")?1:8);
+ if(strstr(scenario,"failure")||strstr(scenario,"busy-")||strstr(scenario,"clock-")){
+  for(unsigned n=0;n<3600&&settle_stage;++n){owner_poll(8);++tick;}
+  assert(presentation_fault&&!completed_history&&!maintenance_enabled&&!maintenance_due&&!settle_stage);
+  assert(present_state==PRESENT_COMPLETE&&payload==bytes&&!d->quiesce());return;
+ }
+ assert(maintenance_active&&settle_stage);
+ if(!strncmp(scenario,"idle-replace-",13)||!strcmp(scenario,"idle-quality")){
+  const unsigned active_refreshes=refreshes;const uint64_t drain_at=busy_until;
+  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,48000);
+  const risc_display_rect_v1 damage={0,3,8,1};
+  const bool quality=!strcmp(scenario,"idle-quality");
+  uint64_t token=quality?submit_quality(f,&damage,1):submit_frame(f,&damage,1,false);
+  assert(!maintenance_enabled&&!maintenance_due);command_cost=0;
+  while(settle_stage){owner_poll(8);assert(payload==bytes&&refreshes==active_refreshes);++tick;}
+  if(active_refreshes>r)assert(tick>=drain_at);
+  complete_frame(token);assert(refreshes==active_refreshes+1&&visible[300]==0x99);
+  if(quality){assert(!settle_stage&&!maintenance_enabled);tick+=60000;assert_idle();}
+  else assert(maintenance_enabled&&!maintenance_due&&settle_stage);
+  assert(d->quiesce());return;
+ }
+ if(!strcmp(scenario,"idle-sleep-active")||!strcmp(scenario,"idle-sleep-budget")||!strcmp(scenario,"idle-cleanup")){
+  assert(refreshes==r+1);const unsigned off=pofs;
+  if(!strcmp(scenario,"idle-sleep-budget")){
+   const uint64_t at=tick;assert(p->prepare(NULL,5)==RISC_DISPLAY_POWER_TIMEOUT);
+   assert(tick-at==5&&!maintenance_enabled&&pofs==off);
+  }
+  if(!strcmp(scenario,"idle-cleanup")){assert(d->quiesce());assert(!model_bus_token&&!lock_exists);return;}
+  assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK&&pofs==off+1);
+  assert(!settle_stage&&!maintenance_enabled&&refreshes==r+1&&payload==bytes);
+  tick+=60000;assert_idle();assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
+  tick+=60000;assert_idle();assert(!maintenance_enabled);assert(d->quiesce());return;
+ }
+ drain_settle();assert(refreshes==r+1&&settle_refreshes==1&&settle_completed==1);
+ assert(payload==bytes&&maintenance_enabled&&!maintenance_active&&maintenance_due==last_sample_ms+30000u);
+ assert(regs[0x90][4]==0&&regs[0x90][5]==120&&regs[0x90][6]==2&&regs[0x90][7]==87);
+ const risc_display_present_metrics_v1 after=snapshot();assert(!memcmp(&original,&after,sizeof(after)));
+ assert(visible[44002]==0x55&&visible[43902]==0xF0&&previous_frame[44002]==0xAA);
+ /* Late owner polling performs one pulse, without replaying missed intervals. */
+ tick=maintenance_due+90000;owner_poll(8);drain_settle();assert(refreshes==r+2&&payload==bytes);
+ assert(maintenance_due==last_sample_ms+30000u);assert_idle();assert(d->quiesce());
+}
 static void test_settle(const char *scenario) {
  const risc_driver_v2 *d=t5_driver_get(2);
  const risc_display_output_api_v1_power *p=risc_display_output_power(output);
@@ -413,6 +488,7 @@ int main(int argc,char**argv){
  if(!strcmp(s,"quality-seeded-cold")){test_quality_seeded_cold();goto done;}baseline();
  if(!strncmp(s,"quality-",8)){test_quality(s);goto done;}
  if(!strncmp(s,"settle-",7)){test_settle(s);goto done;}
+ if(!strncmp(s,"idle-",5)){test_maintenance(s);goto done;}
  if(!strcmp(s,"busy-absent")||!strcmp(s,"busy-stuck")||!strcmp(s,"clock-fail")||!strcmp(s,"clock-rollback")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);no_busy=!strcmp(s,"busy-absent");stuck_busy=!strcmp(s,"busy-stuck");fail_clock=!strcmp(s,"clock-fail");reverse_clock=!strcmp(s,"clock-rollback");
   risc_display_present_status_v1 status={0};if(fail_clock){assert(!output->wait_present(NULL,t,5000,&status));((const risc_driver_poll_v2*)d)->poll(8);assert(output->present_status(NULL,t,&status));}else assert(output->wait_present(NULL,t,5000,&status));assert(status.state==PRESENT_FAILED&&!completed_history);risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));assert(risc_display_output_power(output)->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());

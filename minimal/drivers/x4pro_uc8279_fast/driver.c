@@ -100,6 +100,10 @@ static bool settle_stop, settle_coverage_valid;
 static risc_display_rect_v1 settle_area;
 static uint64_t settle_until, settle_phase_deadline, settle_refresh_ms;
 static uint32_t settle_refreshes, settle_completed;
+/* Awake-only maintenance uses the same resident scheduler. Its deadline is
+ * observed by ordinary owner polling; it never schedules a wake or app work. */
+static bool maintenance_enabled, maintenance_active;
+static uint64_t maintenance_due;
 static bool started, held, pins_ready;
 /* 0 awake, 1 POF sent, 2 POF observed, 3 DSLP sent, 4 retired, 5 resuming. */
 static uint8_t shutdown_stage;
@@ -330,6 +334,7 @@ static void present_failed(void) {
     present_state = PRESENT_FAILED; held = false; async_stage = UC_ASYNC_NONE;
     settle_stage = SETTLE_NONE;
     settle_coverage_valid = false;
+    maintenance_enabled = maintenance_active = false; maintenance_due = 0;
 }
 static bool arm_settle(void) {
     if (busy_done_ms > UINT64_MAX - 2300u) { set_reason("settle clock overflow"); return false; }
@@ -343,6 +348,7 @@ static bool arm_settle(void) {
     settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
     settle_stage = SETTLE_READY;
+    maintenance_enabled = true; maintenance_active = false; maintenance_due = 0;
     return true;
 }
 static void poll_settle_locked(uint32_t budget_ms) {
@@ -354,7 +360,8 @@ static void poll_settle_locked(uint32_t budget_ms) {
      * Each step performs at most one <=10-byte control transaction. */
     for (unsigned steps = 0; steps < 8u && settle_stage; ++steps) {
         if (!sample_now(&now)) goto failed;
-        const bool stop = settle_stop || present_state == PRESENT_QUEUED || now >= settle_until;
+        const bool stop = settle_stop || present_state == PRESENT_QUEUED || now >= settle_until ||
+            (maintenance_active && settle_refreshes >= 1u);
         if (settle_stage == SETTLE_READY) {
             if (stop) { settle_stage = SETTLE_NONE; break; }
             if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("settle busy already active"); goto failed; }
@@ -396,6 +403,15 @@ static void poll_settle_locked(uint32_t budget_ms) {
     if (io_failed) goto failed;
     /* Supersession keeps the unfinished coverage for the next target. */
     if (!settle_stage && present_state != PRESENT_QUEUED) settle_coverage_valid = false;
+    if (!settle_stage) {
+        maintenance_active = false;
+        /* A completed normal/clean frame and sleep never arm this path.
+         * One pulse is the bounded burst; do not catch up missed intervals. */
+        if (maintenance_enabled && completed_history && present_state == PRESENT_COMPLETE) {
+            if (now > UINT64_MAX - 30000u) maintenance_enabled = false;
+            else maintenance_due = now + 30000u;
+        }
+    }
     return;
 failed: {
     /* Do not retroactively fail the physically completed presentation. A
@@ -559,13 +575,27 @@ failed:
     present_failed();
 }
 static void poll_work_locked(uint32_t budget_ms) {
+    if (!settle_stage && maintenance_enabled && maintenance_due && !held && completed_history &&
+        present_state == PRESENT_COMPLETE && !presentation_fault && !retained) {
+        const uint64_t now = now_ms();
+        if (now == UINT64_MAX || now < last_sample_ms || now >= maintenance_due) {
+            /* Full visible RAM is coherent after every completed fast target.
+             * Reapply its current absolute bank without touching either plane. */
+            maintenance_active = true; maintenance_due = 0;
+            settle_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
+            settle_coverage_valid = true; settle_stop = false;
+            settle_until = UINT64_MAX; settle_refreshes = settle_completed = 0;
+            settle_stage = SETTLE_READY;
+        }
+    }
     if (settle_stage) poll_settle_locked(budget_ms);
     else if (present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE)
         poll_present_locked(budget_ms);
 }
 static void poll_present(uint32_t budget_ms) {
     if (!budget_ms || !started || shutdown_stage ||
-        (!settle_stage && present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
+        (!settle_stage && present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE &&
+         !(maintenance_enabled && maintenance_due && completed_history && !held)) || !enter()) return;
     poll_work_locked(budget_ms); (void)leave();
 }
 static bool get_info_impl(void *context, risc_display_info_v1 *out) {
@@ -657,6 +687,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     previous_seeded = completed_history = false; // Invalid until this submission completes.
     present_state = PRESENT_QUEUED;
+    maintenance_enabled = false; maintenance_due = 0;
     settle_stop = true;
     if (settle_stage == SETTLE_READY) settle_stage = SETTLE_NONE;
     transfer_started = false;
@@ -681,6 +712,7 @@ static bool seed_previous_impl(void *context, risc_display_frame_v1 frame_id) {
     if (!started || shutdown_stage || !held || frame_id != frame_serial ||
         present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE) return false;
     previous_seeded = completed_history = false;
+    maintenance_enabled = false; maintenance_due = 0;
     const uint64_t began = now_ms();
     if (began == UINT64_MAX || began > UINT64_MAX - 100u) return false;
     uint64_t last_yield = began;
@@ -885,6 +917,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
     settle_until = settle_phase_deadline = settle_refresh_ms = 0;
     settle_refreshes = settle_completed = 0;
+    maintenance_enabled = maintenance_active = false; maintenance_due = 0;
     present_state = PRESENT_NONE; pending_token = 0; last_sample_ms = now;
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
@@ -964,6 +997,7 @@ static int32_t prepare_power_impl(uint64_t deadline) {
     if (presentation_fault) return RISC_DISPLAY_POWER_RETAINED;
     if (held || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE || shutdown_stage == 5u)
         return RISC_DISPLAY_POWER_BUSY;
+    maintenance_enabled = false; maintenance_due = 0;
     if (settle_stage) {
         const int32_t drained = drain_settle_for_power(deadline);
         if (drained) return drained;
@@ -1060,6 +1094,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     partial_update = fast_update = quality_partial = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
+    maintenance_enabled = maintenance_active = false; maintenance_due = 0;
     return RISC_DISPLAY_POWER_OK;
 }
 #undef RESUME_SEND
@@ -1148,7 +1183,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.5 cause=");
+    append(destination, capacity, &used, "v=0.1.6 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
@@ -1180,6 +1215,12 @@ static bool last_error(char *destination, size_t capacity) {
     append_u(destination, capacity, &used, settle_completed);
     append(destination, capacity, &used, "/");
     append_u(destination, capacity, &used, settle_refreshes);
+    append(destination, capacity, &used, " idle=");
+    append_u(destination, capacity, &used, maintenance_enabled);
+    append(destination, capacity, &used, "/");
+    append_u(destination, capacity, &used, maintenance_active);
+    append(destination, capacity, &used, "/");
+    append_u(destination, capacity, &used, maintenance_due);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
     return used > 0;

@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.5
+# X4 UC8279 fast provider 0.1.6
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -223,3 +223,36 @@ The paired interactive adapter must explicitly select LOW_LATENCY; the selected
 orientation policy belongs to the app, not this provider. No Runtime API change
 is required. All timing fixtures are host models; physical quality remains a
 separate check.
+
+
+## Awake resident maintenance (0.1.6)
+
+After a completed interactive fast frame finishes its 2.3-second settling,
+ordinary owner polling schedules one full-visible-area resident refresh about
+30 seconds later. That single pulse is the bounded maintenance burst. The next
+30-second interval starts when its BUSY assertion/completion and PTOUT finish.
+Late polling performs one pulse and does not catch up missed intervals.
+
+The maintenance pulse reuses the selected absolute bank and resident DTM2 image.
+It uploads no pixels, rerasterizes no app, creates no presentation token, and
+leaves the completed frame, snapshot and presentation metrics intact. All 480
+visible rows are covered, including unchanged white areas outside recent damage.
+The same bounded resident state machine handles both settling and maintenance;
+they cannot overlap. Diagnostics append `idle=enabled/active/due_ms` after the
+resident scheduler counters.
+
+Every accepted new target cancels the pending deadline. An active pulse drains
+before that target starts; a successful subsequent fast target rearms settling
+and then maintenance. QUALITY, CLEAN, reconstruction-only history and cold OTP
+baseline do not arm maintenance. Power preparation cancels it and drains only
+an active pulse within the caller's existing budget. Resume leaves it disabled
+until a new fast frame completes. This excludes the locked desk clock and
+prevents background wake-ups. There is no sleep timer, app work request, input
+activity update or input-idle reset.
+
+The host model verifies the boundary, late polling, owner/budget/lease gates,
+replacement, quality and sleep cancellation, unchanged resident bytes/metrics,
+and retained failures. The actual adapter/Runtime cadence fixture verifies one
+zero-payload event after 30 seconds while input polling continues. These checks
+do not establish physical contrast, power consumption, or recovery from earlier
+panel experiments; those observations remain a hardware qualification step.

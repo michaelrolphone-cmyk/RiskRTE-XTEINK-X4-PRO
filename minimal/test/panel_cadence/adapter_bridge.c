@@ -19,6 +19,11 @@ extern bool panel_cadence_settle_active(void);
 extern void panel_cadence_settle_begin(void);
 extern void panel_cadence_settle_report(void);
 #endif
+#ifdef PANEL_RESIDENT_MAINTENANCE
+extern void panel_cadence_maintenance_begin(void);
+extern bool panel_cadence_maintenance_done(void);
+extern void panel_cadence_maintenance_report(void);
+#endif
 static const risc_display_output_api_v1 *real_panel;
 static unsigned input_polls,status_polls,max_input_gap;
 static uint32_t last_input_at;
@@ -91,6 +96,22 @@ void panel_adapter_cadence(void) {
 #endif
     panel_runtime_reset_metrics();last_poll_at=panel_cadence_clock();
     t5_app_input_t input={0};assert(poll_input(&input,interval));panel_runtime_expect_idle(interval);
-    panel_runtime_report();printf("}}\n");
+    panel_runtime_report();
+#ifdef PANEL_RESIDENT_MAINTENANCE
+    printf("},\"maintenance\":{");
+    panel_cadence_maintenance_begin();panel_runtime_reset_metrics();
+    last_input_at=last_touch_at=panel_cadence_clock();input_polls=max_input_gap=touch_samples=max_touch_gap=0;
+    for(unsigned n=0;!panel_cadence_maintenance_done()&&n<31000;++n){
+        assert(!paper_token);t5_app_input_t idle_input={0};assert(poll_input(&idle_input,interval));++input_polls;
+        const uint32_t now=panel_cadence_clock();
+        if(now-last_input_at>max_input_gap)max_input_gap=now-last_input_at;
+        last_input_at=now;
+    }
+    assert(panel_cadence_maintenance_done()&&!paper_token&&!failed);
+    panel_cadence_maintenance_report();printf(",");panel_runtime_report();
+    printf(",\"controller_polls\":%u,\"max_controller_gap_ms\":%u,\"touch_samples\":%u,\"max_touch_gap_ms\":%u",
+        input_polls,max_input_gap,touch_samples,max_touch_gap);
+#endif
+    printf("}}\n");
     app_module_fini();panel_cadence_stop();
 }

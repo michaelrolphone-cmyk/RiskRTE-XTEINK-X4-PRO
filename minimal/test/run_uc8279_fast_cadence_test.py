@@ -88,6 +88,12 @@ def main():
                     assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
                     assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8
                     assert data['after_settle']['scheduler_wait_ms']==interval
+                    maintenance=data['maintenance']
+                    assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==1
+                    assert 30000-interval<=maintenance['elapsed_ms']<=30000+3*interval+20
+                    assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==interval
+                    assert maintenance['controller_polls']>0 and maintenance['max_controller_gap_ms']<=interval+8
+                    assert maintenance['touch_samples']>0 and maintenance['max_touch_gap_ms']<=max(20,interval)+8
                     print(json.dumps(data),flush=True)
     sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputSnapshotV1.h',
         args.system/'lib/PortableApps/src/adapter.c',
