@@ -39,7 +39,7 @@ def parse(raw: bytes, offset: int) -> dict:
     last_us,display_us,kind,count,display=struct.unpack_from('<QQIII',r,72)
     truncated=struct.unpack_from('<I',r,260)[0]
     if (rmagic!=RECORD_MAGIC or rcrc!=fnv(r[8:]) or not boot or phase not in PHASE or
-        op>7 or reserved or kind not in KIND or display>1 or truncated>1 or
+        op>8 or reserved or kind not in KIND or display>1 or truncated>1 or
         ((count==0)!=(kind==0))):raise ValueError('invalid/checksum-failed checkpoint')
     return dict(sequence=seq,revision=revision,flash_offset=hex(offset),
         evidence='checksum-valid forensic candidate; NVS commit/index state not checked',

@@ -1,0 +1,115 @@
+{
+  "schema": 1,
+  "product_version": "0.1.40",
+  "frozen_product_commit": "99b27b6de77e8edde500e018f4c4b486646cd744",
+  "frozen_product_tree": "c73344e4414759d2778d279f9d5e8b9be2e12b71",
+  "source_history": [
+    {
+      "original": "8af62904ed2da05ec98e17d9571e42308236590a",
+      "public": "758c17149f9e209183d3aace980c6e0faf689454",
+      "tree": "dc1c102f2db7805b482c1f2e81104aca89110797",
+      "parents": [
+        "3a1c373ac2496b8840dbb7dbb0e5e3efcf37e4b1",
+        "22473360aaee2347db87c9706caf2c5cc60c5621"
+      ]
+    },
+    {
+      "original": "a98f59543a68611474dcddaa20d39b360d56a80c",
+      "public": "4c945cd813adba3a5156a4377317cea69474d8eb",
+      "tree": "d09d9e1fe116ef79b36357c3f0ab3a5028cc645b",
+      "parents": [
+        "758c17149f9e209183d3aace980c6e0faf689454"
+      ]
+    },
+    {
+      "original": "d00eaee1a67826d61cfc04603e35f9696b84cd29",
+      "public": "da20b6ba38a5cf0ca80860ca83bc58cbd0655a40",
+      "tree": "b9ace47c4b0690f98261875d419c6ba2a50395ae",
+      "parents": [
+        "4c945cd813adba3a5156a4377317cea69474d8eb"
+      ]
+    },
+    {
+      "original": "1230a7e6a27b0d578ef0b421569a272680546856",
+      "public": "a213ed8f64a87e7bcc0762a980f2456d02d770c6",
+      "tree": "10b82ebee1eaeba6fd77fba01b73bf30c20b353d",
+      "parents": [
+        "da20b6ba38a5cf0ca80860ca83bc58cbd0655a40"
+      ]
+    },
+    {
+      "original": "ca7d070ec8c043797acb3326f88ce1fadf89b662",
+      "public": "8c7779e782bd69aad12f6d733eb515a9867c1dd7",
+      "tree": "887ac054bbc42c31ab34beb787f237625caea101",
+      "parents": [
+        "a213ed8f64a87e7bcc0762a980f2456d02d770c6"
+      ]
+    },
+    {
+      "original": "43c5e64993bb2ed4516a2b282c813866d729505e",
+      "public": "2bb5a4bdd6a595f024ad3fc4f014f84131041693",
+      "tree": "7695e68d165df21732bdf0cb52dfbd1ff521ccd4",
+      "parents": [
+        "8c7779e782bd69aad12f6d733eb515a9867c1dd7"
+      ]
+    },
+    {
+      "original": "883a28c7ced790ee5d29c2a2af05235687ae5dd1",
+      "public": "b049d7f099f71c648d5d8b0167538050c64bf6d8",
+      "tree": "8f2497d97b8e5465b260594f2a12762e17be36f6",
+      "parents": [
+        "2bb5a4bdd6a595f024ad3fc4f014f84131041693"
+      ]
+    },
+    {
+      "original": "7e582e4ad664b433225f1fccc08b633f36ef9379",
+      "public": "9279c7e74db93c1efc1788849ab7570049683623",
+      "tree": "0c2e7054c21544fe6349d9797dfeaf8cf5825b50",
+      "parents": [
+        "b049d7f099f71c648d5d8b0167538050c64bf6d8"
+      ]
+    },
+    {
+      "original": "bd92056058b85e339c1af42d430d6dbe15f96491",
+      "public": "07bd7d813a1499bcba6f89f03879f6e91d444dab",
+      "tree": "ab1362c1ae844e45daca153963f815d3f8d68eaf",
+      "parents": [
+        "9279c7e74db93c1efc1788849ab7570049683623"
+      ]
+    },
+    {
+      "original": "5f3eb45ad4650b60b96c2602a12cbd95f48d81c9",
+      "public": "082a23e2a0986f3290bf31674c0685575235fb9f",
+      "tree": "3508e8db21034e2ec74fec2dd4243b8ccdbf5d9e",
+      "parents": [
+        "07bd7d813a1499bcba6f89f03879f6e91d444dab"
+      ]
+    },
+    {
+      "original": "99b27b6de77e8edde500e018f4c4b486646cd744",
+      "public": "c690b8710864e1d10b85ee26411bbc2a2ad36adc",
+      "tree": "c73344e4414759d2778d279f9d5e8b9be2e12b71",
+      "parents": [
+        "082a23e2a0986f3290bf31674c0685575235fb9f"
+      ]
+    }
+  ],
+  "ci_metadata": {
+    "scope": "Typed minimal-driver tests only; this checkout pair is not a relabeling of the selected app/provider artifacts recorded in consolidated-sources.json.",
+    "preserved_successors": [
+      "04d0848794c862c783908660c5fe653333b2cb53",
+      "4af0904dda965b71b1217394581685feba84e4e7",
+      "f945bacb01e3c045d0a6e4f048cf97699fd125c7"
+    ],
+    "selected_pair_from": "4af0904dda965b71b1217394581685feba84e4e7",
+    "historical_pair_record": "minimal/source-publication.json"
+  },
+  "artifact_identity": "Frozen BIN, ELF hashes, embedded source pins and delivered receipts remain original. Public source identities are mapped separately.",
+  "source_history_validation": "Exact root trees and ordered public parents verified using GitHub Git objects.",
+  "frozen_image": {
+    "file_name": "xteink-x4-pro-0.1.40-gameboy-display-repair-first-install.bin",
+    "sha256": "5d71f28397f9bf1e3d293b6bcf255b5c67e78ac655a2f0790bd5a5c108ae73ce",
+    "bytes": 16777216,
+    "hardware_tested": false
+  }
+}

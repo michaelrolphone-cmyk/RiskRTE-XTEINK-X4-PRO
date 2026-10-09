@@ -1,6 +1,6 @@
 # Ordered X4 boot trace
 
-SD package `x4pro-sd` 0.2.10 writes actual initialization text to SD root
+SD package `x4pro-sd` 0.2.11 writes actual initialization text to SD root
 `/x4-boot.log`, with bounded rotation to `/x4-boot.previous.log`. Files exposes
 these as `/sd/x4-boot.log` and `/sd/x4-boot.previous.log`; USB mass storage exposes
 the card root. Internal app-data uses the same two filenames under `/appdata`.
@@ -69,21 +69,30 @@ reads are bounded, allocation/I/O-free and repeatable. Only checked FatFs close
 advances the SD consumer cursor. No native storage pointer escapes.
 
 The existing cold-boot selection activates the admitted SD provider before app
-entry. Runtime calls a tagged generic synchronous provider service only at owner
-safe points: before/after acquisitions outside graph lifecycle, before app entry,
-and ordinary SD operations. Runtime 0.1.81 removes synchronous service from app yields, so display transfer/input polling cannot dispatch SD logging. This is separate from the 8 ms cooperative poll.
-No provider is called from the diagnostic observer or native drain. A service
-with no text performs no storage I/O. Copied source reads remain at most 1535 bytes, with at most four reads per
-service. Adjacent statements combine in one 4096-byte provider buffer; a service
-appends/closes at most one 4095-byte batch, sharing a 1000 ms/64-sector deadline. Checks run before bounded
-operations; one already in-flight bounded sector may finish after the deadline.
-The ordinary transport continues scheduler cooperation. Caller-owned handles,
-sleep, quiesce, retained custody and USB host ownership exclude logging.
+entry. Runtime 0.1.81 invokes the short provider service at lifecycle boundaries,
+never from display/input yields. In 0.2.11 this service is RAM-only: at most four
+copied-source reads of <=1535 bytes stage one <=4095-byte batch, with no FatFs or
+physical SD operation. A 1-second scheduling slice must not interrupt an open
+FatFs writable transaction. Existing explicit long SD owner operations can
+append/close one staged batch under the normal 15-second/2048-sector guard.
+The internal persistent trace remains the full recovery source while the SD
+tail is pending. SD freshness during an idle app is therefore not immediate.
 
-Small partial SD batches wait up to two seconds between available safe boundaries. A ready batch is reused without a duplicate source probe. Existing SD owner operations can also drain one batch. Export begin drains the
-pending bounded stream with one shared existing 15 s/2048-sector operation budget
-before pausing the logger and unmounting. It never renews this bound per chunk.
-The host cannot own the card while local logging writes it.
+The USB transfer preparation screen explicitly brings the SD log current.
+begin_prepare freezes a finite copied-source high-water mark and reserves a
+checked preparation token, pausing ordinary drains and all local admission.
+Each explicit prepare_step completes at most one append/close transaction, with
+its own 15-second/2048-sector hard guard. A later empty-tail step syncs/unmounts;
+only READY allows PHY/USB ownership. There is no whole-backlog deadline that can
+expire inside a later writable transaction. Status polls never advance this
+work. Cancel between transactions checks media sync and restores local custody.
+Progress diagnostics after the frozen cutoff remain pending for local drainage
+after cancel/eject, without being dropped or prematurely acknowledged.
+
+The ordinary transport continues scheduler cooperation and bounded sector waits.
+Caller handles, sleep, quiesce, retained custody and host ownership exclude local
+logging. Genuine transport, transaction deadline, write and close failures still
+retain custody; their first media error is preserved in the bounded diagnostic.
 
 At most two 512 KiB SD logs exist. Rotation occurs before the next complete chunk
 would exceed the bound; it removes the older previous file then renames current.
@@ -103,7 +112,7 @@ credential redaction, overflow and uncertain persistence.
 `run_sd_test.sh` feeds that exact production output through the real SD provider,
 shared FatFs and native-card wire model, then reads the actual saved file and
 compares every byte. It verifies no-work I/O, owner/recursive custody, at most one
-chunk and 64 sectors per service, deliberately slow deadlines, invalid sources,
+chunk per explicit preparation step, zero service I/O, slow transaction deadlines, invalid sources,
 uncertain close, pending-text export, and existing storage/sleep/export cases.
 `X4_SD_LOG_ARTIFACT` saves the verified file for inspection. Runtime tests separately
 exercise copied-source guards and real mapped-provider/Runtime service boundaries.
@@ -117,3 +126,12 @@ These are operation-count/latency-model checks, not device timing predictions.
 
 `run_sd_target_test.sh` verifies the linked Xtensa driver and its import/relocation
 boundary. Host/target validation is not a physical battery/SD/USB test.
+
+`run_sd_usb_test.sh` links the actual native copied-text producer, ordinary SD
+provider, shared FatFs, MSC owner and production TinyUSB BOT/control stack in one
+process. It checks recovered/current boot text, diagnostics appended between
+preparation steps, RAM-only wait polls, host read/write/eject CSW, checked local
+return and exact later-tail persistence. Cancel and genuine timeout/write/close
+failure cases preserve custody without an early PHY claim. Only GPIO/clock,
+NVS and packet-controller hardware are modeled; sector times are injected and
+are not measurements of the user's card.

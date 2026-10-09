@@ -5,10 +5,11 @@
 #define X4_BOOTLOG_SD_PATH "/x4-boot.log"
 #define X4_BOOTLOG_SD_PREVIOUS "/x4-boot.previous.log"
 #define X4_BOOTLOG_SD_MAX_BYTES (512u * 1024u)
-static risc_storage_volume_api_v1_export logging_api;
+static risc_storage_volume_api_v1_export_prepare logging_api;
 static struct { uint64_t sequence; uint32_t revision; } bootlog_seen[RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS];
 static unsigned bootlog_next;
 static uint64_t bootlog_cursor;
+static uint64_t bootlog_trace_limit=UINT64_MAX;
 static bool bootlog_servicing;
 static const risc_diagnostic_source_api_v1_trace *bootlog_trace_source(void) {
     if(!diagnostic_source || diagnostic_source->struct_size < RISC_DIAGNOSTIC_SOURCE_TRACE_V1_SIZE)return NULL;
@@ -48,6 +49,8 @@ static bool bootlog_prepare_trace(bool force) {
         if(capacity>RISC_DIAGNOSTIC_SOURCE_TEXT_MAX)capacity=RISC_DIAGNOSTIC_SOURCE_TEXT_MAX;
         uint32_t count=0;uint64_t next=0;
         const uint64_t after=bootlog_cursor+bootlog_batch_bytes;
+        if(after>=bootlog_trace_limit)break;
+        if(bootlog_trace_limit-after<capacity-1u)capacity=(uint32_t)(bootlog_trace_limit-after)+1u;
         char *out=bootlog_text+bootlog_batch_bytes;
         const int32_t result=trace->read_after(diagnostic_source->context,after,out,capacity,&count,&next);
         // A complete source row may not fit the batch remainder. It is copied
@@ -97,6 +100,7 @@ static bool bootlog_step(bool force) {
     char caller_error[sizeof(error)]; memcpy(caller_error, error, sizeof(error));
     /* A separate bounded volume operation; caller handles and their positions,
      * errors, generation numbers and commit/abort ownership stay untouched. */
+    bootlog_capture_error=true;
     FILINFO info;
     FRESULT result = f_stat(X4_BOOTLOG_SD_PATH, &info);
     if (result != FR_OK && result != FR_NO_FILE) {
@@ -153,6 +157,7 @@ static bool bootlog_step(bool force) {
         file->error = result; io_failed = true; mounted = false; bootlog_retained = true;
     }
 finish:
+    bootlog_capture_error=false;
     /* The private status callback reports log failure beside the caller error.
      * Logging never erases an existing caller's diagnostic or handle error. */
     memcpy(error, caller_error, sizeof(error));
@@ -184,6 +189,7 @@ static bool bootlog_descriptor_error(char *out, size_t capacity) {
         if (used) bootlog_copy(out, capacity, &used, "; ");
         bootlog_copy(out, capacity, &used, "boot-log: ");
         bootlog_copy(out, capacity, &used, bootlog_error);
+        if(bootlog_media_error[0]){bootlog_copy(out,capacity,&used,"; first media error: ");bootlog_copy(out,capacity,&used,bootlog_media_error);}
         if (bootlog_retained) bootlog_copy(out, capacity, &used, "; writable log retained");
     }
     return used != 0;
@@ -197,20 +203,15 @@ static bool bootlog_last_error(void *context, char *out, size_t capacity) {
     return okay && present;
 }
 
-/* Explicit synchronous owner service. This is not an 8-ms poll callback.
- * Source probing is RAM-only. No pending bytes means no mutex or storage I/O.
- * Each service appends/closes at most one complete <=4095-byte batch, with one
- * shared deadline/64-sector budget and the existing uncertain-close custody. */
+/* Short scheduler service copies RAM only. A complete FatFs append/close is
+ * an indivisible transaction and cannot safely inherit a 1-second scheduling
+ * slice. Explicit long SD owner operations and USB preparation drain it under
+ * their own checked 15-second transaction guard. Internal trace persistence
+ * remains authoritative while this SD tail is pending. */
 static void bootlog_service(uint32_t budget_ms) {
     if(!budget_ms || budget_ms>RISC_DRIVER_SERVICE_MAX_MS || !valid_task() ||
        !bootlog_trace_source() || bootlog_disabled || bootlog_paused || bootlog_servicing ||
        !started || !mounted || !card_ready || io_failed || quiescing ||
        power_down_prepared || power_down_committed || sleep_state!=SLEEP_ACTIVE || has_handles())return;
-    if(!bootlog_prepare_trace(false))return;
-    if(!enter_lifecycle())return;
-    bootlog_servicing=true;
-    bootlog_budget_ms=budget_ms;bootlog_sector_limit=64;
-    (void)bootlog_step(false);
-    bootlog_budget_ms=15000;bootlog_sector_limit=2048;
-    (void)leave();bootlog_servicing=false;
+    (void)bootlog_prepare_trace(false);
 }

@@ -22,7 +22,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
-NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py', 'flash_profile.py')
+NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'X4Gpio1Handoff.h', 'build.py', 'flash_profile.py')
 _flash_spec = importlib.util.spec_from_file_location('x4_flash_profile', ROOT / 'minimal/native/flash_profile.py')
 flash_profile = importlib.util.module_from_spec(_flash_spec)
 _flash_spec.loader.exec_module(flash_profile)
@@ -423,6 +423,7 @@ def startup_proof(elf_data, record):
     marker = ('X4_NATIVE_COMPOSITION:' + record['composition_sha256']).encode() + b'\0'
     require(marker in elf_data, 'Missing compiled X4 composition identity')
     linked = {}
+    rail_order = []
     if elf['e_machine'] == 'EM_XTENSA':
         # The pinned compiler uses CALL8 and literal-loaded CALLX8 long calls.
         # Check the actual entry edges, not merely the existence of a wrapper.
@@ -437,6 +438,23 @@ def startup_proof(elf_data, record):
             linked[caller + ' -> ' + callee] = matches[0]
         require(not any(edge['target'] == symbols['app_main']['st_value'] for edge in xtensa_calls(elf, symbols, 'main_task')),
                 'IDF main_task bypasses X4 startup wrapper')
+        # Reject the old deinit-first implementation even if its wrapper and
+        # diagnostics are present. The private stage helper is intentionally
+        # noinline so its GPIO-register preparation remains independently
+        # inspectable in the exact linked Xtensa image.
+        stage = '_ZL16stageDigitalRailv'
+        required = ['gpio_set_level', stage, 'rtc_gpio_deinit', 'gpio_set_level',
+                    'gpio_get_level', 'gpio_hold_dis', 'gpio_hold_en', 'gpio_get_level']
+        require(all(name in symbols for name in required), 'Missing staged GPIO1 handoff')
+        watched = {symbols[name]['st_value']: name for name in required}
+        watched.update({symbols[name]['st_value']: name for name in ('gpio_config', 'rtc_gpio_isolate') if name in symbols})
+        rail_order = [dict(edge, target_name=watched[edge['target']])
+                      for edge in xtensa_calls(elf, symbols, '__wrap_app_main')
+                      if edge['target'] in watched]
+        require([edge['target_name'] for edge in rail_order] == required,
+                'Unproven GPIO1 HIGH/stage/mux/readback/unhold/hold order')
+        require(not xtensa_calls(elf, symbols, stage),
+                'GPIO1 staging must use only inlined S3 register operations')
         rtc = symbols['risc_x4_boot_record']
         section = elf.get_section(rtc['st_shndx'])
         require(section.name == '.rtc_noinit' and rtc['st_size'] == 264,
@@ -446,6 +464,8 @@ def startup_proof(elf_data, record):
             'required_strong_symbols': list(names), 'pin': 1, 'initial_level': 1,
             'hold': True, 'startup_status': 'risc_native_startup_error',
             'entry_hook': '__wrap_app_main', 'target_call_edges': linked,
+            'gpio1_handoff_call_order': rail_order,
+            'gpio1_staging_scope': 'digital latch/OE/matrix/IOMUX before RTC mux; HIGH pad readback before unhold',
             'earliest_scope': 'IDF app_main; after IDF hardware/PSRAM/core initialization',
             'rtc_record_bytes': 264,
             'persistent_capture': 'app-main-after-existing-rail-before-Arduino',
