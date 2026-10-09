@@ -3,7 +3,8 @@
 ## Components
 
 - `x4pro-sd` 0.2.12 prefers the tagged hardware one-bit SDMMC API supplied by the native runtime. The known board signals remain CLK41, CMD42, DAT0 40 and active-low power5. FatFs, save files, export leases and power policy stay in this ELF.
-- `x4pro-uc8279-fast` 0.1.8 closes SPI at each owner-poll boundary and resumes the existing RAM cursor in the next poll. Normal refresh and power-on completion now check observed BUSY completion before classifying a delayed poll as a timeout. The ten-second aggregate service budget excludes foreground gaps; physical BUSY deadlines and assertion/error checks remain enforced.
+- `x4pro-uc8279-fast` 0.1.8 is the preserved Game Boy baseline. It closes SPI at each owner-poll boundary and resumes the existing RAM cursor in the next poll. Normal refresh and power-on completion check observed BUSY completion before classifying a delayed poll as a timeout. The ten-second aggregate service budget excludes foreground gaps; physical BUSY deadlines and assertion/error checks remain enforced.
+- `x4pro-uc8279-fast` 0.1.9 is the current optical-behavior test. It retains the 0.1.8 delayed-poll repair while replacing the maintenance/idle and normal rendering policy described below.
 - The Game Boy ELF, ROM format and save-state format do not change.
 
 ## Native integration
@@ -20,12 +21,11 @@ Eight production fast-display regressions exercise 45-second upload/power/refres
 
 Nine new real-ELF/FatFs storage scenarios exercise ROM and state-sized file roundtrips, absent media, failed initialization/teardown, read/write failures, sleep/wake and USB export/return. Exact reads of 524288-byte and 1048576-byte ROM fixtures and a 59320-byte state fixture make zero per-bit GPIO calls. Existing GPIO-transport, filesystem, sleep, export and boot-log tests remain active. These are hardware-boundary models, not measured SD-card speed or emulator snapshot deserialization.
 
-The original capture does not identify the first triggering crash guard. The repaired display defects are reproduced software failures consistent with storage-induced delays; a physical run must still confirm the actual save-state crash is gone. No panel waveform, voltage, BUSY polarity, display geometry, ROM contents or save contents is changed.
-
+The original capture does not identify the first triggering crash guard. The repaired display defects are reproduced software failures consistent with storage-induced delays; a physical run must still confirm the actual save-state crash is gone. No panel voltage, BUSY polarity, display geometry, ROM contents or save contents is changed.
 
 ## UC8279 0.1.9 plane-coherent idle follow-up
 
-The 0.1.8 delayed-poll repair is retained. The next Game Boy test package removes
+The 0.1.8 delayed-poll repair is retained. The current Game Boy test package removes
 the no-upload 30-second maintenance refresh, uses differential DEFAULT frames,
 bounds LOW_LATENCY absolute bursts, synchronizes both complete controller planes
 before powered idle, powers the panel off after the 2.3-second quiet period, and
