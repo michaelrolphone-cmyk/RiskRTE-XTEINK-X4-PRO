@@ -2,6 +2,7 @@
 #include <stdint.h>
 typedef int esp_err_t;
 typedef int gpio_num_t;
+#define ESP_FAIL -1
 enum { ESP_OK = 0, GPIO_NUM_1 = 1, GPIO_MODE_INPUT_OUTPUT = 3,
        GPIO_PULLUP_DISABLE = 0, GPIO_PULLDOWN_DISABLE = 0, GPIO_INTR_DISABLE = 0 };
 typedef struct {

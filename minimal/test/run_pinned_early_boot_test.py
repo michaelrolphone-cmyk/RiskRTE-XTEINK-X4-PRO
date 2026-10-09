@@ -109,9 +109,10 @@ void nvs_close(nvs_handle_t);
         if os.environ.get('SANITIZE') == '1':
             args[1:1] = ['-fsanitize=address,undefined', '-fno-omit-frame-pointer']
         subprocess.run(args, check=True)
-        for held in (0, 1, 2):
-            for failure in range(8):
-                subprocess.run([str(binary), str(failure), str(held)], check=True)
+        for held in (0, 1, 2, 3):
+            for mux in (0, 1):
+                for failure in range(9):
+                    subprocess.run([str(binary), str(failure), str(held), str(mux)], check=True)
         subprocess.run([str(binary), 'reset'], check=True)
         subprocess.run([str(binary), 'milestone'], check=True)
 print('Pinned Arduino app_main/initArduino ordering, hold/failures, and reset breadcrumbs PASS')

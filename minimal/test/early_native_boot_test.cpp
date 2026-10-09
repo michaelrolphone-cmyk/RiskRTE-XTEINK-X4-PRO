@@ -7,7 +7,9 @@
 #include "../native/X4EarlyBoot.cpp"
 
 extern "C" void app_main();
-static int step, failure, initialHeld, resetReason=1, crash;
+static int step, failure, initialHeld, resetReason=1, crash, expectedStop;
+static bool rtcSelected, physicalInput=true, outputEnabled, matrixReady;
+static unsigned stageStep;
 static bool held, configured, high, sensing, physicalHigh, arduinoStarted;
 static unsigned timeUs, reports;
 static std::vector<std::string> calls, lines;
@@ -16,38 +18,49 @@ static int operation(int expected) {
   return step == failure ? -1 : ESP_OK;
 }
 extern "C" esp_err_t rtc_gpio_deinit(gpio_num_t pin) {
-  assert(pin == 1);return operation(1);
+  assert(pin == 1 && high && configured && sensing && outputEnabled && matrixReady);
+  const int result=operation(3);
+  if(result==ESP_OK){rtcSelected=false;if(!held){physicalHigh=high;physicalInput=sensing;}}
+  return result;
 }
 extern "C" esp_err_t gpio_set_level(gpio_num_t pin, uint32_t level) {
   assert(pin == 1 && level == 1);
-  const int result = operation(step == 1 ? 2 : 4);
+  const int result = operation(step == 0 ? 1 : 4);
   if (result == ESP_OK) {high = true;if (!held && configured) physicalHigh = high;}
   return result;
 }
-extern "C" esp_err_t gpio_config(const gpio_config_t* config) {
-  assert(config->pin_bit_mask == 2 && config->mode == GPIO_MODE_INPUT_OUTPUT);
-  assert(config->pull_up_en == 0 && config->pull_down_en == 0 && config->intr_type == 0 && high);
-  const int result = operation(3);
-  if (result == ESP_OK) {configured = sensing = true;if (!held) physicalHigh = high;}
-  return result;
+extern "C" esp_err_t gpio_config(const gpio_config_t*) {assert(false);return ESP_FAIL;}
+void x4_test_reg_write(unsigned reg,uint32_t value) {
+  assert(reg==GPIO_FUNC1_OUT_SEL_CFG_REG && value==(SIG_GPIO_OUT_IDX|GPIO_FUNC1_OEN_SEL));
+  assert(high && stageStep==0);(void)operation(2);matrixReady=true;
+}
+void x4_test_stage(unsigned phase) {
+  assert(step==2 && ++stageStep==phase && high && matrixReady);
+  if(phase==2)sensing=true;
+  if(phase==7)outputEnabled=true;
+  if(phase==8) {
+    assert(outputEnabled && sensing);configured=true;
+    if(!held && !rtcSelected){physicalHigh=high;physicalInput=sensing;}
+  }
 }
 extern "C" esp_err_t gpio_hold_dis(gpio_num_t pin) {
-  assert(pin == 1 && high && configured && sensing);
-  const int result = operation(5);
-  if (result == ESP_OK) {held = false;physicalHigh = high;}
+  assert(pin == 1 && high && configured && sensing && physicalHigh && physicalInput);
+  const int result = operation(6);
+  if (result == ESP_OK) {held = false;physicalHigh = high;physicalInput=sensing;}
   return result;
 }
 extern "C" esp_err_t gpio_hold_en(gpio_num_t pin) {
   assert(pin == 1 && high && configured && sensing && !held && physicalHigh);
-  const int result = operation(6);
+  const int result = operation(7);
   if (result == ESP_OK) held = true;
   return result;
 }
 extern "C" int gpio_get_level(gpio_num_t pin) {
   assert(pin == 1);
   if (!arduinoStarted) {
-    assert(high && configured && sensing && held);
-    return operation(7) == ESP_OK ? 1 : 0;
+    assert(high && configured && sensing && !rtcSelected);
+    const int result=operation(step==4?5:8);
+    return result==ESP_OK && physicalHigh && physicalInput ? 1 : 0;
   }
   return physicalHigh && sensing;
 }
@@ -55,11 +68,16 @@ int esp_reset_reason(){return resetReason;}
 int rtc_get_reset_reason(int core){return 10 + core;}
 int esp_sleep_get_wakeup_cause(){return resetReason == 8 ? 4 : 0;}
 int64_t esp_timer_get_time(){return timeUs += 100;}
-uint32_t x4_test_reg_read(int reg){return reg == 1 ? (physicalHigh ? 2 : 0) : reg == 2 ? (held ? 2 : 0) : reg == 4 ? 0xabcdef01 : reg == 5 ? 0x654321 : 0x12345678;}
+uint32_t x4_test_reg_read(int reg){
+  if(reg==GPIO_OUT_REG)return high?2:0;
+  if(reg==GPIO_ENABLE_REG)return outputEnabled && failure!=2?2:0;
+  if(reg==GPIO_FUNC1_OUT_SEL_CFG_REG)return matrixReady?0x500:0;
+  if(reg==IO_MUX_GPIO1_REG)return configured?0x1200:0;
+  return reg == 1 ? (physicalHigh ? 2 : 0) : reg == 2 ? (held ? 2 : 0) : reg == 4 ? 0xabcdef01 : reg == 5 ? 0x654321 : 0x12345678;}
 namespace RiscDiagnostics {void line(const char* line){assert(arduinoStarted);++reports;lines.emplace_back(line);}}
 SerialFake Serial;UsbFake USB;void (*serialEventRun)()=nullptr;
 static void arduino(const char* name) {
-  assert(step == (failure ? failure : 7));arduinoStarted = true;calls.emplace_back(name);
+  assert(step == (expectedStop ? expectedStop : 8));arduinoStarted = true;calls.emplace_back(name);
   if(crash && calls.back()=="cpu")throw 1;
 }
 void SerialFake::begin(){arduino("serial");}
@@ -90,7 +108,8 @@ static void freshGlobals() {
   attempted=variant=reported=previousValid=false;previous={};startupError="x4-app-main-not-entered";
   X4BootLog::initialized=false;X4BootLog::available=false;X4BootLog::pending=false;
   X4BootLog::current={};
-  step=reports=timeUs=0;configured=high=sensing=arduinoStarted=false;calls.clear();lines.clear();
+  step=reports=timeUs=stageStep=0;configured=high=sensing=arduinoStarted=false;
+  expectedStop=0;outputEnabled=matrixReady=false;rtcSelected=true;physicalInput=true;calls.clear();lines.clear();
 }
 int main(int argc, char** argv) {
   assert(argc>=2);
@@ -145,21 +164,23 @@ int main(int argc, char** argv) {
     }
     std::puts("X4 retained-reset/crash/corruption PASS");return 0;
   }
-  assert(argc==3);
+  assert(argc==4);
   failure=std::atoi(argv[1]);initialHeld=std::atoi(argv[2]);
-  held=initialHeld!=0;physicalHigh=initialHeld==1;
+  held=initialHeld!=0;physicalHigh=initialHeld==1 || initialHeld==3;
+  physicalInput=initialHeld!=3;rtcSelected=std::atoi(argv[3])!=0;
+  expectedStop=((initialHeld==2 || initialHeld==3) && (!failure || failure>5))?5:failure;
   assert(!std::strcmp(risc_native_startup_error(),"x4-app-main-not-entered"));
   initVariant();assert(!attempted && !variant && step==0);
   app_main();
-  const char* expected[]={nullptr,"x4-gpio1-rtc-deinit","x4-gpio1-stage-high","x4-gpio1-configure",
-    "x4-gpio1-confirm-high","x4-gpio1-unhold","x4-gpio1-hold","x4-gpio1-readback-low"};
+  const char* expected[]={nullptr,"x4-gpio1-stage-high","x4-gpio1-stage-digital","x4-gpio1-rtc-deinit",
+    "x4-gpio1-confirm-high","x4-gpio1-pre-unhold-readback-low","x4-gpio1-unhold","x4-gpio1-hold","x4-gpio1-readback-low"};
   const auto error=risc_native_startup_error();
-  if(failure)assert(error && !std::strcmp(error,expected[failure]));
+  if(expectedStop)assert(error && !std::strcmp(error,expected[expectedStop]));
   else assert(!error && held && physicalHigh && sensing);
-  if(failure>=1 && failure<=5)assert(held==(initialHeld!=0));
-  if(failure==6)assert(!held && physicalHigh);
-  if(failure==7)assert(held && physicalHigh);
-  assert(X4Boot::valid(retained) && retained.operation==uint32_t(failure) && retained.phase==X4Boot::SetupGate);
+  if(expectedStop>=1 && expectedStop<=6)assert(held==(initialHeld!=0));
+  if(expectedStop==7)assert(!held && physicalHigh);
+  if(expectedStop==8)assert(held && physicalHigh);
+  assert(X4Boot::valid(retained) && retained.operation==uint32_t(expectedStop) && retained.phase==X4Boot::SetupGate);
   assert(retained.entryUs<retained.variantUs && retained.variantUs<retained.gateUs);
   assert(retained.brownout==0x12345678 && retained.holdBefore==uint32_t(initialHeld?2:0));
   assert(retained.gpioHighBefore==0xabcdef01 && retained.strapBefore==0x654321);

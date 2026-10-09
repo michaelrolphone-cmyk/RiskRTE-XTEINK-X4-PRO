@@ -37,7 +37,7 @@ inline uint32_t checksum(const Record& record) {
 }
 inline bool valid(const Record& record) {
   return record.magic == Magic && record.boot && record.phase >= AppMain &&
-    record.phase <= SetupGate && record.operation <= 7 && record.reserved==0 &&
+    record.phase <= SetupGate && record.operation <= 8 && record.reserved==0 &&
     record.milestoneKind<=Failure && record.displayCompleted<=1 && record.messageTruncated<=1 &&
     ((record.milestoneCount==0)==(record.milestoneKind==None)) &&
     std::memchr(record.milestone,0,sizeof(record.milestone)) && record.checksum == checksum(record);

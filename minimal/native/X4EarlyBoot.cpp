@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <esp_heap_caps.h>
 #include "X4BootRecord.h"
+#include "X4Gpio1Handoff.h"
 #include <RiscDiagnosticSourceV1.h>
 #include "X4NativeBuildIdentity.h"
 
@@ -322,32 +323,31 @@ X4Boot::Record previous;
 void prepareRail() {
   // GPIO1 is the documented peripheral/touch enable. A CPU self-latch has not
   // been established. Keep the previous pad hold until digital HIGH is ready.
-  startupError = "x4-gpio1-rtc-deinit";
-  X4Boot::mark(retained, X4Boot::AppMain, 1);
-  {const int result=rtc_gpio_deinit(peripheralRail);X4BootLog::early("gpio1-rtc-deinit",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-stage-high";
-  X4Boot::mark(retained, X4Boot::AppMain, 2);
+  X4Boot::mark(retained, X4Boot::AppMain, 1);
   {const int result=gpio_set_level(peripheralRail, 1);X4BootLog::early("gpio1-stage-high",result);if(result!=ESP_OK)return;}
-  gpio_config_t config{};
-  config.pin_bit_mask = uint64_t(1) << peripheralRail;
-  config.mode = GPIO_MODE_INPUT_OUTPUT;
-  config.pull_up_en = GPIO_PULLUP_DISABLE;
-  config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  config.intr_type = GPIO_INTR_DISABLE;
-  startupError = "x4-gpio1-configure";
+  startupError = "x4-gpio1-stage-digital";
+  X4Boot::mark(retained, X4Boot::AppMain, 2);
+  {const int result=stageDigitalRail();X4BootLog::early("gpio1-stage-digital",result);if(result!=ESP_OK)return;}
+  startupError = "x4-gpio1-rtc-deinit";
   X4Boot::mark(retained, X4Boot::AppMain, 3);
-  {const int result=gpio_config(&config);X4BootLog::early("gpio1-configure",result);if(result!=ESP_OK)return;}
+  {const int result=rtc_gpio_deinit(peripheralRail);X4BootLog::early("gpio1-rtc-deinit",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-confirm-high";
   X4Boot::mark(retained, X4Boot::AppMain, 4);
   {const int result=gpio_set_level(peripheralRail, 1);X4BootLog::early("gpio1-confirm-high",result);if(result!=ESP_OK)return;}
-  startupError = "x4-gpio1-unhold";
+  // A retained LOW (or disabled held input) must fail closed: this experiment
+  // never releases a pad hold until the physical input is already HIGH.
+  startupError = "x4-gpio1-pre-unhold-readback-low";
   X4Boot::mark(retained, X4Boot::AppMain, 5);
+  {const int result=gpio_get_level(peripheralRail)==1?ESP_OK:ESP_FAIL;X4BootLog::early("gpio1-pre-unhold-readback",result);if(result!=ESP_OK)return;}
+  startupError = "x4-gpio1-unhold";
+  X4Boot::mark(retained, X4Boot::AppMain, 6);
   {const int result=gpio_hold_dis(peripheralRail);X4BootLog::early("gpio1-unhold",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-hold";
-  X4Boot::mark(retained, X4Boot::AppMain, 6);
+  X4Boot::mark(retained, X4Boot::AppMain, 7);
   {const int result=gpio_hold_en(peripheralRail);X4BootLog::early("gpio1-hold",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-readback-low";
-  X4Boot::mark(retained, X4Boot::AppMain, 7);
+  X4Boot::mark(retained, X4Boot::AppMain, 8);
   {const int result=gpio_get_level(peripheralRail)==1?ESP_OK:ESP_FAIL;X4BootLog::early("gpio1-readback",result);if(result!=ESP_OK)return;}
   startupError = nullptr;
   X4Boot::mark(retained, X4Boot::RailReady);
