@@ -81,6 +81,10 @@ is rejected.
 The resulting `candidate.json` explicitly records `x4_native_composition`, and
 hashes every frozen asset including the composition inventory and X4 ELF proof.
 It must be consumed together with the matching product store and custody record.
+When the final cohort advances independently, `build_test_bundle.py --native-source
+/path/to/exact-clean-native-product-source` verifies the recorded intermediate
+native commit/tree separately from the current cohort. It never relabels the
+compiled native identity; omitted, it still requires the current product source.
 `x4-runtime-options-proof.json` proves the actual selection: the exact policy-row
 marker must be present without its opposite in both firmware and ELF, and must
 match the retained Runtime symbol. Enabled caching requires the compiled owner

@@ -114,6 +114,21 @@ class NativeBundleCompositionTest(unittest.TestCase):
         commit(self.platform)
         with self.assertRaisesRegex(ValueError,'exact requested commit'):self.validate()
 
+    def test_explicit_native_source_keeps_intermediate_identity(self):
+        native_source = self.root / 'native-source'
+        subprocess.run(['git', '-C', str(self.platform), 'worktree', 'add', '--detach',
+                        str(native_source), self.platform_revision], check=True, stdout=subprocess.DEVNULL)
+        (self.platform / 'new-product-version').write_text('later final cohort')
+        commit(self.platform)
+        result = validate_native_composition(self.native, self.candidate, self.runtime, self.platform,
+                                             native_source_root=native_source)
+        self.assertEqual(result['platform']['commit'], self.platform_revision)
+        self.assertNotEqual(result['platform']['commit'], composition.git(self.platform, 'rev-parse', 'HEAD'))
+        (native_source / 'minimal/native/X4EarlyBoot.cpp').write_text('modified intermediate source')
+        with self.assertRaisesRegex(ValueError, 'Clean committed'):
+            validate_native_composition(self.native, self.candidate, self.runtime, self.platform,
+                                        native_source_root=native_source)
+
     def test_rehashed_source_receipt_cannot_replace_committed_source(self):
         record=copy.deepcopy(self.record)
         record['platform_source_sha256']['minimal/native/X4EarlyBoot.cpp']='a'*64

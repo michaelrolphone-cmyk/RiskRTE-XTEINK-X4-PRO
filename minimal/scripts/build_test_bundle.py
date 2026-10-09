@@ -75,7 +75,7 @@ def cohort_identity(product,native,firmware,revision):
             'source_repo':product['source_repo'],'source_revision':revision,'runtime_version':native['firmware_version'],
             'layout':native['layout'],'store_abi':2,'firmware_size':len(firmware),'firmware_sha256':sha(firmware)}
 
-def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
+def validate_native_composition(folder,candidate,runtime,platform_root=ROOT,native_source_root=None):
     """Require the exact platform boot hook, not just the shared Runtime version."""
     folder=Path(folder).resolve();platform_root=Path(platform_root)
     require=native_composition.require
@@ -108,7 +108,7 @@ def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
             candidate.get('target')==native_composition.ENVIRONMENTS[0] and
             candidate.get('layout')=='riscrte-paired-appdata-v2' and candidate.get('store_abi')==2,
             'Composed native environment/ABI mismatch')
-    native_composition.verify_source_custody(runtime,record,platform_root)
+    native_composition.verify_source_custody(runtime,record,native_source_root or platform_root)
     markers=('RTE_SOURCE='+lock['commit'],'RISC_RUNTIME_VERSION:'+lock['version'],
              'RISC_PAIRED_STORE_ABI:2','X4_NATIVE_COMPOSITION:'+record['composition_sha256'])
     for name in ('firmware.bin','firmware.elf'):
@@ -257,7 +257,7 @@ def build(a):
         if bool(app_sources.get('features',{}).get(feature))!=selected:raise ValueError('Source cohort and explicit profile differ: '+feature)
     idle_headers=idle_cohort.sdk_headers(a.drivers,a.runtime) if idle else None
     native_candidate=json.loads((a.native/'candidate.json').read_text())
-    validate_native_composition(a.native,native_candidate,a.runtime)
+    validate_native_composition(a.native,native_candidate,a.runtime,native_source_root=getattr(a,'native_source',None))
     expected_options={'app_policy_rows':17 if contexts else 16,'app_image_cache':True}
     if native_candidate.get('build_options')!=expected_options:raise ValueError('Native Runtime options differ from selected product')
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
@@ -474,6 +474,7 @@ def build(a):
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
+    p.add_argument('--native-source',type=Path,help='Exact clean X4 source checkout recorded by the native composition; default is this product checkout')
     p.add_argument('--static-spiffs',action='store_true',help='Use the shared qualified static producer for dense immutable stores')
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--boot-log',action='store_true',help='Explicit diagnostic cohort: cold-boot SD activation and persistent boot export; deep wakes stay demand-only')
