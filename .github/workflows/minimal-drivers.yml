@@ -12,12 +12,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: 300a09690b6c50dc4834b8f1e8ba2e87d2328f04
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/T5S3-Reader
-          ref: aac8c06d3221139084acd0cfc64f7b0ba194a97a
+          ref: 3f59913963840cb5ee8e2a65baa921f8d6af0b4d
           path: .shared/reader
       - uses: actions/checkout@v4
         with:
