@@ -8,19 +8,22 @@ import file_browser_admission
 import update_artifacts
 import telemetry_cohort
 import idle_cohort
+import contexts_cohort
 import prepare_native_runtime as native_composition
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall','ota_update','app_store')
-CAPS={'software.update.firmware':0,'software.update.apps':0,'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
+CAPS={'contexts.service':0,'software.update.firmware':0,'software.update.apps':0,'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
 KV_NAMESPACES={'ota_update':(6,1),'app_store':(6,1),'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
 APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
-def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False, idle_policy=False):
-    if idle_policy and (not sleep or name not in APPS):raise ValueError("Idle policy requires an explicit selected app and sleep graph")
+def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False, idle_policy=False, contexts=False):
+    if idle_policy and (not sleep or name not in (*APPS, *(("contexts",) if contexts else ()))):raise ValueError("Idle policy requires an explicit selected app and sleep graph")
     if desk_clock and not sleep:raise ValueError('Desk clock requires the explicit sleep graph')
     if sparse_clock and not desk_clock:raise ValueError('Sparse clock requires the explicit desk-clock profile')
     grants=[]
     for req in requirements:
         cap=req['capability']
+        if cap=='contexts.service' and (not contexts or name not in contexts_cohort.PROFILE['context_capability_owners'] or req['api']!=1):
+            raise ValueError('Contexts authority requires the selected RF-only owner profile')
         if cap=='telemetry.broadcast':raise ValueError('Telemetry authority requires explicit cohort composition')
         if cap.startswith('software.update.') and (name not in ('ota_update','app_store') or cap!=('software.update.firmware' if name=='ota_update' else 'software.update.apps') or req['api']!=1):
             raise ValueError('Update authority requires the exact action-specific app')
@@ -47,7 +50,7 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
             raise ValueError('Idle policy requires complete typed Light, alarm and preference authority')
     if sleep and name=='default' and not any(g['capability']=='x4.power' for g in grants):
         raise ValueError('Sleep graph requires explicit Clock power grant')
-    if len({(r['capability'],r['api']) for r in requirements})>(16 if sparse_clock else 12) or len(grants)>16:
+    if len({(r['capability'],r['api']) for r in requirements})>(16 if sparse_clock else 12) or len(grants)>(17 if contexts and name in ('default','waterfall') else 16):
         raise ValueError('App policy exceeds bounded Runtime capacity')
     if desk_clock and name=='default' and not any(g['capability']=='runtime.retained-wake' for g in grants):
         raise ValueError('Desk Clock requires explicit retained-wake authority')
@@ -79,7 +82,7 @@ def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
     composition=candidate.get('x4_native_composition')
     require(isinstance(composition,dict),'X4 native composition required; generic Runtime is insufficient')
     assets=candidate.get('assets',{})
-    required={'firmware.bin','firmware.elf','x4-native-composition.json','x4-native-proof.json'}
+    required={'firmware.bin','firmware.elf','x4-native-composition.json','x4-native-proof.json','x4-runtime-options-proof.json'}
     require(isinstance(assets,dict) and required<=assets.keys(),'X4 native composition assets missing')
     blobs={}
     for name,digest in assets.items():
@@ -114,7 +117,11 @@ def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
         require(b'RISC_PAIRED_STORE_ABI:1\0' not in blobs[name],'Mixed compiled native ABI')
     proof=native_composition.startup_proof(blobs['firmware.elf'],record)
     require(json.loads(blobs['x4-native-proof.json'])==proof,'Staged X4 startup proof mismatch')
-    expected={'composition_sha256':record['composition_sha256'],'runtime':record['runtime'],
+    options=native_composition.runtime_options_proof(blobs,record)
+    require(json.loads(blobs['x4-runtime-options-proof.json'])==options,'Staged Runtime option proof mismatch')
+    require(candidate.get('build_options')==record.get('build_options'),'Candidate Runtime options differ')
+    expected={'build_options':record['build_options'],'runtime_options_proof':options,
+              'composition_sha256':record['composition_sha256'],'runtime':record['runtime'],
               'platform':record['platform'],'platform_source_sha256':record['platform_source_sha256'],
               'startup_proof':proof}
     require(composition==expected,'Native candidate composition summary mismatch')
@@ -147,7 +154,7 @@ DESK_REQUIREMENTS={('display.output',1),('input.touch.raw',1),('rtc.clock',2),('
     ('storage.key-value',1),('input.navigation',1),('alarm.service',1),('x4.power',1),
     ('runtime.retained-wake',1),('storage.volume',1),('net.wifi',1),('bluetooth.hci',1)}
 SPARSE_REQUIREMENTS=DESK_REQUIREMENTS|{('runtime.realtime-control',1),('runtime.provider-promotion',1)}
-def validate_sparse_clock_profile(manifest,blob,record,source,local_source,headers,tagged_alarm=False,broadcast=False):
+def validate_sparse_clock_profile(manifest,blob,record,source,local_source,headers,tagged_alarm=False,broadcast=False,contexts=False):
     """Unselected future-profile gate; does not enable demand activation."""
     required_headers={'RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h',
                       'RiscRetainedWakeV1.h','RiscDisplayOutputPowerV1.h','RiscTouchPowerV1.h',
@@ -159,7 +166,7 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
               'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
               'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
               'display_rotation':90,'launcher_app':'springboard.elf','navigation':True,'sleep_capability':'x4.power',
-              'alarm_client':True,'quick_actions':True,'quick_radios':True,'grant_count':15 if broadcast else 14,
+              'alarm_client':True,'quick_actions':True,'quick_radios':True,'grant_count':(15 if broadcast else 14)+int(contexts),
               'repository_commit':source,'sha256':sha(blob),'size_bytes':len(blob),
               'local_sleep_source_sha256':sha(local_source),'desk_sdk_headers':headers,
               'retained_wake_sdk_sha256':headers['RiscRetainedWakeV1.h']}
@@ -176,9 +183,10 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
     if broadcast:
         if not tagged_alarm:raise ValueError('Telemetry Clock requires native API2 profile')
         expected_requirements=expected_requirements|{('telemetry.broadcast',1)}
-    if len(requirements)!=(15 if broadcast else 14) or {(r['capability'],r['api']) for r in requirements}!=expected_requirements:
+    if contexts:expected_requirements=expected_requirements|{('contexts.service',1)}
+    if len(requirements)!=(15 if broadcast else 14)+int(contexts) or {(r['capability'],r['api']) for r in requirements}!=expected_requirements:
         raise ValueError('Sparse Clock requires exactly its fourteen typed capabilities')
-    return {'record_type':'0x44434c4b','record_schema':1,'grant_count':(16 if broadcast else 15) if tagged_alarm else 14,
+    return {'record_type':'0x44434c4b','record_schema':1,'grant_count':((16 if broadcast else 15) if tagged_alarm else 14)+int(contexts),
             'home_points_foreground_only':bool(tagged_alarm),
             'provider_activation':'demand','timer_preferences':'retained-only',
             'foreground_promotion':True,'invocation_retention':True,
@@ -214,6 +222,9 @@ def build(a):
     broadcast=getattr(a,'ble_telemetry',False)
     idle=getattr(a,'idle_policy',False)
     retain=getattr(a,'retain_promoted_providers',False)
+    contexts=getattr(a,'contexts_rf_only',False)
+    if contexts and not (sparse and broadcast and idle and retain):raise ValueError('Contexts requires the complete native retained foreground profile')
+    selected_apps=APPS+(('contexts',) if contexts else ())
     if (idle or retain) and not (sparse and broadcast and getattr(a,'sleep',False)):
         raise ValueError('Idle/retained-demand profiles require complete explicit native telemetry sleep cohort')
     if broadcast and not sparse:raise ValueError('BLE telemetry requires the explicit native sparse cohort')
@@ -225,11 +236,13 @@ def build(a):
     app_sources=json.loads((ROOT/'minimal/apps/sources.json').read_text())
     if bool(app_sources.get('features',{}).get('ble_telemetry'))!=broadcast:
         raise ValueError('Selected source cohort requires matching explicit --ble-telemetry profile')
-    for feature,selected in [('idle_policy',idle),('retained_provider_demand',retain)]:
+    for feature,selected in [('idle_policy',idle),('retained_provider_demand',retain),('contexts_rf_only',contexts)]:
         if bool(app_sources.get('features',{}).get(feature))!=selected:raise ValueError('Source cohort and explicit profile differ: '+feature)
     idle_headers=idle_cohort.sdk_headers(a.drivers,a.runtime) if idle else None
     native_candidate=json.loads((a.native/'candidate.json').read_text())
     validate_native_composition(a.native,native_candidate,a.runtime)
+    expected_options={'app_policy_rows':17 if contexts else 16,'app_image_cache':True}
+    if native_candidate.get('build_options')!=expected_options:raise ValueError('Native Runtime options differ from selected product')
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False),getattr(a,"panel_driver","fallback"))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
@@ -254,9 +267,10 @@ def build(a):
         if sha(blob)!=products[m['id']]['sha256'] or json.loads((src/'manifest.json').read_text())!=m:raise ValueError('Driver identity mismatch: '+name)
         validate_provider_source(products[m['id']],ROOT)
         (path/'driver.elf').write_bytes(blob)
-    for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider'),('wifi','wifi_provider'),('hid','hid_provider'),('iq','iq_provider')]:
+    for folder,key in [('ble','ble_provider'),('alarm','alarm_service'),('sensors','sensor_provider'),('wifi','wifi_provider'),('hid','hid_provider'),('iq','iq_provider')]+([('contexts','contexts_provider')] if contexts else []):
         src=Path(inputs[key]);dest=store/folder;dest.mkdir();m=json.loads((src/'manifest.json').read_text());blob=(src/'driver.elf').read_bytes()
         if sparse and key=='alarm_service':native_time_cohort.validate_alarm(m,blob,json.loads((src/'build-evidence.json').read_text()))
+        if key=='contexts_provider':contexts_cohort.validate_provider(m,blob,json.loads((src/'build-evidence.json').read_text()))
         (dest/'manifest.json').write_bytes(encoded(m));(dest/'driver.elf').write_bytes(blob)
         custody[key]={'id':m['id'],'version':m['version'],'sha256':sha(blob)}
         evidence=out/'build-records'/'providers'/m['id'];evidence.mkdir(parents=True,exist_ok=True)
@@ -272,6 +286,7 @@ def build(a):
     board['devices'].append({'instance_id':15,'chip':{'vendor':'espressif','model':'esp32s3-wifi','revision':'unspecified'},'compatible':'espressif,esp32s3-wifi','config_type':'radio.integrated','config_version':1,'config':{'unit':0,'features':1}})
     boot['drivers'].append({'manifest':'wifi/manifest.json','instance_id':15})
     boot['drivers'].append({'manifest':'iq/manifest.json'})
+    if contexts:boot['drivers'].append({'manifest':'contexts/manifest.json'})
     boot['drivers'].append({'manifest':'hid/manifest.json','key_value':[{'key':k,'namespace':10,'access':'read-write'} for k in ('hid_ours','hid_peer','hid_ccc','hid_identity')]})
     keys=[('alarm_cfg',3,'read'),('timer_cfg',3,'read'),('alarm_occ',4,'read-write'),('timer_occ',4,'read-write'),('alert_mode',1,'read'),('points_cfg',5,'read'),('points_occ',4,'read-write'),('alert_dnd',1,'read')]
     if sparse:keys=native_time_cohort.ALARM_KEYS
@@ -280,13 +295,16 @@ def build(a):
     custody['update_providers'],update_selections=update_artifacts.stage_providers(store,out,inputs,app_sources['update_system_apps'])
     boot['drivers'].extend(update_selections)
     policies=[];manifests={};licenses=out/'licenses';licenses.mkdir(exist_ok=True)
-    for name in APPS:
+    for name in selected_apps:
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
-        if sparse:
+        if name=='contexts':
+            custody['native_apps'][name]=contexts_cohort.validate_app(m,blob,json.loads((src/'build-evidence.json').read_text()),(ROOT/'minimal/apps/portable_idle_sleep.c').read_bytes(),idle_headers)
+        elif sparse:
             custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name],idle_headers)
-        if idle:idle_cohort.validate_app(name,m,custody['native_apps'][name],(ROOT/'minimal/apps/portable_idle_sleep.c').read_bytes(),idle_headers)
-        if broadcast:telemetry_cohort.validate_app(name,m,custody['native_apps'][name])
+        if idle and name!='contexts':idle_cohort.validate_app(name,m,custody['native_apps'][name],(ROOT/'minimal/apps/portable_idle_sleep.c').read_bytes(),idle_headers)
+        if broadcast and name!='contexts':telemetry_cohort.validate_app(name,m,custody['native_apps'][name],contexts=contexts)
+        if contexts and name in contexts_cohort.PROFILE['context_capability_owners']:contexts_cohort.validate_owner(name,m,custody['native_apps'][name])
         if name in ('ota_update','app_store'):update_artifacts.validate_app(name,m,blob,json.loads((src/'build-record.json').read_text()),app_sources['update_system_apps'])
         if name=='settings' and not sparse:custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
         if name=='settings' and sparse:custody['settings_power_ui']={'manual_light_sleep':False,'sleep_mode_selector':False,'deep_desk_clock':True,'hybrid':False,'home_key_mode':'locked-deep-desk-clock','native_time_editing':True}
@@ -296,12 +314,17 @@ def build(a):
                 for header in ('RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h'):
                     headers[header]=sha((a.runtime/'sdk/app'/header).read_bytes())
                 headers['RiscDisplayOutputSnapshotV1.h']=sha((a.drivers/'sdk/RiscDisplayOutputSnapshotV1.h').read_bytes())
+                compatibility=native_time_cohort.IDLE_SDK.get('runtime_header_compatibility')
+                if compatibility:
+                    if headers['RiscRuntimeV1.h']!=compatibility['runtime_sha256'] or lock['runtime']['commit']!=compatibility['runtime_source']:
+                        raise ValueError('Runtime app API differs from the reviewed append-only stream suffix')
+                    headers['RiscRuntimeV1.h']=compatibility['compiled_sha256']
                 if retain:
                     compatibility=native_time_cohort.IDLE_SDK['promotion_header_compatibility']
                     if headers['RiscProviderPromotionV1.h']!=compatibility['runtime_sha256']:raise ValueError('Promotion Runtime header differs from the reviewed documentation-only successor')
                     headers['RiscProviderPromotionV1.h']=compatibility['compiled_sha256']
             validator=validate_sparse_clock_profile if sparse else validate_desk_clock_profile
-            custody['desk_clock']=validator(m,blob,json.loads((src/'build-evidence.json').read_text()),app_sources['desk_clock_system_apps'],(ROOT/'minimal/apps/portable_sleep.c').read_bytes(),headers,**({'tagged_alarm':True,'broadcast':broadcast} if sparse else {}))
+            custody['desk_clock']=validator(m,blob,json.loads((src/'build-evidence.json').read_text()),app_sources['desk_clock_system_apps'],(ROOT/'minimal/apps/portable_sleep.c').read_bytes(),headers,**({'tagged_alarm':True,'broadcast':broadcast,'contexts':contexts} if sparse else {}))
             for notice in ('LICENSE-NotoSans.txt','LICENSE-NotoSerif.txt','SOURCES.json'):
                 if not (src/'licenses/desk_clock'/notice).is_file():raise ValueError('Desk Clock font custody is missing: '+notice)
         # The shared adapter exposes battery telemetry only with explicit grants.
@@ -312,7 +335,7 @@ def build(a):
             if normalized not in requirements:requirements.append(normalized)
         m['requires']=requirements
         grant_requirements=[r for r in m['requires'] if not broadcast or r['capability']!='telemetry.broadcast']
-        grants=app_grants(name,grant_requirements,getattr(a,'sleep',False),desk,sparse,sparse,idle)
+        grants=app_grants(name,grant_requirements,getattr(a,'sleep',False),desk,sparse,sparse,idle,contexts)
         manifests[name]=m
         if name=='file_browser' and sparse:
             custody['file_browser_storage']=file_browser_admission.validate(
@@ -331,13 +354,14 @@ def build(a):
             (licenses/name).mkdir(exist_ok=True);shutil.copyfile(notice,licenses/name/notice.name)
     custody['sleep']=getattr(a,'sleep',False)
     custody['idle_policy']=idle
+    custody['contexts_rf_only']=dict(contexts_cohort.PROFILE) if contexts else False
     custody['provider_activation']=boot.get('provider_activation','eager')
     boot['app_capabilities']=policies
     if broadcast:
         pins=json.loads((ROOT/'minimal/apps/telemetry-sources.json').read_text())
         sources={identity:pins['utilities'] if identity=='telemetry-broadcast' else pins['drivers'] for identity in telemetry_cohort.PROVIDERS}
         telemetry_cohort.install_providers(store,inputs['telemetry_providers'],sources)
-        boot=telemetry_cohort.extend_boot(boot,manifests)
+        boot=telemetry_cohort.extend_boot(boot,manifests,contexts=contexts)
         custody['ble_telemetry']={'enabled':True,'default':'off','sources':sources,'timer_only_acquisition':False}
         for identity in telemetry_cohort.PROVIDERS:
             src=Path(inputs['telemetry_providers'][identity]);evidence=out/'build-records/providers'/identity;evidence.mkdir(parents=True)
@@ -363,7 +387,7 @@ def build(a):
     sys.path.insert(0,str(a.watch/'scripts'))
     if not a.skip_extended_checks:
         from check_runtime_store_admission import admit_cohort
-        custody['store_admission']=admit_cohort(a.runtime,(a.native/'firmware.elf').read_bytes(),files,files)
+        custody['store_admission']=admit_cohort(a.runtime,(a.native/'firmware.elf').read_bytes(),files,files,app_policy_rows=expected_options['app_policy_rows'])
     native=load_module('x4_native_candidate',a.runtime/'scripts/paired_bank_images.py')
     loader=(a.native/'bootloader.bin').read_bytes();table=(a.native/'partitions.bin').read_bytes();data=(a.native/'appdata.bin').read_bytes()
     if sha(loader)!=native.BOOTLOADER_SHA256 or len(data)!=0x80000:raise ValueError('Native first-install inputs differ')
@@ -420,6 +444,7 @@ if __name__=='__main__':
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
+    p.add_argument('--contexts-rf-only',action='store_true',help='Explicit Contexts UI, RF model owner and sparse Clock rendezvous')
     p.add_argument('--idle-policy',action='store_true',help='Explicit reversible Light and low-battery policy across the selected cohort')
     p.add_argument('--retain-promoted-providers',action='store_true',help='Explicit sparse lazy first-use provider retention after foreground promotion')
     p.add_argument('--ble-telemetry',action='store_true',help='Explicit foreground-only X4 BLE broadcast cohort');p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--panel-driver',choices=['fallback','uc8279-fast'],default='fallback');p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())

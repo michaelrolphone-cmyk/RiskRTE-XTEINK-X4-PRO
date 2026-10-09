@@ -19,5 +19,11 @@
     "compiled_sha256": "b7765248e6c9d959df648417344e134b55a87a11702ba0c78dde19e7bc332295",
     "runtime_sha256": "751585fed0336bf068cdde488d65b2e0191f113184e48eecbfb4f80861512c51",
     "change": "Documentation only: demand-retained policy; ABI and source declarations unchanged."
+  },
+  "runtime_header_compatibility": {
+    "compiled_sha256": "99a7266f31f88fd6e6e5b96858d97c4ebac822c9b01f93d7fa755917eccc6b2f",
+    "runtime_sha256": "00670239b488258ca0bb0afd0a21ef806482b8acb73856e95e1a364461a00e71",
+    "runtime_source": "f3fcd8c958a252c923c44784c2546078042422ee",
+    "change": "Append-only invocation-bound stream client at Xtensa offset44; all prior members preserve offsets and sizes. Earlier SDK apps do not request streams."
   }
 }

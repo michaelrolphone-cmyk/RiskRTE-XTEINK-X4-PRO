@@ -5,16 +5,16 @@
   "productivity": "4921a4306bb11adea646d766eb7539242e0142a7",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "637e13b0bce62ad49b756bec2468a6271d163fc7",
-  "purpose": "Repair HID raw-touch subscriptions, Home swipe feedback and horizontal Springboard navigation over frozen 0.1.19.",
+  "purpose": "Integrate qualified RF-only Contexts editor/Clock/owner with source-bound native options; preserve existing apps and accepted input/display baseline.",
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
   "wifi_provider_watch_source": "cf30d732271db19a74492d4753736cafeafb92bb",
   "settings_system_apps": "72af94bb9d0f0afc5e680175ed654ba7c8dedfa9",
-  "desk_clock_system_apps": "0df9d4abdceba74311494614bdb4154645aeeac6",
-  "cohort_admission_watch_tools": "f5f777f47025a72f095164f38d58fd294ca29d93",
+  "desk_clock_system_apps": "ce76cbe5e43cb8e7929223d87da3ac56226228ac",
+  "cohort_admission_watch_tools": "03c2d295e0a35c48d49fa04f9cf73ca2ee1a54b5",
   "native_cohort": {
-    "default": "0df9d4abdceba74311494614bdb4154645aeeac6",
+    "default": "ce76cbe5e43cb8e7929223d87da3ac56226228ac",
     "settings": "72af94bb9d0f0afc5e680175ed654ba7c8dedfa9",
     "points_in_time": "d0117add7681834d8f78285b95ad3b6050ef4282",
     "alarms": "849581973a48daf07770446712a1c1fd4dfbc77c",
@@ -22,22 +22,24 @@
     "timecard": "d0117add7681834d8f78285b95ad3b6050ef4282",
     "file_browser": "7b175418e3063d9f4c571acf06c366144831b2af",
     "wifi_settings": "7b175418e3063d9f4c571acf06c366144831b2af",
-    "springboard": "5dfdbfdccff0346449ba8297202ff8d39239d251",
+    "springboard": "c38f3acc75ee24848e98c4899da6a4698b0fbbe3",
     "ble_buttons": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "battery": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "ble_touchpad": "849581973a48daf07770446712a1c1fd4dfbc77c",
-    "waterfall": "eede7276c92ca06b398902170cedbe714c435101",
+    "waterfall": "baba7c3a81fc6d14b8d9b73d779d61f2d42100cd",
     "ble_scanner": "ec4df6438856d69b2f83073a03d03ea57fc80c1b",
     "stopwatch": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "calculator": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "ota_update": "68e6a1263858322ca9babc775c14e5a6f8c60d96",
-    "app_store": "68e6a1263858322ca9babc775c14e5a6f8c60d96"
+    "app_store": "68e6a1263858322ca9babc775c14e5a6f8c60d96",
+    "contexts": "e25442fc1f0a2b452c1c671e7670f5af5ad4dae6"
   },
   "update_system_apps": "68e6a1263858322ca9babc775c14e5a6f8c60d96",
   "features": {
     "ble_telemetry": true,
     "updates": true,
     "idle_policy": true,
-    "retained_provider_demand": true
+    "retained_provider_demand": true,
+    "contexts_rf_only": true
   }
 }

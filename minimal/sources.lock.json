@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "2dea92258b1e3e1d2592ff7064d7cc74d28a07ee",
-    "version": "0.1.65"
+    "commit": "f3fcd8c958a252c923c44784c2546078042422ee",
+    "version": "0.1.69"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Runtime 0.1.65 immutable installed app-byte cache and bounded cold-reader scheduling, with retained startup diagnostics and completed paper lists."
+  "status": "Runtime stream/cache-pressure/policy union with explicit cache and metadata17 composition; RF-only Contexts integration under qualification."
 }

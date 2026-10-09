@@ -79,6 +79,11 @@
       "display_name": "App Store",
       "file_name": "app_store.elf",
       "icon": "solid:f187"
+    },
+    {
+      "display_name": "Contexts",
+      "file_name": "contexts.elf",
+      "icon": "solid:f015"
     }
   ]
 }
