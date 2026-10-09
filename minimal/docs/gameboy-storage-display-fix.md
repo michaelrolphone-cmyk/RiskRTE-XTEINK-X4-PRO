@@ -30,6 +30,10 @@ the no-upload 30-second maintenance refresh, uses differential DEFAULT frames,
 bounds LOW_LATENCY absolute bursts, synchronizes both complete controller planes
 before powered idle, and powers the panel off after the 2.3-second quiet period.
 
+Each completed differential frame now issues one DTM1 command for one coherent
+OLD-plane transfer. A regression discovered and removed a duplicate command that
+reset the controller RAM cursor immediately before that transfer.
+
 PON is issued only when a new frame is ready. Because PON can restore controller
 MTP defaults, 0.1.9 then replays the complete selected refresh profile before
 DRF: PLL and OTP clean/quality controls for those paths, or PLL, PSR, partial
