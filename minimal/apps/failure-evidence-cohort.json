@@ -29,7 +29,7 @@
       "sha256": "85519250b188d9c0374552e0fcdc58a80f63a2c88803a95cbdc4585c02dddb88"
     }
   },
-  "packaging_source": "c55beb0040a131f70fc582b3f7f1f4539a70bc7e",
+  "packaging_source": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
   "changed_store_paths": [
     "cohort.json",
     "default.elf",
