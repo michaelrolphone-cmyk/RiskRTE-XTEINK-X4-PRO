@@ -1,6 +1,6 @@
 /* Exercise the published tail through the real GPIO protocol/FatFs owner. */
 static const risc_storage_volume_api_v1_export *export_api(void) {
-    const risc_storage_volume_api_v1 *base=driver.base.capability;
+    const risc_storage_volume_api_v1 *base=driver.poll.streams.driver.capability;
     const risc_storage_volume_api_v1_export *p=risc_storage_volume_export(base);
     assert(p && p==&logging_api && p->export_begin==export_begin && p->export_end==export_end);
     assert(risc_storage_volume_sleep(base)==&p->sleep);

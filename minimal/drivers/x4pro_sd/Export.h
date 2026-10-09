@@ -14,7 +14,9 @@ static int32_t export_admission_failure(void) {
         ? RISC_STORAGE_EXPORT_RETAINED : RISC_STORAGE_EXPORT_REFUSED;
 }
 static int32_t export_leave(int32_t result) {
-    return leave() ? result : export_retain("export unlock/log custody retained");
+    const bool okay=leave();
+    bootlog_servicing=false;
+    return okay ? result : export_retain("export unlock/log custody retained");
 }
 static int32_t export_begin(void *context, risc_storage_export_token_t *token,
                             uint64_t *blocks, uint32_t *block_size) {
@@ -32,8 +34,24 @@ static int32_t export_begin(void *context, risc_storage_export_token_t *token,
         return export_leave(export_retain("export media custody uncertain"));
     /* Flush every available diagnostic slot once, bounded by the existing
      * mount batch budget. Never retry an append already marked uncertain. */
-    bootlog_mount_pending = true;
-    bootlog_drain();
+    bootlog_servicing=true; // Suppress leave-time work; never renew this operation budget.
+    bootlog_mount_pending=false;
+    if(!bootlog_trace_source()) {
+        unsigned snapshots=RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS;
+        while(snapshots-- && bootlog_step()) {}
+    }
+    if(bootlog_trace_source() && !bootlog_disabled) {
+        // The source is bounded to prior+current boot text. Use one shared
+        // owner operation deadline for the entire export preparation.
+        unsigned chunks=128;
+        while(chunks-- && bootlog_step()) {}
+        if(!bootlog_disabled) {
+            char probe[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];uint32_t count=0;uint64_t next=0;
+            const risc_diagnostic_source_api_v1_trace *trace=bootlog_trace_source();
+            if(trace->read_after(diagnostic_source->context,bootlog_cursor,probe,sizeof(probe),&count,&next)!=0)
+                return export_leave(RISC_STORAGE_EXPORT_REFUSED);
+        }
+    }
     bootlog_paused = true;
     if (bootlog_retained || has_handles() || io_failed || !transport_idle())
         return export_leave(export_retain("export boot-log flush retained"));

@@ -66,6 +66,7 @@ int esp_partition_erase_range(const esp_partition_t*,size_t,size_t);
         'freertos/task.h': '#include "Arduino.h"\n',
         'esp_task_wdt.h': '#include "Arduino.h"\n',
         'esp_attr.h': '#define RTC_NOINIT_ATTR\n',
+        'esp_heap_caps.h': '#include <cstdlib>\n#define MALLOC_CAP_SPIRAM 1\n#define MALLOC_CAP_8BIT 2\ninline void* heap_caps_malloc(size_t n,unsigned){return std::malloc(n);}\n',
         'nvs.h': '''#pragma once
 #include <cstdint>
 #include <cstddef>

@@ -121,7 +121,8 @@ static bool sync_take(void *ctx,uint64_t token){(void)ctx;++locks;assert(token==
 static bool sync_unlock(void *ctx,uint64_t token){(void)ctx;++unlocks;assert(token==fixture_lock);if(!owner || !locked || fail_unlock)return false;locked=false;return true;}
 static bool sync_destroy(void *ctx,uint64_t token){(void)ctx;++destroys;assert(owner && !locked && token==fixture_lock);if(fail_destroy)return false;fixture_lock=0;return true;}
 static bool power_is_ready(void *ctx){(void)ctx;return power_ready;}
-static uint64_t monotonic(void *ctx){(void)ctx;return now_ms;}
+static bool budget_jump;
+static uint64_t monotonic(void *ctx){(void)ctx;if(budget_jump && bootlog_servicing)now_ms+=250;return now_ms;}
 static void rejected_calls(void) {
     const unsigned before=calls;char text[80]="untouched",byte=0;uint64_t size=0,position=0;bool directory=false;risc_storage_dirent_v1 entry;
     assert(!refresh(NULL) && !ready(NULL) && !label(NULL,text,sizeof(text)));
@@ -163,6 +164,19 @@ static int32_t fixture_diagnostic_read(void *ctx, uint32_t slot, char *text, uin
       (unsigned long long)*sequence,*revision,slot?"recovered-flash":"current",slot?"RTE_BOOT error=previous-mount":"none-recorded");
     assert(n>0 && (uint32_t)n<capacity);*written=(uint32_t)n;return 1;
 }
+static char source_trace[262144];static size_t source_trace_size,source_trace_available;
+static bool source_trace_invalid;
+static int32_t fixture_trace_read(void *context,uint64_t after,char *text,uint32_t capacity,uint32_t *written,uint64_t *next){
+ (void)context;++source_reads;*written=0;*next=0;text[0]=0;
+ assert(owner && !bootlog_reporting);
+ if(after==source_trace_available)return 0;
+ if(after>source_trace_available)return -1;
+ uint32_t count=0,last=0;
+ while(after+count<source_trace_available && count+1<capacity){text[count]=source_trace[after+count];if(text[count++]=='\n')last=count;}
+ if(!last)return -1;
+ text[last]=0;*written=last;*next=source_trace_invalid?after:after+last;return 1;
+}
+static const risc_diagnostic_source_api_v1_trace fixture_trace={{1,sizeof(fixture_trace),NULL,fixture_diagnostic_read},fixture_trace_read};
 static const risc_diagnostic_source_api_v1 fixture_diagnostic={1,sizeof(fixture_diagnostic),NULL,fixture_diagnostic_read};
 static const x4_power_ready_api_v1 fixture_power={1,sizeof(fixture_power),NULL,power_is_ready};
 static risc_hw_gpio_bank_v1 fixture_config={sizeof(fixture_config),4,1,1,0,{5,41,42,40,0,0,0,0},0,0,0};
@@ -354,7 +368,9 @@ static void sleep_cases(const char *scenario){
 }
 static size_t read_log(char *text,size_t capacity) {
     uint64_t size=0;uint32_t file=file_open_read(NULL,X4_BOOTLOG_SD_PATH,&size);assert(file && size<capacity);
-    size_t n=file_read(NULL,file,text,capacity-1);text[n]=0;assert(n==size && file_close(NULL,file,true));return n;
+    size_t n=0;
+    while(n<size){uint32_t chunk=(uint32_t)(size-n);if(chunk>4096)chunk=4096;uint32_t copied=file_read(NULL,file,text+n,chunk);assert(copied);n+=copied;}
+    text[n]=0;assert(n==size && file_close(NULL,file,true));return n;
 }
 static void bootlog_cases(const char *scenario) {
     source_enabled=true;source_history=!strcmp(scenario,"log-history");
@@ -377,14 +393,14 @@ static void bootlog_cases(const char *scenario) {
     if(!strcmp(scenario,"log-readonly") || !strcmp(scenario,"log-partial") || !strcmp(scenario,"log-full") || !strcmp(scenario,"log-close")){
         assert(bootlog_disabled && bootlog_error && !bootlog_seen[0].revision);
         const unsigned attempts=log_opens;
-        char message[200]; const risc_storage_volume_api_v1 *published=driver.base.capability;
+        char message[200]; const risc_storage_volume_api_v1 *published=driver.poll.streams.driver.capability;
         assert(published->last_error(NULL,message,sizeof(message)) && strstr(message,"boot-log:"));
         for(unsigned i=0;i<8;++i)(void)ready(NULL);
         assert(log_opens==attempts);
         if(!strcmp(scenario,"log-close")){
             assert(has_handles() && io_failed && !mounted && !quiesce() && !prepare_sleep(NULL) && !refresh(NULL));
             const unsigned before=calls;
-            assert(driver.last_error(message,sizeof(message)) && strstr(message,"writable log retained"));
+            assert(driver.poll.streams.last_error(message,sizeof(message)) && strstr(message,"writable log retained"));
             assert(calls==before); /* Diagnostic suffix is RAM-only after revocation. */
             assert(files[0].handle && files[0].flags==RISC_STORAGE_OPEN_WRITE);return;
         }
@@ -423,7 +439,7 @@ static void bootlog_cases(const char *scenario) {
         source_enabled=false;
         const uint32_t file=file_open(NULL,X4_BOOTLOG_SD_PATH,RISC_STORAGE_OPEN_WRITE|RISC_STORAGE_OPEN_APPEND);assert(file);
         char bytes[4096];memset(bytes,'x',sizeof(bytes));
-        for(unsigned i=0;i<32;++i)assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));
+        for(unsigned i=0;i<X4_BOOTLOG_SD_MAX_BYTES/sizeof(bytes);++i)assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));
         assert(file_close(NULL,file,true));source_revision=2;source_enabled=true;assert(ready(NULL));
         uint64_t size;bool directory;assert(stat_path(NULL,X4_BOOTLOG_SD_PREVIOUS,&size,&directory) && !directory && size>=X4_BOOTLOG_SD_MAX_BYTES);
         assert(stat_path(NULL,X4_BOOTLOG_SD_PATH,&size,&directory) && size<X4_BOOTLOG_SD_MAX_BYTES);
@@ -434,13 +450,59 @@ static void bootlog_cases(const char *scenario) {
     }
     verify_cleanup();
 }
+static void trace_cases(const char *scenario) {
+ const char* fixture=getenv("X4_TRACE_FIXTURE");assert(fixture);
+ FILE *input=fopen(fixture,"rb");assert(input);
+ source_trace_size=fread(source_trace,1,sizeof(source_trace)-1,input);assert(!ferror(input) && feof(input));fclose(input);
+ assert(source_trace_size>20000);source_trace[source_trace_size]=0;
+ deps[5].api=&fixture_trace.base;
+ // Mount with no data, then publish exact production native-logger output.
+ source_trace_available=0;assert(START());assert(log_writes==0);
+ source_trace_available=source_trace_size;
+ if(!strcmp(scenario,"log-trace-close"))log_fail_close=true;
+ if(!strcmp(scenario,"log-trace-invalid"))source_trace_invalid=true;
+ if(!strcmp(scenario,"log-trace-timeout"))budget_jump=true;
+ unsigned iterations=0;
+ if(!strcmp(scenario,"log-trace-export")) {
+  risc_storage_export_token_t token=0;uint64_t blocks=0;uint32_t block_size=0;
+  assert(export_begin(NULL,&token,&blocks,&block_size)==RISC_STORAGE_EXPORT_READY);
+  assert(bootlog_cursor==source_trace_available && bootlog_paused);
+  const unsigned writes=card_writes;bootlog_service(1000);assert(card_writes==writes);
+  assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY);
+ }
+ while(bootlog_cursor<source_trace_available && !bootlog_disabled){
+  const unsigned sectors=card_writes+card_reads,writes=log_writes;
+  bootlog_service(1000);assert(++iterations<512);
+  assert(log_writes-writes<=1);
+  assert(card_writes+card_reads-sectors<=64);
+ }
+ if(strcmp(scenario,"log-full-trace") && strcmp(scenario,"log-trace-export")){
+  assert(bootlog_disabled && bootlog_error && bootlog_cursor==0);
+  const unsigned writes=log_writes;bootlog_service(1000);assert(log_writes==writes);
+  if(!strcmp(scenario,"log-trace-close"))assert(bootlog_retained && has_handles() && !quiesce());
+  printf("Full trace SD %s disabled safely; cursor=%llu retained=%u sectors=%u elapsed_ms=%llu PASS\n",scenario,(unsigned long long)bootlog_cursor,(unsigned)bootlog_retained,operation_sectors,(unsigned long long)(now_ms-operation_start));
+  return;
+ }
+ char actual[262144];const size_t count=read_log(actual,sizeof(actual));
+ assert(count==source_trace_size && !memcmp(actual,source_trace,count));
+ const char *artifact=getenv("X4_SD_LOG_ARTIFACT");if(artifact){FILE*f=fopen(artifact,"wb");assert(f);assert(fwrite(actual,1,count,f)==count);assert(!fclose(f));}
+ assert(strstr(actual,"event=100") && strstr(actual,"panel-start-timeout") && strstr(actual,"stage=rtc-recovery result=ok") && strstr(actual,"file=clock.elf"));
+ assert(strstr(actual,"session=2 event=1") && strstr(actual,"session=3 event=1"));
+ unsigned before=card_writes+card_reads,opens=log_opens;
+ for(unsigned i=0;i<100;++i)bootlog_service(1000);
+ assert(card_writes+card_reads==before && log_opens==opens);
+ owner=false;bootlog_service(1000);owner=true;assert(card_writes+card_reads==before);
+ printf("Full trace SD bytes=%zu events>200 chunks=%u physical_reads=%u physical_writes=%u; exact persisted text/order/reset/results PASS\n",count,iterations,card_reads,card_writes);
+ verify_cleanup();
+}
 #include "sd_export_test.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
-    assert(t5_driver_get(2)==&driver.base && !t5_driver_get(1));
+    assert(t5_driver_get(2)==&driver.poll.streams.driver && !t5_driver_get(1));
     if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
+    if(!strcmp(scenario,"log-full-trace") || !strncmp(scenario,"log-trace-",10)){trace_cases(scenario);return 0;}
     if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}
     if(!strcmp(scenario,"validation")){
         assert(!start(NULL,0));const void *saved=deps[0].api;deps[0].api=NULL;assert(!START());deps[0].api=saved;

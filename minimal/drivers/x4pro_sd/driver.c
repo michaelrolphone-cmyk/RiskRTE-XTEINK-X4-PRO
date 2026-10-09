@@ -369,6 +369,9 @@ static bool resume_sleep_media(void) {
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave
 #define STORAGE_VOLUME_ADMISSION_FROZEN() (export_state != EXPORT_LOCAL)
 #define STORAGE_VOLUME_LABEL "X4PRO"
+static uint32_t bootlog_budget_ms=15000,bootlog_sector_limit=2048;
+#define STORAGE_VOLUME_OPERATION_BUDGET_MS bootlog_budget_ms
+#define STORAGE_VOLUME_OPERATION_SECTOR_LIMIT bootlog_sector_limit
 #include <volume.c>
 #include "BootLog.h"
 #include "Export.h"
@@ -465,10 +468,11 @@ static bool quiesce(void) {
     return true;
 }
 static void stop(void) { /* Successful quiesce has completed all fallible work. */ }
-static const risc_driver_diagnostics_v2 driver = {{
+static const risc_driver_service_v2 driver = {{{{
     RISC_PROVIDER_DRIVER_ABI_V2, sizeof(driver), "x4pro-sd",
     "storage.volume", 1, &logging_api, start, stop, quiesce
-}, bootlog_descriptor_error};
+}, bootlog_descriptor_error, NULL}, NULL}, RISC_DRIVER_SERVICE_TAG_V1,
+RISC_DRIVER_SERVICE_VERSION_V1, bootlog_service};
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
@@ -484,5 +488,5 @@ const risc_driver_v2 *t5_driver_get(uint32_t abi) {
         logging_api.export_sync = export_sync;
         logging_api.export_end = export_end;
     }
-    return &driver.base;
+    return &driver.poll.streams.driver;
 }

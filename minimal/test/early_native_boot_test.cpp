@@ -104,7 +104,7 @@ int main(int argc, char** argv) {
       risc_native_diagnostic_observer("APP t_ms=24 stage=draw-begin ");
       risc_native_diagnostic_observer("RTE_STAGE us=12 gpio operation");
     }
-    assert(timeUs==oldTime && retained.milestoneCount==0);
+    assert(timeUs>oldTime && retained.milestoneCount==0);
     risc_native_diagnostic_observer("RTE_STAGE us=900 provider start begin id=x4pro-panel");
     assert(retained.milestoneKind==X4Boot::Provider && retained.milestoneCount==1);
     assert(std::strstr(retained.milestone,"id=x4pro-panel"));
@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     assert(retained.displayCompleted && retained.firstDisplayUs && retained.milestoneCount==3);
     const auto firstTime=retained.firstDisplayUs;const auto afterFirst=timeUs;
     risc_native_diagnostic_observer("APP t_ms=102 stage=display-complete result=complete");
-    assert(retained.firstDisplayUs==firstTime && retained.milestoneCount==3 && timeUs==afterFirst);
+    assert(retained.firstDisplayUs==firstTime && retained.milestoneCount==3 && timeUs>afterFirst);
     std::string longFailure="RTE_BOOT error=runtime detail="+std::string(900,'x');
     risc_native_diagnostic_observer(longFailure.c_str());
     assert(retained.milestoneKind==X4Boot::Failure && retained.messageTruncated==1 && std::strlen(retained.milestone)==159);

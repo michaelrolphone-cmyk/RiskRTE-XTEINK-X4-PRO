@@ -10,6 +10,7 @@
 #include <soc/rtc_cntl_reg.h>
 #include <soc/soc.h>
 #include <cstdio>
+#include <esp_heap_caps.h>
 #include "X4BootRecord.h"
 #include <RiscDiagnosticSourceV1.h>
 #include "X4NativeBuildIdentity.h"
@@ -60,7 +61,7 @@ bool store() {
   history[current.sequence%SlotCount]=current;
   return true;
 }
-void start(const X4Boot::Record& record) {
+void startFlash(const X4Boot::Record& record) {
   if(initialized)return;
   initialized=true;current=begin(0,record);
   // No erase-and-retry: exhausted/corrupt NVS must not erase settings/evidence.
@@ -113,11 +114,6 @@ int formatSession(char* text,size_t capacity,const Session& s,const char* origin
     s.firstFailure[0]?s.firstFailure:"none-recorded");
   return n>=0 && size_t(n)<capacity?n:-1;
 }
-bool writeSession(FILE* file,const Session& s,const char* origin) {
-  char text[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];
-  const int n=formatSession(text,sizeof(text),s,origin);
-  return n>=0 && std::fwrite(text,1,size_t(n),file)==size_t(n);
-}
 bool syncClose(FILE* file) {
   bool okay=std::fflush(file)==0;
   if(okay && fsync(fileno(file))!=0)okay=false;
@@ -125,42 +121,134 @@ bool syncClose(FILE* file) {
   if(std::fclose(file)!=0){okay=false;fileError=errno?errno:EIO;}
   return okay;
 }
-bool append() {
-  if(!fileReady || fileUncertain || current.magic!=Magic ||
-      (historyExported && fileRevision==current.revision))return false;
-  if(fileAttemptRevision!=current.revision){fileAttemptRevision=current.revision;fileAttempts=0;}
-  if(fileAttempts>=2)return false;
-  ++fileAttempts; // At most two pre-write retries per bounded checkpoint.
-  struct stat info{};
-  if(stat(Internal,&info)==0 && info.st_size>=long(MaxLogBytes)) {
-    // If replacement/rotation is unsupported, keep existing evidence intact.
-    if(std::rename(Internal,Previous)!=0){fileError=errno;return false;}
+// Actual diagnostic text is retained separately from the small NVS crash
+// summary. PSRAM allocation occurs only after Arduino initializes it. Before
+// that, native rail events use a fixed RAM prefix. No observer allocates or I/Os.
+constexpr size_t TraceBytes=64*1024, EarlyBytes=8192, TailReserve=2048;
+char earlyText[EarlyBytes]{};
+char* traceText=earlyText;
+char* recoveryText=nullptr;
+void* traceAllocation=nullptr;
+size_t traceCapacity=EarlyBytes,traceBytes=0,recoveryBytes=0,persistedBytes=0;
+uint32_t eventSequence=0;
+bool traceClosed=false,traceOverflow=false,recoveryReady=false,frameComplete=false;
+unsigned terminalDetails=0;
+struct EarlyEvent { uint64_t us; const char* operation; int result; };
+EarlyEvent earlyEvents[10]{};unsigned earlyCount=0;
+void early(const char* operation,int result) {
+  if(earlyCount<10)earlyEvents[earlyCount++]={uint64_t(esp_timer_get_time()),operation,result};
+}
+void allocateTrace() {
+  if(traceAllocation)return;
+  traceAllocation=heap_caps_malloc(TraceBytes*2,MALLOC_CAP_SPIRAM|MALLOC_CAP_8BIT);
+  if(!traceAllocation)return;
+  auto* buffer=static_cast<char*>(traceAllocation);
+  std::memcpy(buffer,traceText,traceBytes);
+  traceText=buffer;traceCapacity=TraceBytes;recoveryText=buffer+TraceBytes;
+}
+void textLine(const char* line,uint64_t nowUs,bool essential=false) {
+  if(!line || !*line || (traceOverflow && !essential))return;
+  char copied[256];size_t length=0;
+  while(length+1<sizeof(copied) && line[length]) {
+    char c=line[length];copied[length]=(c=='\n'||c=='\r'||uint8_t(c)<32)?' ':c;++length;
   }
+  copied[length]=0;
+  const bool truncated=line[length]!=0;
+  // Never persist credentials accidentally supplied by an application or
+  // provider diagnostic. Keep the event position and explicit redaction.
+  char lower[sizeof(copied)];
+  for(size_t i=0;i<=length;++i)lower[i]=(copied[i]>='A'&&copied[i]<='Z')?char(copied[i]+32):copied[i];
+  const char* keys[]={"password", "passphrase", "secret=", "token=", "credential", "authorization", "psk=", "api_key", "private_key"};
+  for(const char* key:keys)if(std::strstr(lower,key)){std::strcpy(copied,"[redacted credential-bearing diagnostic]");break;}
+  char row[448];
+  const int n=std::snprintf(row,sizeof(row),"X4_TRACE session=%llu event=%lu us=%llu%s %s\n",
+    (unsigned long long)current.sequence,(unsigned long)(eventSequence+1),
+    (unsigned long long)nowUs,truncated?" truncated=1":"",copied);
+  if(n<=0 || size_t(n)>=sizeof(row))return;
+  const size_t limit=essential?traceCapacity:traceCapacity-TailReserve;
+  if(traceBytes+size_t(n)>limit) {
+    if(!traceOverflow){traceOverflow=true;textLine("capture overflow result=truncated capacity-exhausted",nowUs,true);}
+    return;
+  }
+  std::memcpy(traceText+traceBytes,row,size_t(n));traceBytes+=size_t(n);++eventSequence;
+}
+void start(const X4Boot::Record& record) {
+  startFlash(record);
+  char line[256];
+  std::snprintf(line,sizeof(line),"session begin reset=%lu raw0=%lu raw1=%lu wake=%lu rtc_boot=%lu power_source=unmeasured capture=app-main no-usb-required firmware=%s",
+    (unsigned long)record.reset,(unsigned long)record.raw0,(unsigned long)record.raw1,
+    (unsigned long)record.wake,(unsigned long)record.boot,X4_NATIVE_COMPOSITION_IDENTITY);
+  textLine(line,record.entryUs,true);
+  for(unsigned i=0;i<earlyCount;++i){
+    std::snprintf(line,sizeof(line),"native init operation=%s result=%d",earlyEvents[i].operation,earlyEvents[i].result);
+    textLine(line,earlyEvents[i].us);
+  }
+  std::snprintf(line,sizeof(line),"native nvs-init result=%ld session_identity=%s",
+    (long)storageError,current.sequence?"persistent":"unassigned");
+  textLine(line,uint64_t(esp_timer_get_time()));
+}
+void trace(const char* line,uint64_t nowUs,const X4Boot::Record& record) {
+  const bool failure=X4Boot::classify(record,line)==X4Boot::Failure;
+  const bool detail=std::strstr(line," provider detail ")!=nullptr;
+  if(traceClosed && !(terminalDetails<8 && (failure||detail)))return;
+  if(traceClosed)++terminalDetails;
+  if(X4Boot::prefix(line,"RTE_STAGE ") && std::strstr(line," app entry begin "))frameComplete=false;
+  const bool app=X4Boot::prefix(line,"APP t_ms=");
+  if(frameComplete && app && !failure &&
+     (std::strstr(line,"stage=touch-") || std::strstr(line,"stage=draw-") ||
+      std::strstr(line,"stage=transfer-") || std::strstr(line,"stage=display-")))return;
+  textLine(line,nowUs,failure || detail);
+  // A logo can be the first frame. Keep all later initialization stages,
+  // including Clock/RTC and subsequent app entries, until bounded capacity.
+  if(app && std::strstr(line,"stage=display-complete result=complete")) {
+    frameComplete=true;
+    if(!record.displayCompleted)textLine("first-display result=complete capture=continuing",nowUs,true);
+  }
+  if(!traceClosed && X4Boot::prefix(line,"RTE_BOOT error=")) {
+    traceClosed=true;textLine("capture end result=failed",nowUs,true);
+  }
+}
+void recoverFile() {
+  // Freeze the recovered prefix before the source can be consumed. No later
+  // prepend/reordering and no file access from the copied-source callbacks.
+  if(recoveryReady)return;
+  recoveryReady=true;
+  if(!fileReady)return;
+  struct stat info{};
+  if(stat(Internal,&info)!=0){if(errno!=ENOENT)fileError=errno;return;}
+  if(!S_ISREG(info.st_mode)){fileError=EISDIR;return;}
+  if(recoveryText && info.st_size>0 && size_t(info.st_size)<=TraceBytes) {
+    FILE* file=std::fopen(Internal,"rb");
+    if(file) {
+      recoveryBytes=std::fread(recoveryText,1,size_t(info.st_size),file);
+      if(std::ferror(file)){fileError=errno?errno:EIO;recoveryBytes=0;}
+      if(std::fclose(file)!=0){fileError=errno?errno:EIO;recoveryBytes=0;}
+      // A torn trailing line is not a complete saved event.
+      while(recoveryBytes && recoveryText[recoveryBytes-1]!='\n')--recoveryBytes;
+    } else fileError=errno;
+  } else if(info.st_size>0)fileError=EFBIG;
+  // Rotate once per session, before appending current text. Previous contains
+  // the last attempt even if the new boot stops before a first display.
+  if(std::rename(Internal,Previous)!=0){fileError=errno;fileUncertain=true;}
+}
+bool append() {
+  if(!fileReady || !recoveryReady || fileUncertain || persistedBytes==traceBytes)return false;
+  // Pre-write failures may be retried twice per new trace revision. Once any
+  // append/close is uncertain it is never repeated in this boot.
+  if(fileAttemptRevision!=eventSequence){fileAttemptRevision=eventSequence;fileAttempts=0;}
+  if(fileAttempts>=2)return false;
+  ++fileAttempts;
   FILE* file=std::fopen(Internal,"ab");
   if(!file){fileError=errno;return false;}
-  bool okay=true;
-  if(!historyExported) {
-    okay=std::fprintf(file,
-      "\nX4_BOOTLOG format=1 firmware=%s flash_error=%ld previous_file_error=%d "
-      "capture=app-main-after-rail seq0=unassigned no-usb-required\n",
-      X4_NATIVE_COMPOSITION_IDENTITY,(long)storageError,fileError)>=0;
-    // Oldest to newest. Invalid/torn records never become successful boots.
-    uint64_t after=0;
-    for(unsigned count=0;count<SlotCount && okay;++count) {
-      uint64_t lowest=UINT64_MAX;unsigned selected=SlotCount;
-      for(unsigned i=0;i<SlotCount;++i)
-        if(valid(history[i]) && history[i].sequence<current.sequence &&
-           history[i].sequence>after && history[i].sequence<lowest) {
-          lowest=history[i].sequence;selected=i;
-        }
-      if(selected==SlotCount)break;
-      okay=writeSession(file,history[selected],"recovered-flash");after=lowest;
-    }
+  const size_t bytes=traceBytes-persistedBytes;
+  const bool okay=std::fwrite(traceText+persistedBytes,1,bytes,file)==bytes;
+  const bool closed=syncClose(file);
+  if(!okay || !closed){
+    fileUncertain=true;if(!fileError)fileError=EIO;
+    char line[128];std::snprintf(line,sizeof(line),"native trace persistence result=uncertain errno=%d retry=disabled",fileError);
+    textLine(line,uint64_t(esp_timer_get_time()),true);return false;
   }
-  if(okay)okay=writeSession(file,current,"current");
-  bool closed=syncClose(file);
-  if(!okay || !closed){fileUncertain=true;if(!fileError)fileError=EIO;return false;}
-  historyExported=true;fileRevision=current.revision;return true;
+  persistedBytes=traceBytes;historyExported=true;fileRevision=current.revision;return true;
 }
 void drain(const X4Boot::Record& record) {
   if(insideDrain)return;
@@ -170,9 +258,11 @@ void drain(const X4Boot::Record& record) {
     if(advance(current,record))(void)store();
   }
   if(!fileReady)fileReady=directory(X4_BOOTLOG_INTERNAL_ROOT);
+  if(!recoveryReady && fileReady)recoverFile();
   (void)append();
   insideDrain=false;
 }
+
 } }
 
 namespace {
@@ -187,10 +277,10 @@ void prepareRail() {
   // been established. Keep the previous pad hold until digital HIGH is ready.
   startupError = "x4-gpio1-rtc-deinit";
   X4Boot::mark(retained, X4Boot::AppMain, 1);
-  if (rtc_gpio_deinit(peripheralRail) != ESP_OK) return;
+  {const int result=rtc_gpio_deinit(peripheralRail);X4BootLog::early("gpio1-rtc-deinit",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-stage-high";
   X4Boot::mark(retained, X4Boot::AppMain, 2);
-  if (gpio_set_level(peripheralRail, 1) != ESP_OK) return;
+  {const int result=gpio_set_level(peripheralRail, 1);X4BootLog::early("gpio1-stage-high",result);if(result!=ESP_OK)return;}
   gpio_config_t config{};
   config.pin_bit_mask = uint64_t(1) << peripheralRail;
   config.mode = GPIO_MODE_INPUT_OUTPUT;
@@ -199,19 +289,19 @@ void prepareRail() {
   config.intr_type = GPIO_INTR_DISABLE;
   startupError = "x4-gpio1-configure";
   X4Boot::mark(retained, X4Boot::AppMain, 3);
-  if (gpio_config(&config) != ESP_OK) return;
+  {const int result=gpio_config(&config);X4BootLog::early("gpio1-configure",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-confirm-high";
   X4Boot::mark(retained, X4Boot::AppMain, 4);
-  if (gpio_set_level(peripheralRail, 1) != ESP_OK) return;
+  {const int result=gpio_set_level(peripheralRail, 1);X4BootLog::early("gpio1-confirm-high",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-unhold";
   X4Boot::mark(retained, X4Boot::AppMain, 5);
-  if (gpio_hold_dis(peripheralRail) != ESP_OK) return;
+  {const int result=gpio_hold_dis(peripheralRail);X4BootLog::early("gpio1-unhold",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-hold";
   X4Boot::mark(retained, X4Boot::AppMain, 6);
-  if (gpio_hold_en(peripheralRail) != ESP_OK) return;
+  {const int result=gpio_hold_en(peripheralRail);X4BootLog::early("gpio1-hold",result);if(result!=ESP_OK)return;}
   startupError = "x4-gpio1-readback-low";
   X4Boot::mark(retained, X4Boot::AppMain, 7);
-  if (gpio_get_level(peripheralRail) != 1) return;
+  {const int result=gpio_get_level(peripheralRail)==1?ESP_OK:ESP_FAIL;X4BootLog::early("gpio1-readback",result);if(result!=ESP_OK)return;}
   startupError = nullptr;
   X4Boot::mark(retained, X4Boot::RailReady);
 }
@@ -286,6 +376,8 @@ extern "C" void initVariant(void) {
   retained.phase = X4Boot::Variant;
   X4Boot::seal(retained);
   X4BootLog::checkpoint(retained);
+  X4BootLog::allocateTrace();
+  X4BootLog::textLine("native arduino-variant result=entered",retained.variantUs);
 }
 
 extern "C" const char* risc_native_startup_error(void) {
@@ -305,8 +397,12 @@ extern "C" const char* risc_native_startup_error(void) {
 // Called only by the selected Runtime diagnostic owner, before USB availability
 // can discard a line. No retained field authorizes hardware or boot behavior.
 extern "C" void risc_native_diagnostic_observer(const char* line) {
-  if(!attempted || !variant || X4Boot::classify(retained,line)==X4Boot::None)return;
-  if(X4Boot::observe(retained,line,uint64_t(esp_timer_get_time())))
+  if(!attempted || !variant || !line)return;
+  const uint64_t nowUs=uint64_t(esp_timer_get_time());
+  X4BootLog::trace(line,nowUs,retained);
+  if(!X4BootLog::recoveryReady && std::strstr(line,"boot app-data end result=unavailable"))
+    X4BootLog::recoveryReady=true;
+  if(X4Boot::observe(retained,line,nowUs))
     X4BootLog::observe();
 }
 
@@ -339,4 +435,27 @@ extern "C" int32_t risc_native_diagnostic_read(uint32_t slot,char* text,uint32_t
   if(length<0){text[0]=0;return -1;}
   *written=uint32_t(header+length);*sequence=session.sequence;*revision=session.revision;
   return 1;
+}
+
+// Immutable-prefix byte stream: repeated reads are idempotent; the provider
+// acknowledges only in its own cursor after checked durable close.
+extern "C" int32_t risc_native_diagnostic_read_after(uint64_t after,char* text,uint32_t capacity,
+    uint32_t* written,uint64_t* next) {
+  if(written)*written=0;
+  if(next)*next=0;
+  if(text && capacity)text[0]=0;
+  if(!text || !written || !next || !capacity || capacity>RISC_DIAGNOSTIC_SOURCE_TEXT_MAX)return -1;
+  using namespace X4BootLog;
+  if(!recoveryReady)return 0;
+  const uint64_t total=recoveryBytes+traceBytes;
+  if(after>total)return -1;
+  if(after==total)return 0;
+  auto byte=[&](uint64_t at){return at<recoveryBytes?recoveryText[at]:traceText[at-recoveryBytes];};
+  if(after && byte(after-1)!='\n')return -1;
+  uint32_t count=0,lastLine=0;
+  while(after+count<total && count+1<capacity) {
+    const char c=byte(after+count);text[count++]=c;if(c=='\n')lastLine=count;
+  }
+  if(!lastLine){text[0]=0;return -1;}
+  text[lastLine]=0;*written=lastLine;*next=after+lastLine;return 1;
 }

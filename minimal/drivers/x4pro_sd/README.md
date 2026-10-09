@@ -151,3 +151,10 @@ exports only `t5_driver_get`, and imports only `memcmp`, `memcpy`, `memset`,
 `573e50fd5b8d92665b0310984707c03f823adf0e4c1e80a3c76348592f0b8232`.
 Host simulation and the target build do not establish physical USB/SD timing,
 hot unplug, power-loss or filesystem consistency after an unsafe host removal.
+
+## Ordered boot text
+
+0.2.9 consumes the size-guarded copied-text source tail and adds a tagged generic
+owner service for bounded synchronous file writes. It preserves 0.2.8 raw-export
+custody and pauses during host ownership. Actual text, reset/event/time identity,
+limits, recovery and tests are described in [BOOT_LOGGING.md](../../docs/BOOT_LOGGING.md).

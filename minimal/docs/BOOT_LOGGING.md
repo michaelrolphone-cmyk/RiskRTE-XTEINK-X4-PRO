@@ -1,123 +1,106 @@
-# Persistent X4 boot diagnostics
+# Ordered X4 boot trace
 
-The recovered 0.1.29 native boot logger is integrated with the existing typed SD
-owner. SD package `x4pro-sd` advances from 0.2.6 to 0.2.7; Runtime 0.1.78 supplies
-the optional `platform.diagnostic-source@1` copied, read-only provider dependency
-and the post-output native drain. Runtime is based on canonical 0.1.76, without
-the separately reserved/unqualified 0.1.77 request_default change.
+SD package `x4pro-sd` 0.2.9 writes actual initialization text to SD root
+`/x4-boot.log`, with bounded rotation to `/x4-boot.previous.log`. Files exposes
+these as `/sd/x4-boot.log` and `/sd/x4-boot.previous.log`; USB mass storage exposes
+the card root. Internal app-data uses the same two filenames under `/appdata`.
+The old .30 checkpoint-only artifact remains unchanged.
 
-## Where the evidence appears
+Each complete line contains `X4_TRACE session=… event=… us=…` followed by the
+actual diagnostic statement. `us` is monotonic microseconds at observation;
+`event` increases within the session. Session numbers come from NVS and survive
+loss of RTC RAM. An unavailable NVS identity is explicitly `session=0` and
+`session_identity=unassigned`; reset/raw/wake values and firmware identity mark
+each new attempt. Power source is unmeasured.
 
-- Physical SD root: `x4-boot.log`, with `x4-boot.previous.log` after rotation.
-  The ordinary volume-relative paths are `/x4-boot.log` and
-  `/x4-boot.previous.log`; Files exposes the card under `/sd`.
-- Internal app-data: `/appdata/x4-boot.log` and
-  `/appdata/x4-boot.previous.log`.
-- Early persistent fallback: eight checksummed 456-byte session summaries in
-  the existing NVS `x4_bootlog` namespace. No erase/format recovery is performed.
+Capture starts at application-wrapper entry. GPIO1 rail preparation includes
+actual operation/result/time rows. All admitted Runtime lines are copied before
+USB/backpressure can discard them: RTE_SOURCE/BOOT/PROVISION/STORAGE, timestamped
+provider load/start/reference/detail, app load/init/entry, and application
+initialization/draw/transfer/completion. The existing PROVREF ESP_LOG initialization
+stages are mirrored through the same diagnostic facility. ROM/bootloader text
+before app_main and unrelated IDF log producers are outside this capture.
 
-The first flash checkpoint is after the existing GPIO1 rail preparation in
-`__wrap_app_main`, before Arduino initialization and filesystem mounting. Reset,
-wake, GPIO/strap observations, named boot/provider/app timestamps, first display
-completion and the first recorded terminal failure are retained. Power source
-and battery voltage are unmeasured. A later successful boot exports earlier
-sessions rather than relabeling its own power conditions as the failed attempt.
+First display remains a special marker, but may only be a logo: later RTC/Clock
+and other named initialization still appears. Each app-entry boundary reopens
+its first-frame capture. Repetitive APP touch/draw/transfer/display chatter after
+a completed frame is filtered; later named initialization and errors continue.
+A terminal RTE_BOOT error closes ordinary capture, with up to eight subsequent
+failure/detail lines. Credential-bearing diagnostics are replaced by an explicit
+redaction. Long source lines and exhausted capacity are explicitly marked.
 
-SD export begins only after normal graph validation, SD provider activation and
-a successful FatFs mount. The explicit diagnostic cohort sets `boot_start="cold"` only on its selected
-SD node while retaining global demand-retained activation. Native reset reason
-classifies every non-deep reset as cold; all deep wakes remain demand-only, even
-with missing/corrupt app RTC records. The existing session graph grant keeps the
-SD owner available for later ordinary consumers, with normal cleanup/sleep rules. No second native/Arduino SD stack, early peripheral
-activation, app grant, pin change, flash-mode change or USB host is introduced.
+## Memory and persistence
 
-The file contains plain named text with monotonic timestamps and explicit
-session/revision identity. `record_end=complete` terminates each fully copied
-snapshot; a partial final record is not proof of a complete checkpoint. This is
-a bounded checkpoint journal, not an exhaustive transcript of every log line.
-Ordinary touch/move/render chatter does not create flash checkpoints or SD writes.
+The early prefix is 8 KiB of internal RAM. At initVariant, after Arduino PSRAM
+initialization, an explicit PSRAM-only allocation reserves 64 KiB for current
+text and 64 KiB for the preceding attempt. Allocation failure uses only the early
+buffer and emits an overflow marker when full; it does not consume a large
+internal-heap fallback. Two KiB is reserved for overflow/failure evidence.
+The observer only copies bounded text: no allocation, NVS/file I/O, diagnostics,
+Runtime or provider calls.
 
-## Ownership, bounds and failures
+The existing post-output native drain writes new text to app-data after its
+normal mount. It flushes/fsyncs/closes each admitted update. The previous file is
+read into bounded PSRAM and frozen before SD can consume the source; then current
+is renamed to previous once per boot. This lets a USB recovery boot export the
+preceding battery attempt even when its last lines never reached SD. A partial
+trailing line is discarded on recovery. Complete current/previous files are
+at most 64 KiB each. Uncertain append/sync/close disables further internal writes
+for that boot, with an explicit buffered error; pre-write retries are bounded.
 
-Runtime copies at most 1535 bytes plus NUL for one of nine slots (current and up
-to eight flash slots). The source has no storage authority, callback registration
-or borrowed pointer lifetime. Apps cannot acquire this raw platform capability.
+The small, checksummed eight-slot NVS crash summaries remain separate. Their
+64 ordinary-checkpoint limit does not limit the full text. First display and
+first failure retain special evidence beyond that limit. No erase/format retry
+runs. Before app-data is writable, early full text is volatile: sudden power
+loss can lose it, although committed NVS summaries may survive. Neither PSRAM
+nor RTC RAM is claimed to survive complete power loss. A reset during a file
+write can leave a partial tail; checked writes improve evidence, not electrical
+or filesystem guarantees.
 
-The SD owner considers pending snapshots when leaving an admitted operation.
-Initial mount drains up to nine snapshots automatically. Later ordinary calls
-write at most one snapshot each,
-only with zero caller-owned file/directory handles, active rails and a usable
-mount. The current caller's errors and handle positions are preserved. Snapshot
-sequence/revision acknowledgments happen only after checked FatFs close/sync;
-repeated ordinary calls and refresh do not append acknowledged revisions again.
-A later boot can append recovered summaries again, with explicit identity.
+## SD ownership and service
 
-The initial batch has at most nine append/checked-close pairs, 13,815 text bytes
-and 81 RAM source reads. The entire batch shares the existing 15,000 ms / 2048
-sector / 1,048,576 filesystem-step budget, rather than resetting it per snapshot.
-The deadline is checked between bounded transport operations; an in-flight
-sector may finish after it. Native transfer cooperation continues during I/O.
+The source extends the unchanged v1 snapshot prefix with a size-guarded
+`read_after` copied-text tail. A byte cursor identifies immutable-prefix text;
+reads are bounded, allocation/I/O-free and repeatable. Only checked FatFs close
+advances the SD consumer cursor. No native storage pointer escapes.
 
-SD rotation occurs before the next record would exceed 128 KiB. At most two
-owned log files are kept. Rotation removes the older previous log before renaming
-the current file; a power interruption can lose that older rotation, while the
-current evidence remains in either current or previous. This is not an atomic
-two-file transaction. Internal app-data uses the recovered 128 KiB rotation
-threshold; a bounded history batch may extend it by fewer than nine 1536-byte
-records. NVS ordinary checkpoints are capped at 64 per startup, with first display
-and first terminal failure preserved beyond that cap. One subsequent first-part
-provider detail may enrich the checkpoint while preserving the original failure;
-further detail/cleanup chatter is ignored.
+The existing cold-boot selection activates the admitted SD provider before app
+entry. Runtime calls a tagged generic synchronous provider service only at owner
+safe points: before/after acquisitions outside graph lifecycle, before app entry,
+and at ordinary app yields. This is separate from the 8 ms cooperative poll.
+No provider is called from the diagnostic observer or native drain. A service
+with no text performs no storage I/O. One SD service appends/closes at most one
+1535-byte chunk, sharing a 1000 ms/64-sector deadline. Checks run before bounded
+operations; one already in-flight bounded sector may finish after the deadline.
+The ordinary transport continues scheduler cooperation. Caller-owned handles,
+sleep, quiesce, retained custody and USB host ownership exclude logging.
 
-Missing/unformatted media keeps the provider's existing refresh behavior and
-leaves evidence in NVS/app-data. Read-only/full/open/partial/write/close/rotation
-failures are reported by the published volume `last_error` callback as
-`boot-log: ...`, alongside existing caller errors. The ABI2 diagnostic suffix
-also exposes the same bounded RAM-only status after failed start or quiescence,
-so Runtime can include it in persistent failure evidence. The first logger failure is
-kept and SD writes are disabled for that provider instance, avoiding repeated
-uncertain appends. A failed log close retains the actual writable FIL and its
-ordinary file slot, fences successful operation returns, and makes remount,
-sleep and quiesce fail safely with the provider/dependencies retained. Caller
-files are never closed, committed, aborted or displaced by logging.
+Existing SD owner operations can also drain one chunk. Export begin drains the
+pending bounded stream with one shared existing 15 s/2048-sector operation budget
+before pausing the logger and unmounting. It never renews this bound per chunk.
+The host cannot own the card while local logging writes it.
 
-Sleep preparation freezes export. Nothing writes while prepared, committed,
-retained, unmounted or shutting down. Successful checked resume may export a
-pending snapshot after normal remount. If a failure is followed by no further
-SD operation, it remains in NVS and is exported on a later usable activation.
-Internal app-data retries before writing are capped at two per checkpoint;
-uncertain write/sync/close failure disables its further appends for that boot.
+At most two 512 KiB SD logs exist. Rotation occurs before the next complete chunk
+would exceed the bound; it removes the older previous file then renames current.
+This is not an atomic two-file transaction. Logger failures are reported beside
+the caller's existing diagnostic. Uncertain writes are never retried; an uncertain
+close retains the actual writable FIL/slot and blocks sleep, remount and unload.
+No caller handle is closed, displaced, or committed by logging.
 
-## Verification and limits
+## Verification
 
-Build the selected diagnostic cohort with `build_test_bundle.py --boot-log`;
-the source feature and explicit flag must agree. The bundle receipt records the
-activation policy, SD path and maximum initial export size. This introduces no
-Clock grant or display dependency.
+`run_bootlog_test.sh` compiles the production native logger against IDF/NVS mocks
+and real host files. It generates failed/recovery sessions with more than 100
+initialization events, reset boundaries, first-display then RTC/Clock initialization,
+monotonic event/time checks, no-USB operation, missing storage, PSRAM failure,
+credential redaction, overflow and uncertain persistence.
 
-`minimal/test/run_bootlog_test.sh` compiles the production native implementation
-against IDF/NVS stubs and a real host filesystem. `minimal/test/run_sd_test.sh`
-compiles the production provider, shared FatFs and native-card wire model; the
-67 cases include absent/unformatted/read-only/full media, partial/write/close
-failure, caller-handle custody, shutdown/sleep, repeated exports and rotation.
-Both pass normally and under ASan/UBSan; LeakSanitizer is disabled because the
-executor uses ptrace. The generic Runtime source/drain has independent actual
-provider binding, app-denial, owner/reentry and flag-off tests.
-
-`minimal/test/run_sd_target_test.sh` verifies the Xtensa ELF export/import boundary,
-relative relocation targets and absence of provider-BSS compare-and-set. Full
-composed firmware, cohort, exact-source receipt and image qualification remain
-separate coordinator steps; a host/ELF pass is not a device test.
-
-No coverage is claimed for ROM/bootloader failure, earlier flash/PSRAM startup,
-failure before the application rail step completes, or power loss before a
-checkpoint commits. No logged reset flag establishes battery-only power.
-Storage instrumentation changes timing and power demand and is not an electrical
-measurement. No device operation, flash erase, USB observation requirement or
-battery-startup fix is part of this change.
-
-For offline recovery from a separately obtained NVS or unencrypted flash image,
-`minimal/scripts/recover_bootlog.py` scans checksum-valid contiguous candidate
-blobs. It is a forensic fallback, not an NVS transaction/page parser; fragmented,
-superseded or unindexed records have the limitations stated in its output. Share
-the resulting diagnostic text rather than unrelated raw NVS settings.
+`run_sd_test.sh` feeds that exact production output through the real SD provider,
+shared FatFs and native-card wire model, then reads the actual saved file and
+compares every byte. It verifies no-work I/O, owner/recursive custody, at most one
+chunk and 64 sectors per service, deliberately slow deadlines, invalid sources,
+uncertain close, pending-text export, and existing storage/sleep/export cases.
+`X4_SD_LOG_ARTIFACT` saves the verified file for inspection. Runtime tests separately
+exercise copied-source guards and real mapped-provider/Runtime service boundaries.
+`run_sd_target_test.sh` verifies the linked Xtensa driver and its import/relocation
+boundary. Host/target validation is not a physical battery/SD/USB test.
