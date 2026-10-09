@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/RiscRTE
-          ref: 77827e264ee5b794774b75f665295bcf886dda51
+          ref: 300a09690b6c50dc4834b8f1e8ba2e87d2328f04
           path: .shared/runtime
       - uses: actions/checkout@v4
         with:
@@ -40,6 +40,7 @@ jobs:
           bash .shared/reader/test/run_touch_power_test.sh
           bash .shared/reader/test/storage_volume/run_sleep_extension_test.sh
           bash minimal/test/run_bootlog_test.sh
+          python3 minimal/test/boot_logging_profile_test.py
           python3 minimal/test/prepare_sdk_test.py
           python3 minimal/test/bundle_identity_test.py
           python3 minimal/test/app_bundle_grants_test.py

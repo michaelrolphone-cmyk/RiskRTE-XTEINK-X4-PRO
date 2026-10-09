@@ -24,11 +24,11 @@ static bool bootlog_result(FRESULT result, const char *reason) {
     bootlog_failed(reason);
     return false;
 }
-static void bootlog_step(void) {
+static bool bootlog_step(void) {
     if (bootlog_disabled || bootlog_reporting || !diagnostic_source || !started ||
         !mounted || !card_ready || io_failed || gpio_fault || gpio_retained ||
         mutex_poisoned || quiescing || power_down_prepared || power_down_committed ||
-        sleep_state != SLEEP_ACTIVE || has_handles()) return;
+        sleep_state != SLEEP_ACTIVE || has_handles()) return false;
     uint32_t count = 0, revision = 0; uint64_t sequence = 0;
     unsigned slot = bootlog_next;
     /* Recover current and flash history in round-robin order. At most nine bounded RAM-only reads, one write. */
@@ -38,18 +38,17 @@ static void bootlog_step(void) {
             bootlog_text, sizeof(bootlog_text), &count, &sequence, &revision);
         if (result < 0 || (result > 0 && (!count || count >= sizeof(bootlog_text) ||
                 !revision || bootlog_text[count] != 0))) {
-            bootlog_failed("source invalid; export disabled"); return;
+            bootlog_failed("source invalid; export disabled"); return false;
         }
         if (result > 0 && (bootlog_seen[slot].sequence != sequence ||
                           bootlog_seen[slot].revision != revision)) break;
         count = 0;
     }
-    if (!count) return;
+    if (!count) return false;
+    bool exported = false;
     char caller_error[sizeof(error)]; memcpy(caller_error, error, sizeof(error));
     /* A separate bounded volume operation; caller handles and their positions,
      * errors, generation numbers and commit/abort ownership stay untouched. */
-    operation_start = clock_api->monotonic_ms(clock_api->context);
-    operation_steps = operation_sectors = 0;
     FILINFO info;
     FRESULT result = f_stat(X4_BOOTLOG_SD_PATH, &info);
     if (result != FR_OK && result != FR_NO_FILE) {
@@ -95,6 +94,7 @@ static void bootlog_step(void) {
     if (bootlog_result(result, "close/sync failed; writable log retained")) {
         file->handle = 0;
         if (complete) {
+            exported = true;
             bootlog_seen[slot].sequence = sequence; bootlog_seen[slot].revision = revision;
             bootlog_next = (slot + 1u) % RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS;
         }
@@ -105,16 +105,28 @@ finish:
     /* The private status callback reports log failure beside the caller error.
      * Logging never erases an existing caller's diagnostic or handle error. */
     memcpy(error, caller_error, sizeof(error));
+    return exported;
+}
+static void bootlog_drain(void) {
+    if (!clock_api || !started || !mounted || bootlog_reporting || bootlog_disabled ||
+        power_down_prepared || power_down_committed || sleep_state != SLEEP_ACTIVE || has_handles()) return;
+    unsigned limit = bootlog_mount_pending ? RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS : 1u;
+    bootlog_mount_pending = false;
+    /* One shared operation budget for the entire initial batch: at most nine
+     * 1535-byte append/close pairs (13,815 payload bytes), 81 RAM source reads,
+     * 2048 physical sectors and the existing 15-second checkpoint deadline.
+     * An in-flight bounded sector may complete after the checked deadline. */
+    operation_start = clock_api->monotonic_ms(clock_api->context);
+    operation_steps = operation_sectors = 0;
+    while (limit-- && bootlog_step()) {}
 }
 static void bootlog_copy(char *out, size_t capacity, size_t *used, const char *text) {
     if (!text) return;
     while (*text && *used + 1u < capacity) out[(*used)++] = *text++;
     out[*used] = 0;
 }
-static bool bootlog_last_error(void *context, char *out, size_t capacity) {
-    (void)context;
-    if (!out || !capacity || !enter_lifecycle()) return false;
-    bootlog_reporting = true;
+static bool bootlog_descriptor_error(char *out, size_t capacity) {
+    if (!out || !capacity) return false;
     size_t used = 0; out[0] = 0;
     bootlog_copy(out, capacity, &used, error);
     if (bootlog_error) {
@@ -123,6 +135,13 @@ static bool bootlog_last_error(void *context, char *out, size_t capacity) {
         bootlog_copy(out, capacity, &used, bootlog_error);
         if (bootlog_retained) bootlog_copy(out, capacity, &used, "; writable log retained");
     }
+    return used != 0;
+}
+static bool bootlog_last_error(void *context, char *out, size_t capacity) {
+    (void)context;
+    if (!out || !capacity || !enter_lifecycle()) return false;
+    bootlog_reporting = true;
+    const bool present = bootlog_descriptor_error(out, capacity);
     const bool okay = leave(); bootlog_reporting = false;
-    return okay && used != 0;
+    return okay && present;
 }

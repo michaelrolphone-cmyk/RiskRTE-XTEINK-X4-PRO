@@ -20,7 +20,8 @@ static const risc_platform_clock_api_v1 *clock_api;
 static const garden_gpio_v1 *gpio_api;
 static const risc_provider_sync_api_v1 *sync_api;
 static const risc_diagnostic_source_api_v1 *diagnostic_source;
-static void bootlog_step(void);
+static void bootlog_drain(void);
+static bool bootlog_mount_pending;
 static bool bootlog_custody_safe(void);
 static uint64_t operation_mutex;
 static bool mutex_poisoned, quiescing, quiesced;
@@ -80,7 +81,7 @@ static bool guard_enter(void) {
         sync_api->try_lock(sync_api->context, operation_mutex);
 }
 static bool guard_leave(void) {
-    if (valid_task() && !mutex_poisoned) bootlog_step();
+    if (valid_task() && !mutex_poisoned) bootlog_drain();
     if (!valid_task() || !sync_api->unlock(sync_api->context, operation_mutex)) {
         mutex_poisoned = true; return false;
     }
@@ -261,7 +262,9 @@ static bool init_card(void) {
             }
             card_rca = rca;
             card_ready = true;
-            return mount_filesystem();
+            const bool okay = mount_filesystem();
+            bootlog_mount_pending = okay;
+            return okay;
         }
         if (clock_api) clock_api->sleep_ms(clock_api->context, 10);
     }
@@ -426,10 +429,10 @@ static bool quiesce(void) {
     return true;
 }
 static void stop(void) { /* Successful quiesce has completed all fallible work. */ }
-static const risc_driver_v2 driver = {
+static const risc_driver_diagnostics_v2 driver = {{
     RISC_PROVIDER_DRIVER_ABI_V2, sizeof(driver), "x4pro-sd",
     "storage.volume", 1, &logging_api, start, stop, quiesce
-};
+}, bootlog_descriptor_error};
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
@@ -437,5 +440,5 @@ const risc_driver_v2 *t5_driver_get(uint32_t abi) {
         logging_api = api;
         logging_api.terminal.power.volume.base.last_error = bootlog_last_error;
     }
-    return &driver;
+    return &driver.base;
 }

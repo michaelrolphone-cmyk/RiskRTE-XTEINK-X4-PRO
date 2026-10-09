@@ -24,9 +24,11 @@ and battery voltage are unmeasured. A later successful boot exports earlier
 sessions rather than relabeling its own power conditions as the failed attempt.
 
 SD export begins only after normal graph validation, SD provider activation and
-a successful FatFs mount. Existing demand/demand-retained activation is preserved;
-a sparse Clock startup may not acquire SD until the sleep coordinator or another
-storage consumer uses it. No second native/Arduino SD stack, early peripheral
+a successful FatFs mount. The explicit diagnostic cohort sets `boot_start="cold"` only on its selected
+SD node while retaining global demand-retained activation. Native reset reason
+classifies every non-deep reset as cold; all deep wakes remain demand-only, even
+with missing/corrupt app RTC records. The existing session graph grant keeps the
+SD owner available for later ordinary consumers, with normal cleanup/sleep rules. No second native/Arduino SD stack, early peripheral
 activation, app grant, pin change, flash-mode change or USB host is introduced.
 
 The file contains plain named text with monotonic timestamps and explicit
@@ -41,13 +43,20 @@ Runtime copies at most 1535 bytes plus NUL for one of nine slots (current and up
 to eight flash slots). The source has no storage authority, callback registration
 or borrowed pointer lifetime. Apps cannot acquire this raw platform capability.
 
-The SD owner considers pending snapshots when leaving an admitted operation,
-including its initial mount. It writes at most one complete snapshot per call,
+The SD owner considers pending snapshots when leaving an admitted operation.
+Initial mount drains up to nine snapshots automatically. Later ordinary calls
+write at most one snapshot each,
 only with zero caller-owned file/directory handles, active rails and a usable
 mount. The current caller's errors and handle positions are preserved. Snapshot
 sequence/revision acknowledgments happen only after checked FatFs close/sync;
 repeated ordinary calls and refresh do not append acknowledged revisions again.
 A later boot can append recovered summaries again, with explicit identity.
+
+The initial batch has at most nine append/checked-close pairs, 13,815 text bytes
+and 81 RAM source reads. The entire batch shares the existing 15,000 ms / 2048
+sector / 1,048,576 filesystem-step budget, rather than resetting it per snapshot.
+The deadline is checked between bounded transport operations; an in-flight
+sector may finish after it. Native transfer cooperation continues during I/O.
 
 SD rotation occurs before the next record would exceed 128 KiB. At most two
 owned log files are kept. Rotation removes the older previous log before renaming
@@ -56,12 +65,16 @@ current evidence remains in either current or previous. This is not an atomic
 two-file transaction. Internal app-data uses the recovered 128 KiB rotation
 threshold; a bounded history batch may extend it by fewer than nine 1536-byte
 records. NVS ordinary checkpoints are capped at 64 per startup, with first display
-and first terminal failure preserved beyond that cap.
+and first terminal failure preserved beyond that cap. One subsequent first-part
+provider detail may enrich the checkpoint while preserving the original failure;
+further detail/cleanup chatter is ignored.
 
 Missing/unformatted media keeps the provider's existing refresh behavior and
 leaves evidence in NVS/app-data. Read-only/full/open/partial/write/close/rotation
 failures are reported by the published volume `last_error` callback as
-`boot-log: ...`, alongside existing caller errors. The first logger failure is
+`boot-log: ...`, alongside existing caller errors. The ABI2 diagnostic suffix
+also exposes the same bounded RAM-only status after failed start or quiescence,
+so Runtime can include it in persistent failure evidence. The first logger failure is
 kept and SD writes are disabled for that provider instance, avoiding repeated
 uncertain appends. A failed log close retains the actual writable FIL and its
 ordinary file slot, fences successful operation returns, and makes remount,
@@ -76,6 +89,11 @@ Internal app-data retries before writing are capped at two per checkpoint;
 uncertain write/sync/close failure disables its further appends for that boot.
 
 ## Verification and limits
+
+Build the selected diagnostic cohort with `build_test_bundle.py --boot-log`;
+the source feature and explicit flag must agree. The bundle receipt records the
+activation policy, SD path and maximum initial export size. This introduces no
+Clock grant or display dependency.
 
 `minimal/test/run_bootlog_test.sh` compiles the production native implementation
 against IDF/NVS stubs and a real host filesystem. `minimal/test/run_sd_test.sh`

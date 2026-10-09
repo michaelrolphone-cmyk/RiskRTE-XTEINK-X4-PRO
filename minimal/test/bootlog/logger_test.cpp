@@ -145,6 +145,14 @@ int main(){
  const auto attempts=fileAttempts;
  for(unsigned i=0;i<1000;++i)emit("APP t_ms=24 stage=touch-picked-up source=software-sample");
  check(fileAttempts==attempts,"touch chatter cannot repeat uncertain internal writes");
+ resetRam(true);noFiles();boot();
+ emit("RTE_STAGE us=100 provider start end id=x4pro-sd result=failed elapsed_us=20");
+ const auto firstFailure=std::string(current.firstFailure);const auto firstCommits=commits;
+ emit("RTE_STAGE us=101 provider detail id=x4pro-sd part=1 text=boot-log: close/sync failed; writable log retained");
+ check(commits==firstCommits+1 && std::string(current.firstFailure)==firstFailure &&
+   std::strstr(current.checkpoint.milestone,"writable log retained"),"one provider detail enriches evidence without replacing first failure");
+ for(unsigned i=0;i<100;++i)emit("RTE_STAGE us=102 provider detail id=x4pro-sd part=1 text=cleanup failed");
+ check(commits==firstCommits+1,"later provider detail cannot rewrite retained failure continuously");
  resetRam(true);noFiles();
  for(unsigned i=0;i<12;++i){resetRam();boot();}
  check(flash.size()==SlotCount && current.sequence==12,"eight-record ring rotates across repeated boots");

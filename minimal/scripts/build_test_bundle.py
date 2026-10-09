@@ -216,7 +216,19 @@ def validate_provider_source(product,root):
             raise ValueError('Provider source differs from the selected product')
 def load_module(name,path):
     spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+def configure_boot_logging(boot, enabled):
+    """Explicit diagnostic-cohort policy; no new app grant or eager graph."""
+    if not enabled:return
+    if boot.get('provider_activation') not in ('demand','demand-retained'):
+        raise ValueError('Cold boot logging requires explicit demand provider policy')
+    selected=[d for d in boot['drivers'] if d.get('instance_id')==9 and d.get('manifest')=='sd/manifest.json']
+    if len(selected)!=1 or 'boot_start' in selected[0]:
+        raise ValueError('Cold boot logging requires one unambiguous selected SD driver')
+    selected[0]['boot_start']='cold'
+
+
 def build(a):
+    bootlog=bool(getattr(a,'boot_log',False))
     desk=getattr(a,'desk_clock',False)
     sparse=getattr(a,'sparse_clock',False)
     broadcast=getattr(a,'ble_telemetry',False)
@@ -236,7 +248,7 @@ def build(a):
     app_sources=json.loads((ROOT/'minimal/apps/sources.json').read_text())
     if bool(app_sources.get('features',{}).get('ble_telemetry'))!=broadcast:
         raise ValueError('Selected source cohort requires matching explicit --ble-telemetry profile')
-    for feature,selected in [('idle_policy',idle),('retained_provider_demand',retain),('contexts_rf_only',contexts)]:
+    for feature,selected in [('idle_policy',idle),('retained_provider_demand',retain),('contexts_rf_only',contexts),('boot_logging',bootlog)]:
         if bool(app_sources.get('features',{}).get(feature))!=selected:raise ValueError('Source cohort and explicit profile differ: '+feature)
     idle_headers=idle_cohort.sdk_headers(a.drivers,a.runtime) if idle else None
     native_candidate=json.loads((a.native/'candidate.json').read_text())
@@ -247,6 +259,7 @@ def build(a):
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False),getattr(a,"panel_driver","fallback"))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
     if sparse:boot['provider_activation']='demand-retained' if retain else 'demand'
+    configure_boot_logging(boot,bootlog)
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'panel_driver':getattr(a,'panel_driver','fallback'),'runtime':native_candidate,'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
@@ -356,6 +369,7 @@ def build(a):
     custody['idle_policy']=idle
     custody['contexts_rf_only']=dict(contexts_cohort.PROFILE) if contexts else False
     custody['provider_activation']=boot.get('provider_activation','eager')
+    custody['boot_logging']={'enabled':bootlog,'sd_path':'/x4-boot.log','boot_start':'cold' if bootlog else None,'initial_max_snapshots':9,'initial_max_text_bytes':13815,'deep_wake_activation':False}
     boot['app_capabilities']=policies
     if broadcast:
         pins=json.loads((ROOT/'minimal/apps/telemetry-sources.json').read_text())
@@ -455,6 +469,7 @@ if __name__=='__main__':
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--static-spiffs',action='store_true',help='Use the shared qualified static producer for dense immutable stores')
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
+    p.add_argument('--boot-log',action='store_true',help='Explicit diagnostic cohort: cold-boot SD activation and persistent boot export; deep wakes stay demand-only')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
     p.add_argument('--contexts-rf-only',action='store_true',help='Explicit Contexts UI, RF model owner and sparse Clock rendezvous')
     p.add_argument('--idle-policy',action='store_true',help='Explicit reversible Light and low-battery policy across the selected cohort')

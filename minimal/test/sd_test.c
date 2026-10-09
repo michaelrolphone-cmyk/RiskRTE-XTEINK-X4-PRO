@@ -356,19 +356,24 @@ static void bootlog_cases(const char *scenario) {
     if(!strcmp(scenario,"log-readonly") || !strcmp(scenario,"log-partial") || !strcmp(scenario,"log-full") || !strcmp(scenario,"log-close")){
         assert(bootlog_disabled && bootlog_error && !bootlog_seen[0].revision);
         const unsigned attempts=log_opens;
-        char message[200]; const risc_storage_volume_api_v1 *published=driver.capability;
+        char message[200]; const risc_storage_volume_api_v1 *published=driver.base.capability;
         assert(published->last_error(NULL,message,sizeof(message)) && strstr(message,"boot-log:"));
         for(unsigned i=0;i<8;++i)(void)ready(NULL);
         assert(log_opens==attempts);
         if(!strcmp(scenario,"log-close")){
             assert(has_handles() && io_failed && !mounted && !quiesce() && !prepare_sleep(NULL) && !refresh(NULL));
+            const unsigned before=calls;
+            assert(driver.last_error(message,sizeof(message)) && strstr(message,"writable log retained"));
+            assert(calls==before); /* Diagnostic suffix is RAM-only after revocation. */
             assert(files[0].handle && files[0].flags==RISC_STORAGE_OPEN_WRITE);return;
         }
         assert(!has_handles() && !io_failed && ready(NULL));
         if(!strcmp(scenario,"log-partial")){char text[512];read_log(text,sizeof(text));assert(!strstr(text,"record_end=complete"));}
         verify_cleanup();return;
     }
-    assert(ready(NULL) && bootlog_seen[0].revision==1);
+    assert(bootlog_seen[0].revision==1);
+    if(source_history)assert(log_writes==9); /* Complete recovered batch before START returns. */
+    assert(ready(NULL));
     if(!strcmp(scenario,"log-history")){
         for(unsigned i=0;i<12;++i)assert(ready(NULL));
         assert(log_writes==9);char text[4096];read_log(text,sizeof(text));
@@ -412,7 +417,7 @@ int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
-    assert(t5_driver_get(2)==&driver && !t5_driver_get(1));
+    assert(t5_driver_get(2)==&driver.base && !t5_driver_get(1));
     if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}
     if(!strcmp(scenario,"validation")){
         assert(!start(NULL,0));const void *saved=deps[0].api;deps[0].api=NULL;assert(!START());deps[0].api=saved;

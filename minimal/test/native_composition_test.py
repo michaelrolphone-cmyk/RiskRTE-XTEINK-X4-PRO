@@ -235,7 +235,7 @@ class CompositionTest(unittest.TestCase):
         record = self.prepare()
         source = self.root / 'proof.c'
         binary = self.root / 'proof'
-        code = ('void initVariant(void) {}\nvoid __wrap_app_main(void) {}\nvoid risc_native_diagnostic_observer(const char* p) {(void)p;}\nvoid app_main(void) {}\nchar risc_x4_boot_record[264];\nconst char* risc_native_startup_error(void) {return 0;}\n'
+        code = ('void initVariant(void) {}\nvoid __wrap_app_main(void) {}\nvoid risc_native_diagnostic_observer(const char* p) {(void)p;}\nvoid app_main(void) {}\nvoid risc_native_diagnostic_drain(void) {}\nint risc_native_diagnostic_read(void) {return 0;}\nchar risc_x4_boot_record[264];\nconst char* risc_native_startup_error(void) {return 0;}\n'
                 'const char risc_x4_native_composition_identity[] = "X4_NATIVE_COMPOSITION:' +
                 record['composition_sha256'] + '";\nint main(void) {initVariant(); return 0;}\n')
         source.write_text(code)

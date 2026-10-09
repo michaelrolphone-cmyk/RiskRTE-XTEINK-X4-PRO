@@ -145,9 +145,17 @@ inline bool advance(Session& s,const X4Boot::Record& r,bool early=false) {
   // Preserve terminal evidence even if shutdown emits additional ordinary
   // milestones. A successfully displayed frame does not mean shutdown was clean.
   const bool failed=failure(r);
-  if(!early && s.firstFailure[0])return false;
+  if(!early && s.firstFailure[0]) {
+    // Runtime emits its named failed-start line before the provider's copied
+    // detail. Permit that first detail once while preserving the original
+    // failure; later cleanup/error chatter cannot keep rewriting flash.
+    const bool firstDetail=std::strcmp(s.checkpoint.milestone,s.firstFailure)==0 &&
+      std::strcmp(r.milestone,s.firstFailure)!=0 &&
+      std::strstr(r.milestone," provider detail ") && std::strstr(r.milestone,"part=1 ");
+    if(!firstDetail)return false;
+  }
   const bool firstFrame=r.displayCompleted && !s.checkpoint.displayCompleted;
-  if(!early && !failed &&
+  if(!early && !failed && !s.firstFailure[0] &&
      (s.checkpoint.displayCompleted ||
       (s.checkpointWrites>=CheckpointLimit && !firstFrame)))return false;
   if(s.revision==UINT32_MAX)return false;
