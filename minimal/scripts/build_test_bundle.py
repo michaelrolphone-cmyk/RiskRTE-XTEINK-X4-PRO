@@ -141,7 +141,7 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
                       'RiscStorageVolumeV1.h','RiscTimedSleepV1.h','RiscDeepSleepV1.h','RiscLightSleepV1.h'}
     if not required_headers.issubset(headers) or any(not re.fullmatch(r'[0-9a-f]{64}',value) for value in headers.values()):
         raise ValueError('Sparse Clock requires exact canonical lifecycle/native SDK hashes')
-    version='0.3.8' if tagged_alarm else '0.3.2'
+    version=native_time_cohort.VERSIONS['default'] if tagged_alarm else '0.3.2'
     expected={'working_tree_dirty':False,'desk_clock':True,'version':version,
               'clock_policy':'native-realtime-iana','sparse_start':True,'provider_activation':'demand',
               'timer_preferences':'retained-only','foreground_promotion':True,'invocation_retention':True,
@@ -151,6 +151,10 @@ def validate_sparse_clock_profile(manifest,blob,record,source,local_source,heade
               'local_sleep_source_sha256':sha(local_source),'desk_sdk_headers':headers,
               'retained_wake_sdk_sha256':headers['RiscRetainedWakeV1.h']}
     if tagged_alarm:
+        flags=set(record.get('build_defines',[]))
+        required={'-DPORTABLE_DESK_LOCK_HOME','-DPORTABLE_PAPER_TRANSITIONS','-DPORTABLE_PAPER_CROSSFADE','-DPORTABLE_STAGE_LOGS'}
+        if not required.issubset(flags) or not record.get('paper_motion',{}).get('enabled') or not record.get('paper_transition',{}).get('enabled'):
+            raise ValueError('Selected Clock requires explicit Home lock, paper motion, crossfade and plain diagnostics')
         expected['home_points']={'clock_policy':'native-utc','storage_instance':5,'foreground_only':True,'records':['points_utc_cfg','points_utc_meta'],'projection':'Utilities PointsUtcSchedule','model':'Watch nova_points_state','tap_app':'points_in_time.elf'}
     if manifest.get('id')!='paper_clock' or manifest.get('version')!=version or any(record.get(k)!=v for k,v in expected.items()):
         raise ValueError('Sparse Clock source, feature or artifact identity mismatch')

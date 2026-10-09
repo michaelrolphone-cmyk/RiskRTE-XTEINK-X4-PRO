@@ -3,6 +3,7 @@ import sys, unittest
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
 from build_test_bundle import validate_sparse_clock_profile,SPARSE_REQUIREMENTS,sha
+from native_time_cohort import VERSIONS
 
 class SparseProfile(unittest.TestCase):
  def setUp(self):
@@ -41,5 +42,21 @@ class SparseProfile(unittest.TestCase):
   for changed in (req[:-1],req+[{'capability':'radio.iq','api':1}],req[:-1]+req[:1],
                   [{**r,'api':2} if r['capability']=='runtime.provider-promotion' else r for r in req]):
    with self.assertRaises(ValueError):self.check(manifest={**self.manifest,'requires':changed})
+
+ def test_selected_lock_motion_identity(self):
+  flags=['-DPORTABLE_DESK_LOCK_HOME','-DPORTABLE_PAPER_TRANSITIONS','-DPORTABLE_PAPER_CROSSFADE','-DPORTABLE_STAGE_LOGS']
+  record={**self.record,'version':VERSIONS['default'],'build_defines':flags,
+   'paper_motion':{'enabled':True},'paper_transition':{'enabled':True},
+   'home_points':{'clock_policy':'native-utc','storage_instance':5,'foreground_only':True,
+    'records':['points_utc_cfg','points_utc_meta'],'projection':'Utilities PointsUtcSchedule',
+    'model':'Watch nova_points_state','tap_app':'points_in_time.elf'}}
+  manifest={**self.manifest,'version':VERSIONS['default'],'requires':[
+   {**row,'api':2} if row['capability']=='alarm.service' else row for row in self.manifest['requires']]}
+  def check(value):return validate_sparse_clock_profile(manifest,self.blob,value,self.source,self.local,self.headers,True)
+  self.assertEqual(check(record)['grant_count'],15)
+  for flag in flags:
+   with self.subTest(flag=flag),self.assertRaises(ValueError):check({**record,'build_defines':[f for f in flags if f!=flag]})
+  for field in ('paper_motion','paper_transition'):
+   with self.subTest(field=field),self.assertRaises(ValueError):check({**record,field:{'enabled':False}})
 
 if __name__=='__main__':unittest.main()

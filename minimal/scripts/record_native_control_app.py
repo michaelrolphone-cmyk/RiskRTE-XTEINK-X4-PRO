@@ -22,7 +22,13 @@ assert record['repository_commit']==source and record['working_tree_dirty'] is F
 assert record['sha256']==digest and record['size_bytes']==len(blob)
 assert record['version']==manifest['version']
 runtime_source,expected_headers=cohort.expected_sdk(a.app)
-include=a.input/('performance-sdk/include' if record.get('performance_trace') else 'desk-sdk/include' if a.app=='default' else 'native-time-sdk/include')
+if record.get('paper_transition',{}).get('enabled'):
+    # Crossfade copies the canonical prefixes into the final include tree;
+    # tagged alarm headers are installed there after diagnostic SDK staging.
+    include=a.input/'paper-sdk/include'
+    assert include.resolve()==Path(record['paper_transition']['compiled_include_directory']).resolve()
+else:
+    include=a.input/('performance-sdk/include' if record.get('performance_trace') else 'desk-sdk/include' if a.app=='default' else 'native-time-sdk/include')
 headers={name:hashlib.sha256((include/name).read_bytes()).hexdigest() for name in expected_headers}
 assert headers==expected_headers,'Compiled SDK headers differ from the cohort'
 tagged=json.loads((a.input/'tagged-alarm-sdk.json').read_text())

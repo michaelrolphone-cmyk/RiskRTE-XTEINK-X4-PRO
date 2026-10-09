@@ -10,11 +10,11 @@ from build_test_bundle import app_grants, SPARSE_REQUIREMENTS
 class NativeCohort(unittest.TestCase):
  def setUp(self):
   self.blob=b'compiled native foreground app';self.source='a'*40
-  self.manifest={'file_name':'alarms.elf','version':'0.2.6','requires':[
+  self.manifest={'file_name':'alarms.elf','version':n.VERSIONS['alarms'],'requires':[
    {'capability':c,'api':v} for c,v in [('display.output',1),('input.touch.raw',1),
     ('input.navigation',1),('board.battery',1),('runtime.realtime',1),
     ('storage.key-value',1),('alarm.service',2)]]}
-  self.receipt={'schema':1,'app':'alarms','version':'0.2.6',
+  self.receipt={'schema':1,'app':'alarms','version':n.VERSIONS['alarms'],
    'source_repo':'michaelrolphone-cmyk/RiscRTE-Utilities','source_revision':self.source,
    'system_source_revision':'b'*40,'runtime_source_revision':n.RUNTIME,
    'alarm_source_revision':n.ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',
