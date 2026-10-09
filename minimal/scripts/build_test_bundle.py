@@ -124,6 +124,11 @@ def validate_native_composition(folder,candidate,runtime,platform_root=ROOT):
               'composition_sha256':record['composition_sha256'],'runtime':record['runtime'],
               'platform':record['platform'],'platform_source_sha256':record['platform_source_sha256'],
               'startup_proof':proof}
+    flash=native_composition.flash_profile.prove(blobs,record)
+    if flash is not None:
+        require('x4-boot-flash-proof.json' in blobs and json.loads(blobs['x4-boot-flash-proof.json'])==flash,
+                'Staged DIO boot flash proof mismatch')
+        expected['boot_flash_proof']=flash
     require(composition==expected,'Native candidate composition summary mismatch')
     return expected
 
@@ -404,7 +409,9 @@ def build(a):
         custody['store_admission']=admit_cohort(a.runtime,(a.native/'firmware.elf').read_bytes(),files,files,app_policy_rows=expected_options['app_policy_rows'])
     native=load_module('x4_native_candidate',a.runtime/'scripts/paired_bank_images.py')
     loader=(a.native/'bootloader.bin').read_bytes();table=(a.native/'partitions.bin').read_bytes();data=(a.native/'appdata.bin').read_bytes()
-    if sha(loader)!=native.BOOTLOADER_SHA256 or len(data)!=0x80000:raise ValueError('Native first-install inputs differ')
+    flash=custody['runtime'].get('x4_native_composition',{}).get('boot_flash_proof')
+    expected_loader=native_composition.flash_profile.DIO_BOOTLOADER_SHA256 if flash else native.BOOTLOADER_SHA256
+    if sha(loader)!=expected_loader or len(data)!=0x80000:raise ValueError('Native first-install inputs differ')
     image=out/'bootfs.bin'
     if getattr(a,'static_spiffs',False):
         shared_packer=load_module('x4_shared_bootfs',a.watch/'scripts/current_bootfs.py')

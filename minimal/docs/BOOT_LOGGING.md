@@ -98,7 +98,7 @@ Clock grant or display dependency.
 `minimal/test/run_bootlog_test.sh` compiles the production native implementation
 against IDF/NVS stubs and a real host filesystem. `minimal/test/run_sd_test.sh`
 compiles the production provider, shared FatFs and native-card wire model; the
-66 cases include absent/unformatted/read-only/full media, partial/write/close
+67 cases include absent/unformatted/read-only/full media, partial/write/close
 failure, caller-handle custody, shutdown/sleep, repeated exports and rotation.
 Both pass normally and under ASan/UBSan; LeakSanitizer is disabled because the
 executor uses ptrace. The generic Runtime source/drain has independent actual

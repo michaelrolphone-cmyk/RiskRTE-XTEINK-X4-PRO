@@ -51,8 +51,13 @@ hook derives the native defines from that receipt and refuses external defines
 or undefines for either option. Editing the receipt requires a new composition
 digest, which must agree with the compiled firmware identity.
 
+`--boot-flash-dio` explicitly preserves the recovered .29 DIO/80 MHz diagnostic
+selection; default QIO is unchanged. The source inventory, actual SDK inputs,
+image headers, rollback bootloader and linked flash mode are checked. See
+[the DIO proof and frozen evidence](docs/DIO_BOOT_DIAGNOSTIC.md).
+
 Preparation exports immutable Runtime Git bytes into a new directory, adds the
-three explicitly listed X4 files and replaces the generated project's pre-build
+four explicitly listed X4 files and replaces the generated project's pre-build
 identity-script entry. The Runtime checkout is never edited. Ordinary Runtime
 and Watch builds contain no X4 hook. The older `scripts/prepare_runtime.py`
 continues to serve the historical T5S3-Reader overlay and is a different path.

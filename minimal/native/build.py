@@ -1,4 +1,5 @@
 """X4 composition pre-build hook; never imported by an ordinary Runtime build."""
+import importlib.util
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ if type(options['app_image_cache']) is not bool:
 # definitions and undefines, including command-line/environment overrides,
 # instead of allowing flag order to replace the recorded selection.
 for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
-    if re.search(r'(?:\b|-[DU])RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)\b', str(env.get(key, ''))):
+    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
         raise ValueError('Native option flags must come only from the composition record: ' + key)
 observed = set()
 for folder, directories, names in os.walk(root):
@@ -42,6 +43,10 @@ for name, digest in record['composed_source_sha256'].items():
     path = root / name
     if path.is_symlink() or not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
         raise ValueError('Composed source differs: ' + name)
+flash_spec = importlib.util.spec_from_file_location('x4_flash_profile', root / 'x4-native/flash_profile.py')
+flash_profile = importlib.util.module_from_spec(flash_spec)
+flash_spec.loader.exec_module(flash_profile)
+flash_profile.verify_build(env, record)
 env['ENV']['SOURCE_DATE_EPOCH'] = str(record['runtime']['source_date_epoch'])
 env.Append(CCFLAGS=['-ffile-prefix-map=' + str(root) + '=.'])
 build = Path(env.subst('$BUILD_DIR'))

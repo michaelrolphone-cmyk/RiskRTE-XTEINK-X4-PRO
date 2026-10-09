@@ -63,10 +63,32 @@ class CompositionTest(unittest.TestCase):
         self.assertEqual((self.runtime / 'platformio.ini').read_bytes(), original)
         self.assertEqual((self.output / 'src/main.cpp').read_bytes(), (self.runtime / 'src/main.cpp').read_bytes())
         self.assertEqual(set(record['platform_source_sha256']), {
-            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/X4BootRecord.h', 'minimal/native/build.py', 'minimal/scripts/prepare_native_runtime.py'})
+            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/X4BootRecord.h', 'minimal/native/build.py', 'minimal/native/flash_profile.py', 'minimal/scripts/prepare_native_runtime.py'})
         self.assertIn(b'pre:x4-native/build.py', (self.output / 'platformio.ini').read_bytes())
         self.assertEqual(composition.git(self.runtime, 'status', '--porcelain'), '')
         composition.verify_source_custody(self.runtime, record, self.platform)
+
+    def test_explicit_dio_selection_is_exact_and_default_stays_unchanged(self):
+        original = (self.runtime / 'platformio.ini').read_bytes()
+        record = self.prepare(boot_flash_dio=True)
+        self.assertEqual(record['boot_flash_experiment'], 'dio-opi-80mhz')
+        self.assertIn(b'board_build.arduino.memory_type = dio_opi\nboard_build.flash_mode = dio\n',
+                      (self.output / 'platformio.ini').read_bytes())
+        self.assertEqual((self.runtime / 'platformio.ini').read_bytes(), original)
+        composition.verify_source_custody(self.runtime, record, self.platform)
+        mismatch = copy.deepcopy(record)
+        del mismatch['boot_flash_experiment']
+        with self.assertRaisesRegex(ValueError, 'Unapproved Runtime overlay'):
+            composition.verify_source_custody(self.runtime, mismatch, self.platform)
+        mismatch['boot_flash_experiment'] = 'qout'
+        with self.assertRaisesRegex(ValueError, 'Invalid recorded boot flash'):
+            composition.verify_source_custody(self.runtime, mismatch, self.platform)
+
+    def test_invalid_dio_selection_rejected_before_workspace(self):
+        for value in (1, 'dio', None):
+            with self.subTest(value=value), self.assertRaisesRegex(ValueError, 'DIO selection must be boolean'):
+                self.prepare(boot_flash_dio=value)
+            self.assertFalse(self.output.exists())
 
     def test_dirty_runtime_and_platform_refused(self):
         (self.runtime / 'src/main.cpp').write_text('changed')
@@ -178,7 +200,9 @@ class CompositionTest(unittest.TestCase):
                            ('BUILD_FLAGS', '-URISC_APP_IMAGE_CACHE'),
                            ('BUILD_UNFLAGS', '-DRISC_APP_POLICY_ROWS=17'),
                            ('CPPDEFINES', [('RISC_APP_IMAGE_CACHE', 1)]),
-                           ('CCFLAGS', ['-DRISC_APP_IMAGE_CACHE=1'])]:
+                           ('CCFLAGS', ['-DRISC_APP_IMAGE_CACHE=1']),
+                           ('BUILD_FLAGS', '-DCONFIG_ESPTOOLPY_FLASHMODE_QIO=1'),
+                           ('BUILD_UNFLAGS', '-UCONFIG_SPIRAM_MODE_OCT')]:
             with self.subTest(key=key, flags=flags), self.assertRaisesRegex(ValueError, 'only from the composition record'):
                 run({key: flags})
 

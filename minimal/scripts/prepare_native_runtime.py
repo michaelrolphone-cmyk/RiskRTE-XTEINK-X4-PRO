@@ -22,7 +22,10 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
-NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py')
+NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py', 'flash_profile.py')
+_flash_spec = importlib.util.spec_from_file_location('x4_flash_profile', ROOT / 'minimal/native/flash_profile.py')
+flash_profile = importlib.util.module_from_spec(_flash_spec)
+_flash_spec.loader.exec_module(flash_profile)
 SCHEMA = 'x4.native-composition'
 
 
@@ -81,10 +84,12 @@ def validate_build_options(options):
 
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
-            app_policy_rows=16, app_image_cache=False):
+            app_policy_rows=16, app_image_cache=False, boot_flash_dio=False):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
     options = validate_build_options({'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache})
+    require(type(boot_flash_dio) is bool, 'DIO selection must be boolean')
+    flash_selection = {'boot_flash_experiment': flash_profile.DIO} if boot_flash_dio else {}
     lock = json.loads((platform_root / 'minimal/sources.lock.json').read_text())['runtime']
     expected = runtime_commit or lock['commit']
     require(re.fullmatch('[a-f0-9]{40}', expected), 'An exact Runtime commit is required')
@@ -112,9 +117,7 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
                 'Runtime lacks the persistent diagnostic handoff: ' + hook.decode())
     require('sdk/driver/RiscDiagnosticSourceV1.h' in files, 'Runtime diagnostic source SDK missing')
     original_config = files['platformio.ini'][0]
-    needle = b'pre:scripts/reproducible_build.py'
-    require(needle in original_config, 'Pinned Runtime pre-build script entry missing')
-    files['platformio.ini'] = (original_config.replace(needle, b'pre:x4-native/build.py'), files['platformio.ini'][1])
+    files['platformio.ini'] = (flash_profile.compose_config(original_config, environment, flash_selection), files['platformio.ini'][1])
     sources = {}
     for name in NATIVE_FILES:
         relative = 'minimal/native/' + name
@@ -131,6 +134,7 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
               'build_environment': environment, 'build_options': options, 'platform_source_sha256': sources,
               'upstream_source_sha256': original,
               'composed_source_sha256': {name: sha(data) for name, (data, _) in files.items()}}
+    record.update(flash_selection)
     record['composition_sha256'] = sha(encoded(record))
     output.mkdir(parents=True)
     try:
@@ -155,6 +159,7 @@ def verify_composition(workspace):
     require(sha(encoded(payload)) == record.get('composition_sha256'), 'Composition digest mismatch')
     require(record.get('build_environment') in ENVIRONMENTS, 'Invalid composition environment')
     validate_build_options(record.get('build_options'))
+    flash_profile.selected(record)
     observed = set()
     for folder, directories, names in os.walk(workspace):
         if Path(folder) == workspace:
@@ -174,6 +179,7 @@ def verify_composition(workspace):
 
 def verify_source_custody(runtime, record, platform_root=ROOT):
     validate_build_options(record.get('build_options'))
+    flash_profile.selected(record)
     require(clean_source(runtime, record['runtime']['commit'])['tree'] == record['runtime']['tree'],
             'Runtime tree differs')
     platform = Path(platform_root)
@@ -183,8 +189,8 @@ def verify_source_custody(runtime, record, platform_root=ROOT):
     require({name: sha(data) for name, (data, _) in original.items()} == record['upstream_source_sha256'],
             'Upstream source inventory differs from committed Runtime')
     expected = {name: digest for name, digest in record['upstream_source_sha256'].items()}
-    expected['platformio.ini'] = sha(original['platformio.ini'][0].replace(
-        b'pre:scripts/reproducible_build.py', b'pre:x4-native/build.py'))
+    expected['platformio.ini'] = sha(flash_profile.compose_config(
+        original['platformio.ini'][0], record['build_environment'], record))
     source_names = {'minimal/native/' + name for name in NATIVE_FILES} | {'minimal/scripts/prepare_native_runtime.py'}
     require(set(record['platform_source_sha256']) == source_names, 'Unexpected X4 source inventory')
     for name in source_names:
@@ -448,7 +454,9 @@ def stage(runtime, workspace, output, appdata):
         require(blobs[name][3] >> 4 == 4, 'Native image must declare 16 MiB flash')
     shared.elf(blobs['firmware.elf'])
     shared.partitions(blobs['partitions.bin'], shared.APP_DATA_EXPECTED)
-    require(sha(blobs['bootloader.bin']) == shared.BOOTLOADER_SHA256, 'Unreviewed bootloader binary')
+    flash_proof = flash_profile.prove(blobs, record)
+    if flash_proof is None:
+        require(sha(blobs['bootloader.bin']) == shared.BOOTLOADER_SHA256, 'Unreviewed bootloader binary')
     target = ENVIRONMENTS[0]
     require(target.encode() + b'\0' in blobs['firmware.bin'], 'Native target mismatch')
     native = record['runtime']
@@ -485,6 +493,8 @@ def stage(runtime, workspace, output, appdata):
     blobs['x4-native-proof.json'] = encoded(x4_proof)
     blobs['x4-native-composition.json'] = encoded(record)
     blobs['x4-runtime-options-proof.json'] = encoded(options_proof)
+    if flash_proof is not None:
+        blobs['x4-boot-flash-proof.json'] = encoded(flash_proof)
     for name in ('platformio.ini', 'partitions-paired-appdata.csv', 'requirements-ci.txt'):
         blobs[name] = (workspace / name).read_bytes()
     for name in ('appdata.bin', 'appdata-image.json'):
@@ -502,6 +512,8 @@ def stage(runtime, workspace, output, appdata):
                                            'startup_proof': x4_proof},
                  'assets': {name: {'bytes': len(data), 'sha256': sha(data)} for name, data in blobs.items()},
                  'scope': 'X4 platform-owned early boot linked over immutable Runtime source. Empty app-data is only for explicit new installation. No device action or hardware qualification.'}
+    if flash_proof is not None:
+        candidate['x4_native_composition']['boot_flash_proof'] = flash_proof
     blobs['candidate.json'] = encoded(candidate)
     blobs['SHA256SUMS'] = ''.join(f'{sha(data)}  {name}\n' for name, data in sorted(blobs.items())).encode()
     output.mkdir(parents=True)
@@ -526,6 +538,8 @@ def main():
                          help='Immutable app policy rows; live grants and manifest requirements remain 16')
     prepare.add_argument('--app-image-cache', action='store_true',
                          help='Explicitly enable the Runtime app image cache and qualified pressure retry paths')
+    prepare.add_argument('--boot-flash-dio', action='store_true',
+                         help='Explicit .29 diagnostic DIO/80MHz flash with octal PSRAM; default QIO unchanged')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)
