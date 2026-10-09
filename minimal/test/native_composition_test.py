@@ -52,6 +52,25 @@ class CompositionTest(unittest.TestCase):
     def prepare(self, **kwargs):
         return composition.compose(self.runtime, self.output, platform_root=self.platform, **kwargs)
 
+    def test_sdmmc_requires_native_feature_and_records_selection(self):
+        with self.assertRaisesRegex(ValueError, 'Runtime lacks the native SDMMC'):
+            self.prepare(sdmmc=True)
+        self.assertFalse(self.output.exists())
+        (self.runtime / 'sdk/driver/RiscGpioSdmmcV1.h').write_text('/* feature fixture */')
+        (self.runtime / 'src/ports/esp32s3/NativeHardware.cpp').write_text('const unsigned risc_sdmmc_host_abi=1;')
+        self.revision = commit(self.runtime)
+        record = self.prepare(sdmmc=True, runtime_commit=self.revision)
+        self.assertIs(record['build_options']['sdmmc'], True)
+        composition.verify_source_custody(self.runtime, record, self.platform)
+        self.assertEqual(record, composition.verify_composition(self.output))
+
+    def test_sdmmc_non_boolean_selection_rejected(self):
+        for value in (1, None, 'true'):
+            with self.assertRaisesRegex(ValueError, 'SDMMC selection'):
+                self.prepare(sdmmc=value)
+        with self.assertRaisesRegex(ValueError, 'SDMMC must'):
+            composition.validate_build_options({'app_policy_rows': 16, 'app_image_cache': False, 'sdmmc': False})
+
     def test_exact_composition_preserves_inputs_and_records_overlay(self):
         original = (self.runtime / 'platformio.ini').read_bytes()
         record = self.prepare()

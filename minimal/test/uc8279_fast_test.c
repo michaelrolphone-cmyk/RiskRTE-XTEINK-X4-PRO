@@ -199,6 +199,49 @@ static void owner_poll(uint32_t budget) {
  const unsigned bytes=payload;const uint64_t at=tick;
  ((const risc_driver_poll_v2*)t5_driver_get(2))->poll(budget);
  assert(!locked&&payload-bytes<=16384u&&(reverse_clock||tick-at<=8u));
+ if(!retained)assert(!model_bus_held&&!spi_held);
+}
+/* A foreground SD request may run for tens of seconds between owner polls.
+ * Use the real provider's state machine and RAM-cursor model, not a copied
+ * timeout implementation. Every delay is outside the provider callback. */
+static void test_storage_gap(const char *scenario) {
+ const bool upload=!strcmp(scenario,"storage-upload-gap");
+ const bool power=!strncmp(scenario,"storage-power-",14);
+ const bool stuck=strstr(scenario,"stuck")!=NULL;
+ const bool unseen=strstr(scenario,"unseen")!=NULL;
+ const bool read_error=strstr(scenario,"read-error")!=NULL;
+ const bool short_gap=!strcmp(scenario,"storage-refresh-short-gap");
+ const risc_driver_v2 *d=t5_driver_get(2);
+ if(!power)baseline();
+ const unsigned first_payload=payload;
+ risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x69,FRAME_BYTES);
+ const uint64_t token=submit_frame(f,NULL,0,power);
+ if(unseen)refresh_assert_delay=5;
+ if(stuck){if(power)stuck_power=true;else stuck_busy=true;}
+ const uint8_t wanted=upload?UC_ASYNC_NEW:(power?UC_ASYNC_PON_DONE:(unseen?UC_ASYNC_ASSERT:UC_ASYNC_DONE));
+ for(unsigned n=0;n<2000&&async_stage!=wanted;++n){owner_poll(1);++tick;}
+ assert(present_state==PRESENT_ACTIVE&&async_stage==wanted);
+ const unsigned bytes=payload;
+ if(upload)assert(async_offset>0&&async_offset<48000u);
+ /* No bus transaction may outlive the callback which admitted it. */
+ if(upload)assert(!model_bus_held&&!spi_held);
+ tick+=short_gap?4500u:45000u;
+ if(read_error)fail_gpio_read=true;
+ owner_poll(8);
+ if(stuck||unseen||read_error){
+  assert(presentation_fault&&present_state==PRESENT_FAILED&&!completed_history);
+  assert(payload==bytes&&!model_bus_held&&!spi_held);
+  if(stuck)assert(!strcmp(reason,power?"power busy completion timeout":"busy completion timeout"));
+  if(unseen)assert(!strcmp(reason,"busy never asserted"));
+  if(read_error)assert(!strcmp(reason,"gpio operation retained"));
+  assert(!d->quiesce());return;
+ }
+ if(presentation_fault)fprintf(stderr,"completed refresh/paused upload rejected: %s\n",reason);
+ assert(!presentation_fault&&!retained&&!model_bus_held&&!spi_held);
+ complete_frame(token);
+ assert(payload-first_payload==(power?180000u:48000u));
+ for(unsigned i=0;i<FRAME_BYTES;++i)assert(visible[i]==(uint8_t)~0x69u&&previous_frame[i]==0x69);
+ assert(d->quiesce());
 }
 static void drain_settle(void) {
  for(unsigned n=0;n<6000&&settle_stage;++n){owner_poll(8);++tick;}
@@ -515,6 +558,7 @@ int main(int argc,char**argv){
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
  assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);
+ if(!strncmp(s,"storage-",8)){test_storage_gap(s);goto done;}
  if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
  if(!strcmp(s,"quality-seeded-cold")){test_quality_seeded_cold();goto done;}baseline();
 #ifdef TEST_X4_IDLE_POLICY

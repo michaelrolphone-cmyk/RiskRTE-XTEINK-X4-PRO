@@ -19,7 +19,7 @@ if env.subst('$PIOENV') != record['build_environment']:
     raise ValueError('This composed workspace only builds its recorded X4 environment')
 options = record.get('build_options')
 required = {'app_policy_rows', 'app_image_cache'}
-if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'}:
+if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'sdmmc'}:
     raise ValueError('Invalid native build options')
 if type(options['app_policy_rows']) is not int or options['app_policy_rows'] not in (16, 17):
     raise ValueError('App policy rows must be 16 or 17')
@@ -31,11 +31,13 @@ if 'retained_wake_bytes' in options and (type(options['retained_wake_bytes']) is
     raise ValueError('Extended retained wake must be an explicit 512-byte opt-in')
 if 'failure_evidence' in options and options['failure_evidence'] is not True:
     raise ValueError('Failure evidence must be an explicit true opt-in')
+if 'sdmmc' in options and options['sdmmc'] is not True:
+    raise ValueError('SDMMC must be an explicit true opt-in')
 # SCons processes BUILD_FLAGS after this pre-build hook. Refuse preexisting
 # definitions and undefines, including command-line/environment overrides,
 # instead of allowing flag order to replace the recorded selection.
 for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
-    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_RETAINED_WAKE_BYTES|RISC_NATIVE_FAILURE_EVIDENCE|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
+    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_ENABLE_SDMMC|RISC_RETAINED_WAKE_BYTES|RISC_NATIVE_FAILURE_EVIDENCE|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
         raise ValueError('Native option flags must come only from the composition record: ' + key)
 observed = set()
 for folder, directories, names in os.walk(root):
@@ -71,6 +73,9 @@ env.Append(CPPPATH=[str(build)])
 env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1),
                       ('RISC_APP_POLICY_ROWS', options['app_policy_rows']),
                       ('RISC_APP_IMAGE_CACHE', int(options['app_image_cache']))])
+if options.get('sdmmc'):
+    env.Append(CPPDEFINES=[('RISC_ENABLE_SDMMC', 1)])
+    env.Append(LINKFLAGS=['-Wl,-u,risc_sdmmc_host_abi'])
 if options.get('usb_phy'):
     env.Append(CPPDEFINES=[('RISC_ENABLE_USB_PHY', 1)])
 if 'retained_wake_bytes' in options:

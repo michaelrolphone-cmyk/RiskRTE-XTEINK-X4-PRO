@@ -90,7 +90,9 @@ enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PREPARE, UC_ASYNC_WHITE, UC_ASYNC_N
 static uint64_t phase_deadline;
 static uint8_t async_stage, setup_step;
 static uint32_t async_offset;
-static uint64_t async_deadline;
+/* The aggregate budget charges provider execution, not unrelated foreground
+ * work between polls. BUSY deadlines below remain absolute wall-clock limits. */
+static uint64_t async_deadline, async_last_poll_ms;
 /* Settling owns only the resident controller image, never a caller's frame.
  * A new submission can queue while its last BUSY pulse is being drained. */
 enum { SETTLE_NONE, SETTLE_READY, SETTLE_WINDOW, SETTLE_REFRESH,
@@ -268,9 +270,10 @@ static bool uc_init_panel(void) {
     command(0xE1); data1(0x02);
     return !io_failed;
 }
-/* Every native plane retains CS across all exchanges and owner polls. Native
- * exchanges are <=512 bytes with <=8 ms waits; a plane has a 1000 ms deadline.
- * One poll copies at most 16384 payload bytes, bounded independently of time. */
+/* A RAM plane can span owner polls, but an SPI transaction cannot. CS is
+ * released before returning to foreground work; the controller's RAM cursor
+ * continues on the next data transaction without reissuing the RAM command.
+ * Exchanges stay <=512 bytes and each poll copies at most 16384 bytes. */
 static void window_for(const risc_display_rect_v1 *area) {
     const uint16_t top = (uint16_t)area->y + 120u;
     const uint16_t bottom = top + area->height - 1u;
@@ -298,7 +301,7 @@ static void absolute_lut_table(unsigned i) {
 }
 static bool begin_plane(uint8_t cmd) {
     command(cmd); panel_pin_level(X4PRO_PIN_EPD_DC, true); async_offset = 0;
-    return !io_failed && begin_spi(1000u);
+    return !io_failed;
 }
 static bool damaged_byte(uint32_t index) {
     if (!metrics.damage_count) return true;
@@ -432,14 +435,21 @@ failed: {
 static void poll_present_locked(uint32_t budget_ms) {
     uint64_t now = 0;
     if (!sample_now(&now)) goto failed;
+    if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
     if (present_state == PRESENT_QUEUED) {
-        if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
         wait_start_ms = transfer_start_ms = now; wait_budget_ms = 10000u;
         metrics.valid_times |= RISC_DISPLAY_METRICS_TRANSFER_START;
         transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
         bytes_sent = 0; reason = "none"; transfer_started = true;
         async_stage = UC_ASYNC_PRE; async_offset = 0; async_deadline = now + 10000u;
+        phase_deadline = now + 10000u; async_last_poll_ms = now;
         present_state = PRESENT_ACTIVE;
+    } else {
+        /* Storage and application execution outside this callback do not use
+         * the display's service budget. Never extend a hardware phase timer. */
+        const uint64_t idle_ms = now - async_last_poll_ms;
+        if (async_deadline > UINT64_MAX - idle_ms) { set_reason("clock overflow"); goto failed; }
+        async_deadline += idle_ms;
     }
     const uint64_t slice_end = now + (budget_ms > 8u ? 8u : budget_ms);
     unsigned work = 0;
@@ -447,7 +457,12 @@ static void poll_present_locked(uint32_t budget_ms) {
         if (!sample_now(&now)) goto failed;
         if (now >= async_deadline) { set_reason("async present deadline"); goto failed; }
         if (async_stage == UC_ASYNC_PRE) {
-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            const bool ready = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!ready) {
+                if (now >= phase_deadline) { set_reason("pre-transfer busy timeout"); goto failed; }
+                break;
+            }
             setup_step = 0; async_stage = UC_ASYNC_PREPARE;
         } else if (async_stage == UC_ASYNC_PREPARE) {
             if (fast_update && setup_step == 0u) command(0x91);
@@ -470,6 +485,7 @@ static void poll_present_locked(uint32_t budget_ms) {
                     (async_stage == UC_ASYNC_OLD ? (offset < 12000u ? 0xFFu :
                         (uint8_t)~previous_frame[offset - 12000u]) : frame_byte(offset));
             }
+            if (!spi_held && !begin_spi(1000u)) goto failed;
             if (!exchange_spi(buffer, NULL, count)) goto failed;
             async_offset += count; bytes_sent += count; work += count;
             if (async_offset == total) {
@@ -531,8 +547,12 @@ static void poll_present_locked(uint32_t budget_ms) {
             if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
             phase_deadline = now + 1500u; async_stage = UC_ASYNC_PON_DONE;
         } else if (async_stage == UC_ASYNC_PON_DONE) {
-            if (now >= phase_deadline) { set_reason("power busy completion timeout"); goto failed; }
-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!complete) {
+                if (now >= phase_deadline) { set_reason("power busy completion timeout"); goto failed; }
+                break;
+            }
             screen_powered = true; async_stage = fast_update ? UC_ASYNC_REFRESH : (quality_partial ? UC_ASYNC_QUALITY_IN : UC_ASYNC_OTP);
         } else if (async_stage == UC_ASYNC_QUALITY_IN) {
             command(0x91); async_stage = UC_ASYNC_QUALITY_WINDOW;
@@ -560,8 +580,14 @@ static void poll_present_locked(uint32_t budget_ms) {
             if (!sample_metric(&busy_assert_ms, RISC_DISPLAY_METRICS_BUSY_ASSERT)) goto failed;
             phase_deadline = refresh_ms + 3500u; async_stage = UC_ASYNC_DONE;
         } else if (async_stage == UC_ASYNC_DONE) {
-            if (now >= phase_deadline) { set_reason("busy completion timeout"); goto failed; }
-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            /* Assertion was observed on entry to DONE. A late owner poll is
+             * not evidence of a stuck panel when BUSY has already deasserted. */
+            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!complete) {
+                if (now >= phase_deadline) { set_reason("busy completion timeout"); goto failed; }
+                break;
+            }
             if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE)) goto failed;
             if (fast_update) {
                 command(0x92); if (io_failed) goto failed;
@@ -577,7 +603,7 @@ static void poll_present_locked(uint32_t budget_ms) {
         if (io_failed) goto failed;
         if (!sample_now(&now)) goto failed;
     } while (now < slice_end && work < 16384u);
-    if (io_failed) goto failed;
+    if (io_failed || !end_spi() || !sample_now(&async_last_poll_ms)) goto failed;
     return;
 failed:
     present_failed();
@@ -1191,7 +1217,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.7 cause=");
+    append(destination, capacity, &used, "v=0.1.8 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
