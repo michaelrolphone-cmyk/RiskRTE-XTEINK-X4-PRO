@@ -7,6 +7,7 @@ import native_time_cohort
 import file_browser_admission
 import update_artifacts
 import telemetry_cohort
+import idle_cohort
 import prepare_native_runtime as native_composition
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall','ota_update','app_store')
@@ -211,6 +212,10 @@ def build(a):
     desk=getattr(a,'desk_clock',False)
     sparse=getattr(a,'sparse_clock',False)
     broadcast=getattr(a,'ble_telemetry',False)
+    idle=getattr(a,'idle_policy',False)
+    retain=getattr(a,'retain_promoted_providers',False)
+    if (idle or retain) and not (sparse and broadcast and getattr(a,'sleep',False)):
+        raise ValueError('Idle/retained-demand profiles require complete explicit native telemetry sleep cohort')
     if broadcast and not sparse:raise ValueError('BLE telemetry requires the explicit native sparse cohort')
     if sparse and not desk:raise ValueError('Sparse cohort requires the explicit desk-clock graph')
     if sparse and not getattr(a,'app_compiler',None):raise ValueError('Native cohort requires the explicit pinned ELF compaction toolchain')
@@ -220,12 +225,15 @@ def build(a):
     app_sources=json.loads((ROOT/'minimal/apps/sources.json').read_text())
     if bool(app_sources.get('features',{}).get('ble_telemetry'))!=broadcast:
         raise ValueError('Selected source cohort requires matching explicit --ble-telemetry profile')
+    for feature,selected in [('idle_policy',idle),('retained_provider_demand',retain)]:
+        if bool(app_sources.get('features',{}).get(feature))!=selected:raise ValueError('Source cohort and explicit profile differ: '+feature)
+    idle_headers=idle_cohort.sdk_headers(a.drivers,a.runtime) if idle else None
     native_candidate=json.loads((a.native/'candidate.json').read_text())
     validate_native_composition(a.native,native_candidate,a.runtime)
     if out.exists():raise ValueError('Output already exists; no stale-image reuse')
     out.mkdir(parents=True);store=out/'store';stage(a.panel,store,getattr(a,"sleep",False),getattr(a,"panel_driver","fallback"))
     boot=json.loads((store/'boot.json').read_text());board=json.loads((store/'board.json').read_text())
-    if sparse:boot['provider_activation']='demand'
+    if sparse:boot['provider_activation']='demand-retained' if retain else 'demand'
     products=json.loads((a.drivers/'products.json').read_text());products={p['id']:p for p in products}
     driver_origin=json.loads((a.drivers/'build-origin.json').read_text())
     custody={'shared_source_lock':json.loads((ROOT/'minimal/sources.lock.json').read_text()),'schema':1,'panel':a.panel,'panel_driver':getattr(a,'panel_driver','fallback'),'runtime':native_candidate,'x4_source':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'apps':{},'drivers':products,'verification':'Compiled and packaged test candidate. No device run. Extended validation and CI may still be pending.'}
@@ -276,7 +284,8 @@ def build(a):
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
         if sparse:
-            custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name])
+            custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name],idle_headers)
+        if idle:idle_cohort.validate_app(name,m,custody['native_apps'][name],(ROOT/'minimal/apps/portable_idle_sleep.c').read_bytes(),idle_headers)
         if broadcast:telemetry_cohort.validate_app(name,m,custody['native_apps'][name])
         if name in ('ota_update','app_store'):update_artifacts.validate_app(name,m,blob,json.loads((src/'build-record.json').read_text()),app_sources['update_system_apps'])
         if name=='settings' and not sparse:custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
@@ -298,7 +307,7 @@ def build(a):
             if normalized not in requirements:requirements.append(normalized)
         m['requires']=requirements
         grant_requirements=[r for r in m['requires'] if not broadcast or r['capability']!='telemetry.broadcast']
-        grants=app_grants(name,grant_requirements,getattr(a,'sleep',False),desk,sparse,sparse)
+        grants=app_grants(name,grant_requirements,getattr(a,'sleep',False),desk,sparse,sparse,idle)
         manifests[name]=m
         if name=='file_browser' and sparse:
             custody['file_browser_storage']=file_browser_admission.validate(
@@ -316,6 +325,8 @@ def build(a):
         for notice in src.glob('LICENSE*'):
             (licenses/name).mkdir(exist_ok=True);shutil.copyfile(notice,licenses/name/notice.name)
     custody['sleep']=getattr(a,'sleep',False)
+    custody['idle_policy']=idle
+    custody['provider_activation']=boot.get('provider_activation','eager')
     boot['app_capabilities']=policies
     if broadcast:
         pins=json.loads((ROOT/'minimal/apps/telemetry-sources.json').read_text())
@@ -395,4 +406,6 @@ if __name__=='__main__':
     for name in ['inputs','drivers','native','runtime','watch','mkspiffs','output']:p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--app-compiler',type=Path,help='Pinned application compiler whose objcopy preserves verified loader semantics')
     p.add_argument('--sparse-clock',action='store_true',help='Explicit complete native-time/API2 cohort with demand startup')
+    p.add_argument('--idle-policy',action='store_true',help='Explicit reversible Light and low-battery policy across the selected cohort')
+    p.add_argument('--retain-promoted-providers',action='store_true',help='Explicit sparse lazy first-use provider retention after foreground promotion')
     p.add_argument('--ble-telemetry',action='store_true',help='Explicit foreground-only X4 BLE broadcast cohort');p.add_argument('--desk-clock',action='store_true',help='Explicit Clock retained wake and six-face Light/Deep Settings profile');p.add_argument('--sleep',action='store_true',help='Explicit GPIO3 power graph and Clock-only sleep authority');p.add_argument('--panel',choices=['ssd1677','uc8279'],required=True);p.add_argument('--panel-driver',choices=['fallback','uc8279-fast'],default='fallback');p.add_argument('--skip-extended-checks',action='store_true');build(p.parse_args())

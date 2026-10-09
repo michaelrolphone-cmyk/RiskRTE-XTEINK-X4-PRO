@@ -36,6 +36,8 @@
   "update_system_apps": "7b92c3904cf0822f378b61ca6ce1a07b2ca9460c",
   "features": {
     "ble_telemetry": true,
-    "updates": true
+    "updates": true,
+    "idle_policy": true,
+    "retained_provider_demand": true
   }
 }

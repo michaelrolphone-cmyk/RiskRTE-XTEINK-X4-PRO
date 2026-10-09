@@ -19,7 +19,11 @@ class SdkTest(unittest.TestCase):
    self.assertEqual(result['RiscDisplayOutputMetricsV1.h']['origins'],['x4/interfaces'])
    self.assertEqual((root/'sdk/RiscDisplayOutputMetricsV1.h').read_bytes(),
                     (ROOT/'interfaces/RiscDisplayOutputMetricsV1.h').read_bytes())
-   self.assertEqual(len(list((root/'sdk').glob('*.h'))),3)
+   self.assertEqual({p.name for p in (root/'sdk').glob('*.h')},
+                    {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h'})
+   self.assertEqual(result['RiscDisplayOutputSnapshotV1.h']['origins'],['x4/interfaces'])
+   self.assertEqual((root/'sdk/RiscDisplayOutputSnapshotV1.h').read_bytes(),
+                    (ROOT/'interfaces/RiscDisplayOutputSnapshotV1.h').read_bytes())
    with self.assertRaises(ValueError):module.prepare(runtime,reader,root/'sdk')
    (reader/'sdk/driver/Shared.h').write_text('/* divergent */\n')
    with self.assertRaisesRegex(ValueError,'Shared SDK header differs'):module.prepare(runtime,reader,root/'conflict')

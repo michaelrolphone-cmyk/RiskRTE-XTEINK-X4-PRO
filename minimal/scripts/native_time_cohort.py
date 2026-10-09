@@ -28,10 +28,11 @@ ALARM_KEYS = [('alarm_utc_cfg',3,'read'),('timer_utc_cfg',3,'read'),
  ('alert_mode',1,'read'),('points_utc_cfg',5,'read'),
  ('points_utc_occ',4,'read-write'),('alert_dnd',1,'read'),('time_zone',1,'read')]
 
-def validate_app(name, manifest, blob, receipt, source):
+def validate_app(name, manifest, blob, receipt, source, idle_headers=None):
     if name not in VERSIONS or not re.fullmatch(r'[0-9a-f]{40}',source):
         raise ValueError('Unknown native app or unpinned source')
     runtime_source, compiled_sdk = expected_sdk(name)
+    if idle_headers:compiled_sdk.update(idle_headers)
     expected = {'schema':1,'app':name,'version':VERSIONS[name],
         'source_revision':source,'runtime_source_revision':runtime_source,
         'alarm_source_revision':ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',

@@ -6,6 +6,9 @@ class TestTelemetry(unittest.TestCase):
   common=[{'capability':'storage.key-value','api':1},{'capability':'alarm.service','api':2}];manifests={n:{'version':v,'requires':common+[t.CAPABILITY]} for n,v in t.VERSIONS.items()};boot={'provider_activation':'demand','drivers':[],'app_capabilities':[{'manifest':n+'.json','grants':[{'capability':'storage.key-value','api':1,'instance_id':1},{'capability':'alarm.service','api':2,'instance_id':0}]} for n in t.VERSIONS]};return boot,manifests
  def test_exact(self):
   b,m=self.fixture();r=t.extend_boot(b,m);self.assertEqual(len(r['drivers']),3);self.assertTrue(all(len(x['grants'])==3 for x in r['app_capabilities']));self.assertEqual(len(b['drivers']),0)
+ def test_retained_demand_preserved(self):
+  b,m=self.fixture();b['provider_activation']='demand-retained'
+  self.assertEqual(t.extend_boot(b,m)['provider_activation'],'demand-retained')
  def test_boundaries(self):
   b,m=self.fixture();row=b['app_capabilities'][0]
   for i in range(13):c='test.'+str(i);row['grants'].append({'capability':c,'api':1,'instance_id':0});m['default']['requires'].append({'capability':c,'api':1})
