@@ -2,7 +2,7 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "b69f87a576c339b8207d6fb0ef1f006aa7f121fc",
+    "commit": "7e576bcd498f37902f5b7455310fd6007e9eabf0",
     "version": "0.1.61"
   },
   "shared": {
@@ -10,5 +10,5 @@
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Repair shared-SPI receive turnaround after all-zero physical probe; strict panel admission and fast waveform unchanged"
+  "status": "Corrected native three-wire receive plus8KiB nonblocking startup diagnostics; unchanged fast provider/app cohort"
 }
