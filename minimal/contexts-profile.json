@@ -7,7 +7,7 @@
   "runtime_sdk": "c77e717571a80bc18009b9c3a98532fee32e6fd2",
   "alarm_sdk": "637e13b0bce62ad49b756bec2468a6271d163fc7",
   "service_sources": {
-    "utilities": "baba7c3a81fc6d14b8d9b73d779d61f2d42100cd",
+    "utilities": "1e751d83c93dd5b4be5db9079bcf137a6efa4388",
     "system-apps": "45215c6c57ca8e48a424efd7e37e827205696a18",
     "drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
     "runtime": "f3fcd8c958a252c923c44784c2546078042422ee"
