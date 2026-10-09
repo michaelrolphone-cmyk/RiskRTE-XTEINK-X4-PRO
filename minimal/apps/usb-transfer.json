@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "id": "usb_sd_transfer",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "file_name": "usb_sd_transfer.elf",
   "usb_role": "device",
   "grants": [
