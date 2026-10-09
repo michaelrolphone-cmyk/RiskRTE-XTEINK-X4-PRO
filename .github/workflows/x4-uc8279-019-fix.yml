@@ -16,38 +16,7 @@ jobs:
       - name: Reapply clean and quality profile after PON
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          path=Path('minimal/drivers/x4pro_uc8279_fast/driver.c')
-          text=path.read_text()
-          old='''            const unsigned finish = fast_update ? 14u : (quality_partial ? 5u : 3u);
-'''
-          new='''            const unsigned finish = fast_update ? 14u : (quality_partial ? 6u : 4u);
-'''
-          assert text.count(old)==1
-          text=text.replace(old,new)
-          old='''            } else {
-                if (setup_step == 0u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
-                else if (setup_step == 1u) reg1(0xE0, 0x02);
-                else if (setup_step == 2u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
-                else if (quality_partial && setup_step == 3u) reg1(0x03, 0x20);
-                else if (quality_partial && setup_step == 4u) reg1(0xE1, 0x02);
-            }
-'''
-          new='''            } else {
-                /* PON may restore MTP defaults. Replay every clean/quality
-                 * register that the following OTP DRF depends on. */
-                if (setup_step == 0u) reg1(0x30, 0x0E);
-                else if (setup_step == 1u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
-                else if (setup_step == 2u) reg1(0xE0, 0x02);
-                else if (setup_step == 3u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
-                else if (quality_partial && setup_step == 4u) reg1(0x03, 0x20);
-                else if (quality_partial && setup_step == 5u) reg1(0xE1, 0x02);
-            }
-'''
-          assert text.count(old)==1
-          path.write_text(text.replace(old,new))
-          PY
+          python3 -c 'from pathlib import Path; p=Path("minimal/drivers/x4pro_uc8279_fast/driver.c"); t=p.read_text(); a="            const unsigned finish = fast_update ? 14u : (quality_partial ? 5u : 3u);\n"; b="            const unsigned finish = fast_update ? 14u : (quality_partial ? 6u : 4u);\n"; assert t.count(a)==1; t=t.replace(a,b); a="            } else {\n                if (setup_step == 0u) reg1(0x50, quality_partial ? 0xD7 : 0x97);\n                else if (setup_step == 1u) reg1(0xE0, 0x02);\n                else if (setup_step == 2u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);\n                else if (quality_partial && setup_step == 3u) reg1(0x03, 0x20);\n                else if (quality_partial && setup_step == 4u) reg1(0xE1, 0x02);\n            }\n"; b="            } else {\n                /* PON may restore MTP defaults. Replay every clean/quality\n                 * register that the following OTP DRF depends on. */\n                if (setup_step == 0u) reg1(0x30, 0x0E);\n                else if (setup_step == 1u) reg1(0x50, quality_partial ? 0xD7 : 0x97);\n                else if (setup_step == 2u) reg1(0xE0, 0x02);\n                else if (setup_step == 3u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);\n                else if (quality_partial && setup_step == 4u) reg1(0x03, 0x20);\n                else if (quality_partial && setup_step == 5u) reg1(0xE1, 0x02);\n            }\n"; assert t.count(a)==1; p.write_text(t.replace(a,b))'
           rm .github/workflows/x4-uc8279-019-fix.yml
           git diff --check
           git config user.name 'github-actions[bot]'
