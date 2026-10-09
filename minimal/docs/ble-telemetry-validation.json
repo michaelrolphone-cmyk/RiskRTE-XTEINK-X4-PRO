@@ -1,0 +1,208 @@
+{
+  "schema": 1,
+  "purpose": "local source integration qualification; no full final cohort image",
+  "sources": {
+    "schema": 1,
+    "system_apps": "038951b5ac38f0123b7c5b507ff62f0b58a517eb",
+    "utilities": "c0de37886a6ad568fda1520423622fadbd60b7d3",
+    "drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+    "telemetry-battery": "0.1.0",
+    "ble-telemetry": "0.1.0",
+    "telemetry-broadcast": "0.1.0",
+    "default": "off",
+    "hardware_verified": false,
+    "publication": "blocked inherited System ancestry; local integration only"
+  },
+  "clock": {
+    "version": "0.3.11",
+    "sha256": "ba8017ca867cf4b854a3e4308796f0a7b2e0d31bd1ea76e7ed730793912910fb",
+    "clean_source": true,
+    "host_runs": 220,
+    "same_bytes_as_host_qualified_candidate": true,
+    "declarations": 15,
+    "policy_grants": 16,
+    "max_observed_live_foreground": 12,
+    "max_observed_live_timer": 6,
+    "timer_telemetry_acquires": 0,
+    "snapshot_header": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6"
+  },
+  "battery_controller": {
+    "host_runs": 22,
+    "normal_and_sanitized": true,
+    "max_observed_live": 7
+  },
+  "runtime_chain": {
+    "source": "3c94994613cd2f8d2ea0052a1e336e153a4adff4",
+    "cases": [
+      {
+        "sanitized": false,
+        "mode": "timer",
+        "result": "Actual Runtime timer: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": false,
+        "mode": "handoff",
+        "result": "Actual Runtime handoff: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": false,
+        "mode": "airplane",
+        "result": "Actual Runtime airplane: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": false,
+        "mode": "retained",
+        "result": "Actual Runtime, advertising cleanup failure retains mapped invocation/providers PASS"
+      },
+      {
+        "sanitized": true,
+        "mode": "timer",
+        "result": "Actual Runtime timer: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": true,
+        "mode": "handoff",
+        "result": "Actual Runtime handoff: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": true,
+        "mode": "airplane",
+        "result": "Actual Runtime airplane: exact 3-field BTHome packet,16-live-slot client, navigation and radio-policy cleanup PASS"
+      },
+      {
+        "sanitized": true,
+        "mode": "retained",
+        "result": "Actual Runtime, advertising cleanup failure retains mapped invocation/providers PASS"
+      }
+    ],
+    "runtime_files": {
+      "src/bootstrap/Json.cpp": "d5d129287d7093bef4ffa737d341995a9dae1968880fd7879987989ce4a635b0",
+      "src/bootstrap/Board.cpp": "f34dd2fe0a37aa0975774eb8fcbf7060093cd75535dcb133ca4812ddaa3451a5",
+      "src/bootstrap/Runtime.cpp": "66597d0aa0c927281a6b4510a1e5a689d4ad089f771d8c23e747519f93c1b78d",
+      "src/runtime/drivers/ProviderGraphV2.cpp": "0416793cc3c0193cd4a769d26a42b06bbb5d4aa62bcb75644ddeb1676deb0033",
+      "src/runtime/drivers/ProviderModuleV2.cpp": "517c34c994031c8304d6047cf76332eb6e46845be3b1ca91aae9550fe9970267"
+    },
+    "capacity_test": "16 live grants accepted;17th denied"
+  },
+  "utility_targets": {
+    "calculator": {
+      "version": "0.1.14",
+      "sha256": "91a491018171fca87df8638a6a7a542275083d6fc493b77a59980ec0225069e5",
+      "clean_source": true,
+      "compiled_dependency_count": 75
+    },
+    "stopwatch": {
+      "version": "0.1.14",
+      "sha256": "f54b0c8d4a5bafbf958a7de86c4d040a8c48a8e9259f712a0946907615637ba1",
+      "clean_source": true,
+      "compiled_dependency_count": 79
+    },
+    "battery": {
+      "version": "1.1.7",
+      "sha256": "e31e2c77e2a894512552d91a58fee9b2fe99d1f13df95d3db8eafa99c13fe468",
+      "clean_source": true,
+      "compiled_dependency_count": 76
+    },
+    "ble_scanner": {
+      "version": "0.2.9",
+      "sha256": "978f74ab8dfda84b9ec027c5fdbbf1c7107e748481eb81299ca963bc28da47ec",
+      "clean_source": true,
+      "compiled_dependency_count": 80
+    },
+    "ble_touchpad": {
+      "version": "0.1.9",
+      "sha256": "3fb40afbbe036a192e52d99e01192d2bc9d4de8e0a8dcddfc046528b5186b33c",
+      "clean_source": true,
+      "compiled_dependency_count": 77
+    },
+    "ble_buttons": {
+      "version": "0.1.9",
+      "sha256": "1afb93006190026c62110c13bc3d666150cc0107b5c41321e7372fe4b6e3de63",
+      "clean_source": true,
+      "compiled_dependency_count": 77
+    },
+    "waterfall": {
+      "version": "0.2.5",
+      "sha256": "80c750b412e82635b0a798a91a2b6bdd243c4af22402b50f529b981a30958591",
+      "clean_source": true,
+      "compiled_dependency_count": 97
+    }
+  },
+  "providers": {
+    "telemetry-battery": {
+      "schema": 1,
+      "source_revision": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+      "source_dirty": false,
+      "compiler": "xtensa-esp32s3-elf-gcc (crosstool-NG esp-2021r2-patch5) 8.4.0",
+      "size_bytes": 4344,
+      "sha256": "9ef760ec2d566817467fef3627f916e260ddfbee3bef7b9df1746b18e76171a2",
+      "source_sha256": "a707e10aa4ba3f5f254e1b2a81992cddc2de351825106cd50e3da14da4b4682c",
+      "imports": [
+        "memcpy",
+        "strcmp"
+      ],
+      "exports": [
+        "t5_driver_get"
+      ],
+      "hardware_verified": false
+    },
+    "ble-telemetry": {
+      "schema": 1,
+      "source_revision": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+      "source_dirty": false,
+      "compiler": "xtensa-esp32s3-elf-gcc (crosstool-NG esp-2021r2-patch5) 8.4.0",
+      "size_bytes": 14712,
+      "sha256": "677ac910f378af62dc3e0163c9dfdc3bc497e6d9ec990c13d8b3be52d96025de",
+      "source_sha256": "036dbc02da02bc2f83c835e75152d4fdcff004605832773d80d9cc50f36f14f4",
+      "imports": [
+        "memchr",
+        "memcpy",
+        "memset",
+        "strcmp",
+        "strlen"
+      ],
+      "exports": [
+        "t5_driver_get"
+      ],
+      "hardware_verified": false
+    },
+    "telemetry-broadcast": {
+      "schema": 1,
+      "source_revision": "c0de37886a6ad568fda1520423622fadbd60b7d3",
+      "source_dirty": false,
+      "compiler": "xtensa-esp32s3-elf-gcc (crosstool-NG esp-2021r2-patch5) 8.4.0",
+      "size_bytes": 8552,
+      "sha256": "26b291b59bcd86e404d3feef402fc7413af8dc21cc5e158dd023e3afab925722",
+      "source_sha256": "633aa1f4f4f65e1497a83b0566a952108e982152081a11dda2f667f65da3ca56",
+      "imports": [
+        "memchr",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "strcmp"
+      ],
+      "exports": [
+        "t5_driver_get"
+      ],
+      "hardware_verified": false
+    }
+  },
+  "additional_checks": [
+    "accepted Watch client normal+ASan/UBSan",
+    "AppData pause/retained wrapper normal+ASan/UBSan",
+    "production broadcast service normal+ASan/UBSan",
+    "shared BLE scanner/telemetry/codec/battery provider fixtures",
+    "Battery Watch/raw-paper flag-off exact bytes",
+    "eight actual app declaration/grant mappings",
+    "three product policy test groups including overflow/invalid selection"
+  ],
+  "hardware_verified": false,
+  "rf_transmission": false,
+  "publication": false,
+  "remaining_integration": [
+    "merge common lifecycle with selected Settings/Wi-Fi/Files0.1.16 improvements",
+    "wrap Timecard AppData before telemetry selection",
+    "rebuild remaining native app receipts at reserved versions",
+    "apply telemetry_cohort to final product source/boot policy; full final cohort admission/build owned by parent"
+  ]
+}
