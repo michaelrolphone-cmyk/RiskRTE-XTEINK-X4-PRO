@@ -107,6 +107,10 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
     # cannot silently continue past a failed early pin operation.
     require(b'risc_native_startup_error' in files['src/main.cpp'][0], 'Runtime lacks the generic startup-status hook')
     require(b'risc_native_diagnostic_observer' in files.get('src/ports/esp32s3/SleepDiagnostics.cpp',(b'',0))[0], 'Runtime lacks the optional native diagnostic observer')
+    for hook in (b'risc_native_diagnostic_drain', b'risc_native_diagnostic_read'):
+        require(hook in files.get('src/ports/esp32s3/SleepDiagnostics.cpp',(b'',0))[0],
+                'Runtime lacks the persistent diagnostic handoff: ' + hook.decode())
+    require('sdk/driver/RiscDiagnosticSourceV1.h' in files, 'Runtime diagnostic source SDK missing')
     original_config = files['platformio.ini'][0]
     needle = b'pre:scripts/reproducible_build.py'
     require(needle in original_config, 'Pinned Runtime pre-build script entry missing')
@@ -375,7 +379,8 @@ def startup_proof(elf_data, record):
     elf = ELFFile(io.BytesIO(elf_data))
     symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
     names = ('initVariant', '__wrap_app_main', 'app_main', 'risc_x4_boot_record',
-             'risc_native_startup_error', 'risc_native_diagnostic_observer', 'risc_x4_native_composition_identity')
+             'risc_native_startup_error', 'risc_native_diagnostic_observer', 'risc_native_diagnostic_drain',
+             'risc_native_diagnostic_read', 'risc_x4_native_composition_identity')
     for name in names:
         symbol = symbols.get(name)
         require(symbol is not None and symbol['st_shndx'] != 'SHN_UNDEF' and
@@ -408,6 +413,10 @@ def startup_proof(elf_data, record):
             'entry_hook': '__wrap_app_main', 'target_call_edges': linked,
             'earliest_scope': 'IDF app_main; after IDF hardware/PSRAM/core initialization',
             'rtc_record_bytes': 264,
+            'persistent_capture': 'app-main-after-existing-rail-before-Arduino',
+            'sd_export_path': '/x4-boot.log', 'sd_export_owner': 'x4pro-sd',
+            'sd_export_start': 'after validated provider activation and successful FatFs mount',
+            'rom_and_rail_failure_coverage': False,
             'hardware_qualified': False}
 
 

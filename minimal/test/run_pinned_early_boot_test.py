@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
+RUNTIME = Path(os.environ['RISCRTE_RUNTIME_ROOT'])
 FRAMEWORK = Path(os.environ.get('X4_ARDUINO_FRAMEWORK', str(Path(os.environ.get('PLATFORMIO_CORE_DIR', Path.home() / '.platformio')) / 'packages/framework-arduinoespressif32')))
 main = FRAMEWORK / 'cores/esp32/main.cpp'
 misc = FRAMEWORK / 'cores/esp32/esp32-hal-misc.c'
@@ -65,6 +66,23 @@ int esp_partition_erase_range(const esp_partition_t*,size_t,size_t);
         'freertos/task.h': '#include "Arduino.h"\n',
         'esp_task_wdt.h': '#include "Arduino.h"\n',
         'esp_attr.h': '#define RTC_NOINIT_ATTR\n',
+        'nvs.h': '''#pragma once
+#include <cstdint>
+#include <cstddef>
+using nvs_handle_t=uint32_t;
+#define ESP_FAIL -1
+#define ESP_ERR_NVS_NOT_FOUND 0x1102
+#define ESP_ERR_NVS_INVALID_LENGTH 0x110c
+#define NVS_READWRITE 1
+extern "C" {
+int nvs_open(const char*,int,nvs_handle_t*);
+int nvs_get_blob(nvs_handle_t,const char*,void*,size_t*);
+int nvs_set_blob(nvs_handle_t,const char*,const void*,size_t);
+int nvs_commit(nvs_handle_t);
+void nvs_close(nvs_handle_t);
+}
+''',
+        'nvs_flash.h': '#pragma once\nextern "C" int nvs_flash_init();\n',
         'esp_system.h': '#pragma once\nint esp_reset_reason();\n',
         'esp_sleep.h': '#pragma once\nint esp_sleep_get_wakeup_cause();\n',
         'esp_timer.h': '#pragma once\n#include <cstdint>\nint64_t esp_timer_get_time();\n',
@@ -84,7 +102,7 @@ int esp_partition_erase_range(const esp_partition_t*,size_t,size_t);
         binary = work / ('test-' + str(mode))
         args = [os.environ.get('CXX', 'c++'), '-std=c++17', '-Wall', '-Wextra', '-Werror',
                 '-Wno-unused-parameter', '-DARDUINO_USB_MODE=' + str(mode),
-                '-I' + str(work), '-I' + str(ROOT / 'minimal/test/early_native_fake'),
+                '-I' + str(work), '-I' + str(ROOT / 'minimal/test/early_native_fake'), '-I' + str(RUNTIME / 'sdk/driver'),
                 str(work / 'pinned_main.cpp'), str(work / 'pinned_init.cpp'), str(ROOT / 'minimal/test/early_native_boot_test.cpp'),
                 '-Wl,--wrap=app_main', '-o', str(binary)]
         if os.environ.get('SANITIZE') == '1':

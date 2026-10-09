@@ -67,7 +67,15 @@ void UsbFake::begin(){arduino("usb");}
 extern "C" void setCpuFrequencyMhz(int mhz){assert(mhz==240);arduino("cpu");}
 extern "C" void psramInit(){arduino("psram");}
 extern "C" void esp_log_level_set(const char*,int){arduino("log");}
-extern "C" int nvs_flash_init(){arduino("nvs");return ESP_OK;}
+extern "C" int nvs_flash_init(){
+  if(!arduinoStarted){calls.emplace_back("early-nvs");return ESP_FAIL;}
+  arduino("nvs");return ESP_OK;
+}
+extern "C" int nvs_open(const char*,int,nvs_handle_t*){assert(false);return ESP_FAIL;}
+extern "C" int nvs_get_blob(nvs_handle_t,const char*,void*,size_t*){assert(false);return ESP_FAIL;}
+extern "C" int nvs_set_blob(nvs_handle_t,const char*,const void*,size_t){assert(false);return ESP_FAIL;}
+extern "C" int nvs_commit(nvs_handle_t){assert(false);return ESP_FAIL;}
+extern "C" void nvs_close(nvs_handle_t){assert(false);}
 extern "C" const esp_partition_t* esp_partition_find_first(int,int,const char*){assert(false);return nullptr;}
 extern "C" int esp_partition_erase_range(const esp_partition_t*,size_t,size_t){assert(false);return -1;}
 extern "C" void init(){arduino("init");}
@@ -80,6 +88,8 @@ void xTaskCreateUniversal(void(*)(void*),const char*,size_t,void*,int,void**,int
 }
 static void freshGlobals() {
   attempted=variant=reported=previousValid=false;previous={};startupError="x4-app-main-not-entered";
+  X4BootLog::initialized=false;X4BootLog::available=false;X4BootLog::pending=false;
+  X4BootLog::current={};
   step=reports=timeUs=0;configured=high=sensing=arduinoStarted=false;calls.clear();lines.clear();
 }
 int main(int argc, char** argv) {
@@ -155,6 +165,7 @@ int main(int argc, char** argv) {
   assert(retained.gpioHighBefore==0xabcdef01 && retained.strapBefore==0x654321);
   assert(reports==3 && !previousValid);
   const std::vector<std::string> expectedCalls={
+    "early-nvs",
 #if !ARDUINO_USB_MODE
     "serial","usb",
 #endif

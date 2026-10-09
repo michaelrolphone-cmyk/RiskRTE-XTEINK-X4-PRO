@@ -44,6 +44,7 @@ class NativeBundleCompositionTest(unittest.TestCase):
         marker_values=markers or self.markers
         code=('__attribute__((weak)) ' if weak else '')+'void initVariant(void) {}\n'
         code+='void __wrap_app_main(void) {}\nvoid app_main(void) {}\nchar risc_x4_boot_record[264];\nvoid risc_native_diagnostic_observer(const char* p){(void)p;}\n'
+        code+='void risc_native_diagnostic_drain(void) {}\nint risc_native_diagnostic_read(void) {return 0;}\n'
         code+='const char* risc_native_startup_error(void) {return 0;}\n'
         for index,marker in enumerate(marker_values):
             name='risc_x4_native_composition_identity' if index==3 else 'risc_app_policy_rows' if index==4 else 'marker_'+str(index)

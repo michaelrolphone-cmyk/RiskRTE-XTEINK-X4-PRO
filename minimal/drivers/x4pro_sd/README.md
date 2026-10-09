@@ -1,6 +1,6 @@
 # X4 native one-bit SD ordinary provider
 
-`x4pro-sd@0.2.6` adapts the X4 native CLK/CMD/DAT0 transport to scoped
+`x4pro-sd@0.2.7` adapts the X4 native CLK/CMD/DAT0 transport to scoped
 `platform.gpio@1`, `platform.clock@1` and `platform.sync@1`, with explicit
 `board.power.ready@1` admission. It is not SPI and imports no firmware SD,
 FreeRTOS, task identity, MMIO or filesystem service.
@@ -102,3 +102,9 @@ shared dependency pin. It does not update the frozen X4 0.1.6 artifacts, enable
 deep-sleep policy, implement retained clock state, merge code, or flash hardware.
 The future coordinator must close all storage handles before prepare, retain
 the provider across the whole transaction, and distinguish all resume results.
+
+## Persistent diagnostic export
+
+0.2.7 adds the read-only `platform.diagnostic-source@1` dependency and writes
+`/x4-boot.log` through this same FatFs owner after a usable mount. No app grant
+or second SD stack is added. See [capture, ownership, failure and test details](../../docs/BOOT_LOGGING.md).

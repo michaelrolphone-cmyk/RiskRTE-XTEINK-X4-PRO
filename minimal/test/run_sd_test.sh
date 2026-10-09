@@ -15,6 +15,7 @@ for scenario in validation absent lifetime mbr files-paths stale-handles reentry
  sleep-empty sleep-absent sleep-handles sleep-busy sleep-refusal sleep-legacy sleep-sync sleep-prepare-unlock sleep-reentry \
  sleep-repeat-prepare-unlock sleep-repeat-commit-unlock sleep-repeat-resume-unlock \
  sleep-commit-clock sleep-commit-cmd-release sleep-commit-cmd-claim sleep-commit-dat-release sleep-commit-dat-claim sleep-commit-rail sleep-commit-hold sleep-commit-hold-retained sleep-commit-unlock \
- sleep-resume-unhold sleep-resume-unhold-retained sleep-resume-rail-off sleep-resume-rail-on sleep-resume-cmd-claim sleep-resume-dat-claim sleep-resume-unlock sleep-resume-crc sleep-unformatted sleep-removed; do
+ sleep-resume-unhold sleep-resume-unhold-retained sleep-resume-rail-off sleep-resume-rail-on sleep-resume-cmd-claim sleep-resume-dat-claim sleep-resume-unlock sleep-resume-crc sleep-unformatted sleep-removed \
+ log-history log-absent log-unformatted log-readonly log-full log-partial log-close log-write-fail log-ownership log-sleep log-repeated log-rotation; do
  ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 timeout 120s "$build/test" "$scenario"
 done

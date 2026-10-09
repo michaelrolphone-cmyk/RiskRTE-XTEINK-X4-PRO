@@ -1,6 +1,7 @@
 // Production board and power providers + JSON graph + scoped CPU and native
 // GPIO adapters. Hardware is a deterministic IDF shim, never an actual device.
 #include "bootstrap/Runtime.h"
+#include "diagnostic_source_fixture.h"
 #define private public
 #include "ports/esp32s3/CpuPort.h"
 #undef private
@@ -36,7 +37,7 @@ extern "C" bool rtc_gpio_is_valid_gpio(gpio_num_t p){return p<=21;}
 extern "C" esp_err_t rtc_gpio_deinit(gpio_num_t){++io;return ESP_OK;}
 static bool readPin(uint8_t p,bool*out){++io;if(p==1){++railReads;order=3;if(!readOk)return false;}*out=(unsigned(modes[p])&1)&&levels[p]&&!forcedLow[p];return true;}
 static bool owner(){return true;}
-static bool bind(RiscBoot::Runtime&r){return active->bind(r);}
+static bool bind(RiscBoot::Runtime&r){return active->bind(r) && bind_empty_diagnostic_source(r);}
 static void lockedCheck(){
  assert(held[1]&&levels[1]&&active->pins_[1].held&&!active->appExitSafe());
  unsigned before=io;assert(!boardApi->ready(nullptr)&&!boardDriver->quiesce());

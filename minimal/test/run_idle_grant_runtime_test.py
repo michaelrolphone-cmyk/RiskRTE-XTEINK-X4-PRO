@@ -30,7 +30,7 @@ for san in (False,True):
  boot={'board':'board.json','default_app':'default.elf','provider_activation':'demand','drivers':drivers,'app_capabilities':[{'manifest':'app.json','grants':grants}]}
  (out/'boot.json').write_text(json.dumps(boot))
  subprocess.run(['cc',*flags,str(r/'minimal/test/idle_grant_app.c'),'-o',str(out/'default.elf')],check=True)
- sources=['src/bootstrap/Json.cpp','src/bootstrap/Board.cpp','src/bootstrap/Runtime.cpp','src/runtime/drivers/ProviderGraphV2.cpp','src/runtime/drivers/ProviderModuleV2.cpp']
+ sources=['src/bootstrap/Json.cpp','src/bootstrap/Board.cpp','src/bootstrap/Runtime.cpp','src/runtime/streams/AppStreamSessions.cpp','src/runtime/streams/ProviderQueueHost.cpp','src/runtime/drivers/ProviderGraphV2.cpp','src/runtime/drivers/ProviderModuleV2.cpp']
  exe=out/'test'
  subprocess.run(['c++','-std=c++17','-g','-Wall','-Wextra','-Werror','-Wno-missing-field-initializers','-Wno-misleading-indentation','-rdynamic',*extra,*(['-no-pie'] if san else []),*['-I'+str(rt/n) for n in ('src','sdk/app','sdk/driver','sdk/hardware','lib/ArduinoJson/src','test/drivers/stubs')],*[str(rt/n) for n in sources],str(r/'minimal/test/idle_grant_runtime.cpp'),'-ldl','-o',str(exe)],check=True)
  env=dict(os.environ,ASAN_OPTIONS='detect_leaks=0');subprocess.run([exe,out],env=env,check=True)

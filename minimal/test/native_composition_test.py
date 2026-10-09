@@ -33,6 +33,10 @@ class CompositionTest(unittest.TestCase):
         (self.runtime / 'src/main.cpp').write_text('extern "C" const char* risc_native_startup_error();\n')
         (self.runtime/'src/ports/esp32s3').mkdir(parents=True)
         (self.runtime/'src/ports/esp32s3/SleepDiagnostics.cpp').write_text('extern \"C\" void risc_native_diagnostic_observer(const char*);\n')
+        with (self.runtime/'src/ports/esp32s3/SleepDiagnostics.cpp').open('a') as f:
+            f.write('void risc_native_diagnostic_drain(); int risc_native_diagnostic_read();\n')
+        (self.runtime/'sdk/driver').mkdir(parents=True)
+        (self.runtime/'sdk/driver/RiscDiagnosticSourceV1.h').write_text('/* source fixture */\n')
         (self.runtime / 'platformio.ini').write_text('[riscrte]\nversion = 0.1.57\n'
             '[env:esp32s3-16mb-appdata-iq]\nextra_scripts = pre:scripts/reproducible_build.py\n')
         self.revision = commit(self.runtime)

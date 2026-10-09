@@ -7,7 +7,7 @@ runtime="$RISCRTE_RUNTIME_ROOT"
 flags=(-std=c++17 -Wall -Wextra -Werror -Wno-missing-field-initializers)
 if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer);fi
 c++ "${flags[@]}" -I"$runtime/src" -I"$runtime/sdk/app" -I"$runtime/sdk/driver" -I"$runtime/sdk/hardware" -I"$runtime/lib/ArduinoJson/src" -I"$runtime/test/drivers/stubs" \
- "$runtime/src/bootstrap/Json.cpp" "$runtime/src/bootstrap/Board.cpp" "$runtime/src/bootstrap/Runtime.cpp" \
+ "$runtime/src/bootstrap/Json.cpp" "$runtime/src/bootstrap/Board.cpp" "$runtime/src/bootstrap/Runtime.cpp" "$runtime/src/runtime/streams/AppStreamSessions.cpp" "$runtime/src/runtime/streams/ProviderQueueHost.cpp" \
  "$runtime/src/runtime/drivers/ProviderGraphV2.cpp" "$runtime/src/runtime/drivers/ProviderModuleV2.cpp" "$runtime/src/ports/esp32s3/CpuPort.cpp" \
  "$root/minimal/test/profile_materialize.cpp" -ldl -o "$build/materialize"
 for panel in ssd1677 uc8279; do

@@ -2,6 +2,7 @@
 // compiled board-power provider. The shim models IDF's input-enable rule rather
 // than returning the output latch unconditionally (gpio.h's gpio_get_level warning).
 #include "bootstrap/Runtime.h"
+#include "diagnostic_source_fixture.h"
 #define private public
 #include "ports/esp32s3/CpuPort.h"
 #undef private
@@ -30,7 +31,7 @@ extern "C" esp_err_t rtc_gpio_deinit(gpio_num_t){++io;return ESP_OK;}
 static bool padRead(uint8_t p,bool* out){++io;*out=(unsigned(modes[p])&1) && levels[p] && !forcedLow[p];return true;}
 static Port* active;
 static bool owner(){return true;}
-static bool bind(RiscBoot::Runtime&r){return active->bind(r);}
+static bool bind(RiscBoot::Runtime&r){return active->bind(r) && bind_empty_diagnostic_source(r);}
 static Hardware hardware(){
  Hardware h{};h.owner=owner;h.now=[]()->uint64_t{return 0;};h.sleep=[](uint32_t){++io;};
  h.gpioOpen=NativeSleep::openPin;h.gpioRead=padRead;h.deepHold=NativeSleep::hold;

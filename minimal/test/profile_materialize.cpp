@@ -1,4 +1,5 @@
 #include "bootstrap/Runtime.h"
+#include "diagnostic_source_fixture.h"
 #define private public
 #include "ports/esp32s3/CpuPort.h"
 #undef private
@@ -10,7 +11,7 @@ using namespace RiscCpu;
 static Port* active;
 static unsigned io;
 static bool owner(){return true;}
-static bool bind(RiscBoot::Runtime&r){return active->bind(r);}
+static bool bind(RiscBoot::Runtime&r){return active->bind(r) && bind_empty_diagnostic_source(r);}
 static Hardware hardware(){Hardware h{};h.owner=owner;h.now=[]()->uint64_t{return 0;};h.sleep=[](uint32_t){++io;};
 h.gpioOpen=[](uint8_t,bool,bool,bool){++io;return false;};h.gpioWrite=[](uint8_t,bool){++io;return false;};h.gpioRead=[](uint8_t,bool*){++io;return false;};h.gpioPwm=[](uint8_t,uint32_t,uint16_t,uint16_t){++io;return false;};h.gpioClose=[](uint8_t){++io;return false;};
 h.i2cOpen=[](uint8_t,uint8_t,uint8_t,uint32_t){++io;return false;};h.i2cTransfer=[](uint8_t,uint8_t,const uint8_t*,size_t,uint8_t*,size_t,uint32_t){++io;return false;};h.i2cClose=[](uint8_t){++io;return false;};

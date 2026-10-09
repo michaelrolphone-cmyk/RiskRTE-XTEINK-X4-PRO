@@ -106,3 +106,57 @@ inline bool observe(Record& record,const char* line,uint64_t nowUs) {
   seal(record);return true;
 }
 }
+
+// Versioned on-flash diagnostic data. Contains no application settings or
+// Bluetooth identifiers. Session numbers come from flash, not RTC retention.
+namespace X4BootLog {
+constexpr uint32_t Magic = 0x58424c31;
+constexpr unsigned SlotCount = 8;
+constexpr unsigned CheckpointLimit = 64;
+struct Session {
+  uint32_t magic, bytes;
+  uint64_t sequence;
+  uint32_t revision, checkpointWrites;
+  X4Boot::Record checkpoint;
+  char firstFailure[160];
+  uint32_t checksum;
+};
+inline uint32_t checksum(const Session& s) {
+  const auto* p=reinterpret_cast<const unsigned char*>(&s);
+  uint32_t h=2166136261u;
+  for(size_t i=0;i<offsetof(Session,checksum);++i)h=(h^p[i])*16777619u;
+  return h;
+}
+inline bool valid(const Session& s) {
+  return s.magic==Magic && s.bytes==sizeof(Session) && s.sequence &&
+    s.revision && X4Boot::valid(s.checkpoint) &&
+    std::memchr(s.firstFailure,0,sizeof(s.firstFailure)) && s.checksum==checksum(s);
+}
+inline void seal(Session& s) { s.checksum=checksum(s); }
+inline Session begin(uint64_t sequence,const X4Boot::Record& r) {
+  Session s{};s.magic=Magic;s.bytes=sizeof(s);s.sequence=sequence;
+  s.revision=1;s.checkpointWrites=1;s.checkpoint=r;seal(s);return s;
+}
+inline bool failure(const X4Boot::Record& r) {
+  return r.milestoneKind==X4Boot::Failure;
+}
+inline bool advance(Session& s,const X4Boot::Record& r,bool early=false) {
+  if(!X4Boot::valid(r) || s.magic!=Magic || s.bytes!=sizeof(Session))return false;
+  // Preserve terminal evidence even if shutdown emits additional ordinary
+  // milestones. A successfully displayed frame does not mean shutdown was clean.
+  const bool failed=failure(r);
+  if(!early && s.firstFailure[0])return false;
+  const bool firstFrame=r.displayCompleted && !s.checkpoint.displayCompleted;
+  if(!early && !failed &&
+     (s.checkpoint.displayCompleted ||
+      (s.checkpointWrites>=CheckpointLimit && !firstFrame)))return false;
+  if(s.revision==UINT32_MAX)return false;
+  s.checkpoint=r;++s.revision;
+  if(s.checkpointWrites!=UINT32_MAX)++s.checkpointWrites;
+  if(failed && !s.firstFailure[0]) {
+    std::memcpy(s.firstFailure,r.milestone,sizeof(s.firstFailure));
+    s.firstFailure[sizeof(s.firstFailure)-1]=0;
+  }
+  seal(s);return true;
+}
+}

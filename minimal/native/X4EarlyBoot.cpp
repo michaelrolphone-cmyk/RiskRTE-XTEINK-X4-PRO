@@ -11,6 +11,7 @@
 #include <soc/soc.h>
 #include <cstdio>
 #include "X4BootRecord.h"
+#include <RiscDiagnosticSourceV1.h>
 #include "X4NativeBuildIdentity.h"
 
 extern "C" const char risc_x4_native_composition_identity[] = X4_NATIVE_COMPOSITION_IDENTITY;
@@ -19,6 +20,160 @@ extern "C" const char risc_x4_native_composition_identity[] = X4_NATIVE_COMPOSIT
 namespace RiscDiagnostics { void line(const char* text); }
 
 extern "C" { RTC_NOINIT_ATTR X4Boot::Record risc_x4_boot_record; }
+
+
+// Storage runs outside the borrowed-line observer and never uses Serial.
+// The paired app-data volume is mounted by Runtime, never formatted here.
+#include <nvs.h>
+#include <nvs_flash.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <cerrno>
+#include <climits>
+#ifndef X4_BOOTLOG_INTERNAL_ROOT
+#define X4_BOOTLOG_INTERNAL_ROOT "/appdata"
+#endif
+namespace X4BootLog { namespace {
+constexpr const char* Namespace="x4_bootlog";
+constexpr const char* Internal=X4_BOOTLOG_INTERNAL_ROOT "/x4-boot.log";
+constexpr const char* Previous=X4_BOOTLOG_INTERNAL_ROOT "/x4-boot.previous.log";
+constexpr size_t MaxLogBytes=128*1024;
+Session history[SlotCount]{};
+Session current{};
+nvs_handle_t handle{};
+bool available=false,initialized=false,pending=false,insideDrain=false;
+bool fileReady=false,historyExported=false,fileUncertain=false;
+uint32_t fileAttemptRevision=0;unsigned fileAttempts=0;
+uint32_t writtenRevision=0,fileRevision=0;
+esp_err_t storageError=ESP_OK;
+int fileError=0;
+
+void key(unsigned slot,char (&out)[8]) { std::snprintf(out,sizeof(out),"boot%u",slot); }
+bool store() {
+  if(!available || !valid(current))return false;
+  if(writtenRevision==current.revision)return true;
+  char name[8];key(unsigned(current.sequence%SlotCount),name);
+  esp_err_t result=nvs_set_blob(handle,name,&current,sizeof(current));
+  if(result==ESP_OK)result=nvs_commit(handle);
+  if(result!=ESP_OK) { storageError=result;available=false;return false; }
+  writtenRevision=current.revision;
+  history[current.sequence%SlotCount]=current;
+  return true;
+}
+void start(const X4Boot::Record& record) {
+  if(initialized)return;
+  initialized=true;current=begin(0,record);
+  // No erase-and-retry: exhausted/corrupt NVS must not erase settings/evidence.
+  storageError=nvs_flash_init();
+  if(storageError!=ESP_OK)return;
+  storageError=nvs_open(Namespace,NVS_READWRITE,&handle);
+  if(storageError!=ESP_OK)return;
+  uint64_t newest=0;
+  for(unsigned i=0;i<SlotCount;++i) {
+    char name[8];key(i,name);Session candidate{};size_t bytes=sizeof(candidate);
+    esp_err_t result=nvs_get_blob(handle,name,&candidate,&bytes);
+    if(result==ESP_OK && bytes==sizeof(candidate) && valid(candidate) &&
+       candidate.sequence%SlotCount==i) {
+      history[i]=candidate;
+      if(candidate.sequence>newest)newest=candidate.sequence;
+    } else if(result!=ESP_OK && result!=ESP_ERR_NVS_NOT_FOUND &&
+              result!=ESP_ERR_NVS_INVALID_LENGTH) {
+      // An unreadable history is not an empty history. Do not reuse its keys.
+      storageError=result;nvs_close(handle);return;
+    }
+  }
+  if(newest==UINT64_MAX) { storageError=ESP_FAIL;nvs_close(handle);return; }
+  current=begin(newest+1,record);available=true;(void)store();
+}
+void checkpoint(const X4Boot::Record& record) {
+  if(advance(current,record,true))(void)store();
+}
+void observe() { pending=true; } // O(1), no I/O, called only by diagnostic owner.
+bool directory(const char* root) {
+  struct stat s{};return stat(root,&s)==0 && S_ISDIR(s.st_mode);
+}
+int formatSession(char* text,size_t capacity,const Session& s,const char* origin) {
+  const auto& r=s.checkpoint;
+  int n=std::snprintf(text,capacity,
+    "X4_BOOTLOG seq=%llu revision=%lu origin=%s power_source=unmeasured "
+    "rtc_boot=%lu phase=%s operation=%lu reset=%lu raw0=%lu raw1=%lu wake=%lu "
+    "entry_us=%lu variant_us=%lu gate_us=%lu gpio=0x%08lx gpio1=0x%08lx "
+    "strap=0x%08lx hold=0x%08lx brownout_reg=0x%08lx "
+    "milestones=%lu kind=%s last_us=%llu first_display=%lu first_display_us=%llu\n"
+    "last_line=%s\nfirst_failure=%s\nX4_BOOTLOG record_end=complete\n",
+    (unsigned long long)s.sequence,(unsigned long)s.revision,origin,
+    (unsigned long)r.boot,X4Boot::phaseName(r.phase),(unsigned long)r.operation,
+    (unsigned long)r.reset,(unsigned long)r.raw0,(unsigned long)r.raw1,(unsigned long)r.wake,
+    (unsigned long)r.entryUs,(unsigned long)r.variantUs,(unsigned long)r.gateUs,
+    (unsigned long)r.gpioBefore,(unsigned long)r.gpioHighBefore,
+    (unsigned long)r.strapBefore,(unsigned long)r.holdBefore,(unsigned long)r.brownout,
+    (unsigned long)r.milestoneCount,X4Boot::milestoneName(r.milestoneKind),
+    (unsigned long long)r.milestoneUs,(unsigned long)r.displayCompleted,
+    (unsigned long long)r.firstDisplayUs,r.milestone,
+    s.firstFailure[0]?s.firstFailure:"none-recorded");
+  return n>=0 && size_t(n)<capacity?n:-1;
+}
+bool writeSession(FILE* file,const Session& s,const char* origin) {
+  char text[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];
+  const int n=formatSession(text,sizeof(text),s,origin);
+  return n>=0 && std::fwrite(text,1,size_t(n),file)==size_t(n);
+}
+bool syncClose(FILE* file) {
+  bool okay=std::fflush(file)==0;
+  if(okay && fsync(fileno(file))!=0)okay=false;
+  if(!okay)fileError=errno?errno:EIO;
+  if(std::fclose(file)!=0){okay=false;fileError=errno?errno:EIO;}
+  return okay;
+}
+bool append() {
+  if(!fileReady || fileUncertain || current.magic!=Magic ||
+      (historyExported && fileRevision==current.revision))return false;
+  if(fileAttemptRevision!=current.revision){fileAttemptRevision=current.revision;fileAttempts=0;}
+  if(fileAttempts>=2)return false;
+  ++fileAttempts; // At most two pre-write retries per bounded checkpoint.
+  struct stat info{};
+  if(stat(Internal,&info)==0 && info.st_size>=long(MaxLogBytes)) {
+    // If replacement/rotation is unsupported, keep existing evidence intact.
+    if(std::rename(Internal,Previous)!=0){fileError=errno;return false;}
+  }
+  FILE* file=std::fopen(Internal,"ab");
+  if(!file){fileError=errno;return false;}
+  bool okay=true;
+  if(!historyExported) {
+    okay=std::fprintf(file,
+      "\nX4_BOOTLOG format=1 firmware=%s flash_error=%ld previous_file_error=%d "
+      "capture=app-main-after-rail seq0=unassigned no-usb-required\n",
+      X4_NATIVE_COMPOSITION_IDENTITY,(long)storageError,fileError)>=0;
+    // Oldest to newest. Invalid/torn records never become successful boots.
+    uint64_t after=0;
+    for(unsigned count=0;count<SlotCount && okay;++count) {
+      uint64_t lowest=UINT64_MAX;unsigned selected=SlotCount;
+      for(unsigned i=0;i<SlotCount;++i)
+        if(valid(history[i]) && history[i].sequence<current.sequence &&
+           history[i].sequence>after && history[i].sequence<lowest) {
+          lowest=history[i].sequence;selected=i;
+        }
+      if(selected==SlotCount)break;
+      okay=writeSession(file,history[selected],"recovered-flash");after=lowest;
+    }
+  }
+  if(okay)okay=writeSession(file,current,"current");
+  bool closed=syncClose(file);
+  if(!okay || !closed){fileUncertain=true;if(!fileError)fileError=EIO;return false;}
+  historyExported=true;fileRevision=current.revision;return true;
+}
+void drain(const X4Boot::Record& record) {
+  if(insideDrain)return;
+  insideDrain=true;
+  if(pending) {
+    pending=false;
+    if(advance(current,record))(void)store();
+  }
+  if(!fileReady)fileReady=directory(X4_BOOTLOG_INTERNAL_ROOT);
+  (void)append();
+  insideDrain=false;
+}
+} }
 
 namespace {
 const char* startupError = "x4-app-main-not-entered";
@@ -116,6 +271,7 @@ extern "C" void __wrap_app_main(void) {
     retained.entryUs = uint32_t(esp_timer_get_time());
     X4Boot::seal(retained);
     prepareRail();
+    X4BootLog::start(retained);
   }
   // All original Arduino initialization and task creation is still executed.
   // Failure stays latched for Runtime's existing startup gate; no rail cleanup.
@@ -129,6 +285,7 @@ extern "C" void initVariant(void) {
   retained.variantUs = uint32_t(esp_timer_get_time());
   retained.phase = X4Boot::Variant;
   X4Boot::seal(retained);
+  X4BootLog::checkpoint(retained);
 }
 
 extern "C" const char* risc_native_startup_error(void) {
@@ -139,6 +296,7 @@ extern "C" const char* risc_native_startup_error(void) {
     retained.gateUs = uint32_t(esp_timer_get_time());
     retained.phase = X4Boot::SetupGate;
     X4Boot::seal(retained);
+    X4BootLog::checkpoint(retained);
     report();
   }
   return startupError;
@@ -148,5 +306,37 @@ extern "C" const char* risc_native_startup_error(void) {
 // can discard a line. No retained field authorizes hardware or boot behavior.
 extern "C" void risc_native_diagnostic_observer(const char* line) {
   if(!attempted || !variant || X4Boot::classify(retained,line)==X4Boot::None)return;
-  (void)X4Boot::observe(retained,line,uint64_t(esp_timer_get_time()));
+  if(X4Boot::observe(retained,line,uint64_t(esp_timer_get_time())))
+    X4BootLog::observe();
+}
+
+// Called outside Runtime's nonblocking diagnostic observer/USB guard.
+extern "C" void risc_native_diagnostic_drain(void) {
+  X4BootLog::drain(retained);
+}
+
+// Read-only provider handoff. Runtime verifies owner/context before entry.
+// No NVS/file I/O, allocation, callback registration or borrowed storage escapes.
+extern "C" int32_t risc_native_diagnostic_read(uint32_t slot,char* text,uint32_t capacity,
+    uint32_t* written,uint64_t* sequence,uint32_t* revision) {
+  if(written)*written=0;
+  if(sequence)*sequence=0;
+  if(revision)*revision=0;
+  if(text && capacity)text[0]=0;
+  if(!text || !written || !sequence || !revision || !capacity ||
+      capacity>RISC_DIAGNOSTIC_SOURCE_TEXT_MAX || slot>=RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS)return -1;
+  using namespace X4BootLog;
+  if(!initialized || current.magic!=Magic)return 0;
+  const Session& session=slot?history[slot-1]:current;
+  if(slot && (!valid(session) || session.sequence==current.sequence))return 0;
+  const int header=std::snprintf(text,capacity,
+    "X4_BOOTLOG format=1 firmware=%s flash_error=%ld internal_error=%d "
+    "capture=app-main-after-rail seq0=unassigned no-usb-required\n",
+    X4_NATIVE_COMPOSITION_IDENTITY,(long)storageError,fileError);
+  if(header<0 || uint32_t(header)>=capacity){text[0]=0;return -1;}
+  const int length=formatSession(text+header,capacity-uint32_t(header),session,
+                                slot?"recovered-flash":"current");
+  if(length<0){text[0]=0;return -1;}
+  *written=uint32_t(header+length);*sequence=session.sequence;*revision=session.revision;
+  return 1;
 }

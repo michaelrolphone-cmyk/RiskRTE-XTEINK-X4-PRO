@@ -11,7 +11,7 @@ for provider in board_power power;do
  "${CC:-cc}" -std=c11 "${flags[@]}" -I"$runtime/sdk/driver" -I"$runtime/sdk/hardware" -Dt5_driver_get="${name}_get" -c "$root/minimal/drivers/x4pro_$provider/driver.c" -o "$build/$name.o"
 done
 c++ -std=c++17 "${flags[@]}" -I"$runtime/test/native_sleep_shim" -I"$runtime/src" -I"$runtime/sdk/app" -I"$runtime/sdk/driver" -I"$runtime/sdk/hardware" -I"$runtime/lib/ArduinoJson/src" -I"$runtime/test/drivers/stubs" \
- "$runtime/src/bootstrap/Json.cpp" "$runtime/src/bootstrap/Board.cpp" "$runtime/src/bootstrap/Runtime.cpp" \
+ "$runtime/src/bootstrap/Json.cpp" "$runtime/src/bootstrap/Board.cpp" "$runtime/src/bootstrap/Runtime.cpp" "$runtime/src/runtime/streams/AppStreamSessions.cpp" "$runtime/src/runtime/streams/ProviderQueueHost.cpp" \
  "$runtime/src/runtime/drivers/ProviderGraphV2.cpp" "$runtime/src/runtime/drivers/ProviderModuleV2.cpp" "$runtime/src/ports/esp32s3/CpuPort.cpp" \
  "$root/minimal/test/board_keepalive_cpu_test.cpp" "$build/board.o" "$build/power.o" -ldl -o "$build/keepalive"
 for panel in ssd1677 uc8279;do

@@ -53,7 +53,7 @@ def main():
             cpp=[os.environ.get('CXX','c++'),'-std=c++17','-O0' if args.sanitize else '-O1','-g','-Wall','-Wextra','-Werror',
                 '-Wno-missing-field-initializers',*san,*includes,'-I'+str(runtime/'src'),
                 '-I'+str(runtime/'lib/ArduinoJson/src'),'-I'+str(runtime/'test/drivers/stubs'),'-rdynamic']
-            sources=[runtime/path for path in ['src/bootstrap/Json.cpp','src/bootstrap/Board.cpp','src/bootstrap/Runtime.cpp',
+            sources=[runtime/path for path in ['src/bootstrap/Json.cpp','src/bootstrap/Board.cpp','src/bootstrap/Runtime.cpp','src/runtime/streams/AppStreamSessions.cpp','src/runtime/streams/ProviderQueueHost.cpp',
                 'src/runtime/drivers/ProviderGraphV2.cpp','src/runtime/drivers/ProviderModuleV2.cpp']]
             binary=args.output/(label+('-sanitized' if args.sanitize else ''))
             run([*cpp,*sources,fixture/'runtime_bridge.cpp',work/'panel.o',work/'adapter.o','-Wl,--wrap=free','-ldl','-o',binary])
@@ -83,7 +83,7 @@ def main():
                 assert after[kind]['elapsed_ms']<=before[kind]['elapsed_ms']+current['app_wait_ms']+8
     sources=[ROOT/'minimal/drivers/x4pro_panel/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',
         args.system/'lib/PortableApps/src/adapter.c',
-        runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
+        runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/streams/AppStreamSessions.cpp',runtime/'src/runtime/streams/ProviderQueueHost.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
     receipt={'hardware':'not run','gpio_cost':'deterministic writes per simulated millisecond; zero means no GPIO time',
         'sources':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'runs':results}
     (args.output/'evidence.json').write_text(json.dumps(receipt,indent=2)+'\n')

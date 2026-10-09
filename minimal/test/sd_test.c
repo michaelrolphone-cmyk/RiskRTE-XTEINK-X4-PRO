@@ -7,7 +7,33 @@
 #include <stdint.h>
 static uint32_t fixture_cycles(void);
 #define X4PRO_SD_CYCLE_COUNT() fixture_cycles()
+#define f_open fixture_f_open
+#define f_write fixture_f_write
+#define f_close fixture_f_close
 #include "../drivers/x4pro_sd/driver.c"
+#undef f_open
+#undef f_write
+#undef f_close
+FRESULT f_open(FIL*,const TCHAR*,BYTE);
+FRESULT f_write(FIL*,const void*,UINT,UINT*);
+FRESULT f_close(FIL*);
+static bool log_deny_open,log_partial_write,log_fail_close,log_opened;
+static unsigned log_opens,log_writes,log_closes;
+FRESULT fixture_f_open(FIL *file,const TCHAR *path,BYTE mode) {
+    const bool log=!strcmp(path,X4_BOOTLOG_SD_PATH) && (mode & FA_WRITE);
+    if(log){++log_opens;if(log_deny_open)return FR_WRITE_PROTECTED;}
+    FRESULT result=f_open(file,path,mode);
+    if(log && result==FR_OK)log_opened=true;
+    return result;
+}
+FRESULT fixture_f_write(FIL *file,const void *bytes,UINT size,UINT *written) {
+    if(bytes==bootlog_text){++log_writes;if(log_partial_write)return f_write(file,bytes,size/2,written);}
+    return f_write(file,bytes,size,written);
+}
+FRESULT fixture_f_close(FIL *file) {
+    if(log_opened && file==&files[0].object){++log_closes;if(log_fail_close)return FR_DISK_ERR;log_opened=false;}
+    return f_close(file);
+}
 #undef x4pro_sd_command
 #undef x4pro_sd_crc16
 #define x4pro_pin_output wire_pin_output
@@ -101,10 +127,26 @@ static void sleep_ms(void *ctx,uint32_t ms){(void)ctx;++sleeps;now_ms+=ms;assert
 static const garden_gpio_v1 fixture_gpio={.api_version=1,.struct_size=sizeof(fixture_gpio),.claim=gpio_claim,.write=gpio_write,.read=gpio_read,.release=gpio_release,.deep_sleep_hold=gpio_hold};
 static const risc_provider_sync_api_v1 fixture_sync={1,sizeof(fixture_sync),NULL,sync_owner,sync_create,sync_take,sync_unlock,sync_destroy};
 static const risc_platform_clock_api_v1 fixture_clock={1,sizeof(fixture_clock),NULL,monotonic,sleep_ms};
+static bool source_enabled,source_history;
+static uint32_t source_revision=1;
+static uint64_t source_sequence=23;
+static unsigned source_reads;
+static int32_t fixture_diagnostic_read(void *ctx, uint32_t slot, char *text, uint32_t capacity,
+    uint32_t *written, uint64_t *sequence, uint32_t *revision) {
+    (void)ctx; ++source_reads; text[0] = 0;
+    *written = 0; *sequence = 0; *revision = 0;
+    if(!source_enabled || (slot && !source_history))return 0;
+    *sequence=source_sequence-slot;*revision=slot?1:source_revision;
+    int n=snprintf(text,capacity,"X4_BOOTLOG seq=%llu revision=%u origin=%s last_us=1300\n"
+      "last_line=RTE_STAGE us=1300 provider sd begin\nfirst_failure=%s\nX4_BOOTLOG record_end=complete\n",
+      (unsigned long long)*sequence,*revision,slot?"recovered-flash":"current",slot?"RTE_BOOT error=previous-mount":"none-recorded");
+    assert(n>0 && (uint32_t)n<capacity);*written=(uint32_t)n;return 1;
+}
+static const risc_diagnostic_source_api_v1 fixture_diagnostic={1,sizeof(fixture_diagnostic),NULL,fixture_diagnostic_read};
 static const x4_power_ready_api_v1 fixture_power={1,sizeof(fixture_power),NULL,power_is_ready};
 static risc_hw_gpio_bank_v1 fixture_config={sizeof(fixture_config),4,1,1,0,{5,41,42,40,0,0,0,0},0,0,0};
 static const risc_hardware_device_v1 fixture_hardware={1,sizeof(fixture_hardware),55,"xteink,x4-pro-sd-native1","unspecified","gpio.bank",1,sizeof(fixture_config),&fixture_config};
-static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&fixture_hardware},{"platform.gpio",1,&fixture_gpio},{"platform.clock",1,&fixture_clock},{"platform.sync",1,&fixture_sync},{"board.power.ready",1,&fixture_power}};
+static risc_provider_dependency_v1 deps[]={{"hardware.device",1,&fixture_hardware},{"platform.gpio",1,&fixture_gpio},{"platform.clock",1,&fixture_clock},{"platform.sync",1,&fixture_sync},{"board.power.ready",1,&fixture_power},{RISC_DIAGNOSTIC_SOURCE_CAPABILITY,1,&fixture_diagnostic}};
 #define START() start(deps,sizeof(deps)/sizeof(deps[0]))
 static void put16(uint8_t *p,uint16_t n){p[0]=(uint8_t)n;p[1]=(uint8_t)(n>>8);}
 static void put32(uint8_t *p,uint32_t n){for(unsigned i=0;i<4;++i)p[i]=(uint8_t)(n>>(i*8));}
@@ -289,11 +331,89 @@ static void sleep_cases(const char *scenario){
     }
     verify_cleanup();assert(START() && ready(NULL));assert(handle_error(NULL,stale,false)==FR_INVALID_OBJECT);verify_cleanup();
 }
+static size_t read_log(char *text,size_t capacity) {
+    uint64_t size=0;uint32_t file=file_open_read(NULL,X4_BOOTLOG_SD_PATH,&size);assert(file && size<capacity);
+    size_t n=file_read(NULL,file,text,capacity-1);text[n]=0;assert(n==size && file_close(NULL,file,true));return n;
+}
+static void bootlog_cases(const char *scenario) {
+    source_enabled=true;source_history=!strcmp(scenario,"log-history");
+    if(!strcmp(scenario,"log-absent"))absent=true;
+    if(!strcmp(scenario,"log-unformatted"))card_image[510]=0;
+    if(!strcmp(scenario,"log-readonly"))log_deny_open=true;
+    if(!strcmp(scenario,"log-partial"))log_partial_write=true;
+    if(!strcmp(scenario,"log-close"))log_fail_close=true;
+    if(!strcmp(scenario,"log-full")){
+        for(unsigned fat=0;fat<2;++fat)
+            for(unsigned entry=3;entry<1024u*128u;++entry)
+                put32(card_image+(size_t)(32+fat*1024)*512+entry*4,0xfffffff);
+    }
+    assert(START() == (strcmp(scenario,"log-close") != 0));
+    if(!strcmp(scenario,"log-absent") || !strcmp(scenario,"log-unformatted")){
+        assert(!mounted && !log_opens && !bootlog_disabled);
+        absent=false;card_image[510]=0x55;assert(refresh(NULL) && ready(NULL));
+        assert(log_writes==1 && bootlog_seen[0].revision==1);verify_cleanup();return;
+    }
+    if(!strcmp(scenario,"log-readonly") || !strcmp(scenario,"log-partial") || !strcmp(scenario,"log-full") || !strcmp(scenario,"log-close")){
+        assert(bootlog_disabled && bootlog_error && !bootlog_seen[0].revision);
+        const unsigned attempts=log_opens;
+        char message[200]; const risc_storage_volume_api_v1 *published=driver.capability;
+        assert(published->last_error(NULL,message,sizeof(message)) && strstr(message,"boot-log:"));
+        for(unsigned i=0;i<8;++i)(void)ready(NULL);
+        assert(log_opens==attempts);
+        if(!strcmp(scenario,"log-close")){
+            assert(has_handles() && io_failed && !mounted && !quiesce() && !prepare_sleep(NULL) && !refresh(NULL));
+            assert(files[0].handle && files[0].flags==RISC_STORAGE_OPEN_WRITE);return;
+        }
+        assert(!has_handles() && !io_failed && ready(NULL));
+        if(!strcmp(scenario,"log-partial")){char text[512];read_log(text,sizeof(text));assert(!strstr(text,"record_end=complete"));}
+        verify_cleanup();return;
+    }
+    assert(ready(NULL) && bootlog_seen[0].revision==1);
+    if(!strcmp(scenario,"log-history")){
+        for(unsigned i=0;i<12;++i)assert(ready(NULL));
+        assert(log_writes==9);char text[4096];read_log(text,sizeof(text));
+        assert(strstr(text,"recovered-flash") && strstr(text,"previous-mount"));
+        const unsigned before=log_writes;for(unsigned i=0;i<12;++i)assert(ready(NULL));assert(log_writes==before);
+    } else if(!strcmp(scenario,"log-ownership")){
+        uint64_t size=0;uint32_t reader=file_open_read(NULL,X4_BOOTLOG_SD_PATH,&size);assert(reader);
+        char prefix[8];assert(file_read(NULL,reader,prefix,sizeof(prefix))==sizeof(prefix));
+        const unsigned before=log_writes;source_revision=2;
+        uint32_t dir=dir_open(NULL,"/");assert(dir);assert(ready(NULL));assert(log_writes==before);
+        uint64_t bytes=0,position=0;assert(file_info(NULL,reader,&bytes,&position) && position==sizeof(prefix));
+        assert(file_for(reader)->error==0 && file_for(reader)->handle==reader);
+        fail("caller marker");assert(file_close(NULL,reader,true) && log_writes==before);
+        assert(dir_close_checked(NULL,dir) && log_writes==before+1 && !strcmp(error,"caller marker"));
+    } else if(!strcmp(scenario,"log-sleep")){
+        const unsigned before=log_writes;assert(prepare_sleep(NULL));source_revision=2;
+        assert(commit_sleep(NULL) && log_writes==before);assert(!ready(NULL));
+        assert(resume_sleep(NULL)==RISC_STORAGE_SLEEP_READY && log_writes==before+1);
+        assert(bootlog_seen[0].revision==2);
+    } else if(!strcmp(scenario,"log-repeated")){
+        const unsigned before=log_writes;for(unsigned i=0;i<20;++i)assert(ready(NULL));
+        assert(refresh(NULL) && log_writes==before);
+        source_sequence=24;source_revision=1;assert(ready(NULL) && log_writes==before+1);
+        char text[1024];read_log(text,sizeof(text));assert(strstr(text,"seq=23") && strstr(text,"seq=24"));
+    } else if(!strcmp(scenario,"log-rotation")){
+        source_enabled=false;
+        const uint32_t file=file_open(NULL,X4_BOOTLOG_SD_PATH,RISC_STORAGE_OPEN_WRITE|RISC_STORAGE_OPEN_APPEND);assert(file);
+        char bytes[4096];memset(bytes,'x',sizeof(bytes));
+        for(unsigned i=0;i<32;++i)assert(file_write(NULL,file,bytes,sizeof(bytes))==sizeof(bytes));
+        assert(file_close(NULL,file,true));source_revision=2;source_enabled=true;assert(ready(NULL));
+        uint64_t size;bool directory;assert(stat_path(NULL,X4_BOOTLOG_SD_PREVIOUS,&size,&directory) && !directory && size>=X4_BOOTLOG_SD_MAX_BYTES);
+        assert(stat_path(NULL,X4_BOOTLOG_SD_PATH,&size,&directory) && size<X4_BOOTLOG_SD_MAX_BYTES);
+    } else if(!strcmp(scenario,"log-write-fail")){
+        source_revision=2;card_reject_write=true;const unsigned before=log_writes;
+        (void)ready(NULL);assert(bootlog_disabled && bootlog_seen[0].revision==1 && log_writes==before+1);
+        assert(io_failed && has_handles() && !quiesce() && !prepare_sleep(NULL));return;
+    }
+    verify_cleanup();
+}
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver && !t5_driver_get(1));
+    if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}
     if(!strcmp(scenario,"validation")){
         assert(!start(NULL,0));const void *saved=deps[0].api;deps[0].api=NULL;assert(!START());deps[0].api=saved;
         fixture_config.pins[3]=39;assert(!START());fixture_config.pins[3]=40;fixture_config.pins[7]=-1;assert(!START());fixture_config.pins[7]=0;

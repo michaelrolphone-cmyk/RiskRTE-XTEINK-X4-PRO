@@ -5,6 +5,7 @@
 #include <RiscPlatformClockV1.h>
 #include <RiscProviderV2.h>
 #include <RiscProviderSyncV1.h>
+#include <RiscDiagnosticSourceV1.h>
 #include <RiscStorageVolumeV1.h>
 #include <GardenPlatformV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
@@ -18,6 +19,9 @@
 static const risc_platform_clock_api_v1 *clock_api;
 static const garden_gpio_v1 *gpio_api;
 static const risc_provider_sync_api_v1 *sync_api;
+static const risc_diagnostic_source_api_v1 *diagnostic_source;
+static void bootlog_step(void);
+static bool bootlog_custody_safe(void);
 static uint64_t operation_mutex;
 static bool mutex_poisoned, quiescing, quiesced;
 static bool gpio_fault, gpio_retained;
@@ -76,10 +80,11 @@ static bool guard_enter(void) {
         sync_api->try_lock(sync_api->context, operation_mutex);
 }
 static bool guard_leave(void) {
+    if (valid_task() && !mutex_poisoned) bootlog_step();
     if (!valid_task() || !sync_api->unlock(sync_api->context, operation_mutex)) {
         mutex_poisoned = true; return false;
     }
-    return true;
+    return bootlog_custody_safe();
 }
 static bool started, high_capacity;
 static char error[80];
@@ -327,15 +332,17 @@ static bool resume_sleep_media(void) {
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave
 #define STORAGE_VOLUME_LABEL "X4PRO"
 #include <volume.c>
+#include "BootLog.h"
 
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (started || operation_mutex || gpio_api || clock_api || sync_api || mutex_poisoned ||
-        gpio_retained || !deps || count != 5) return false;
+        gpio_retained || !deps || count != 6) return false;
     const risc_hardware_device_v1 *hardware = NULL;
     const garden_gpio_v1 *gpio = NULL;
     const risc_platform_clock_api_v1 *clock = NULL;
     const risc_provider_sync_api_v1 *sync = NULL;
     const x4_power_ready_api_v1 *power = NULL;
+    const risc_diagnostic_source_api_v1 *source = NULL;
     for (size_t i=0; i<count; ++i) {
         if (!deps[i].capability_id || deps[i].api_version != 1 || !deps[i].api) return false;
         const char *name = deps[i].capability_id;
@@ -343,6 +350,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         else if (equal(name, "platform.gpio") && !gpio) gpio = deps[i].api;
         else if (equal(name, "platform.clock") && !clock) clock = deps[i].api;
         else if (equal(name, RISC_PROVIDER_SYNC_CAPABILITY) && !sync) sync = deps[i].api;
+        else if (equal(name, RISC_DIAGNOSTIC_SOURCE_CAPABILITY) && !source) source = deps[i].api;
         else if (equal(name, X4_POWER_READY_CAPABILITY) && !power) power = deps[i].api;
         else return false;
     }
@@ -355,6 +363,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
         !clock || clock->api_version != 1 || clock->struct_size < sizeof(*clock) || !clock->monotonic_ms || !clock->sleep_ms ||
         !sync || sync->api_version != 1 || sync->struct_size < sizeof(*sync) || !sync->is_owner ||
         !sync->create || !sync->try_lock || !sync->unlock || !sync->destroy ||
+        !source || source->api_version != 1 || source->struct_size < sizeof(*source) || !source->read ||
         !power || power->api_version != 1 || power->struct_size < sizeof(*power) || !power->ready) return false;
     const risc_hw_gpio_bank_v1 *config = hardware->config;
     if (config->struct_size != sizeof(*config) || config->count != 4 || config->active_high != 1 ||
@@ -362,10 +371,10 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     for (unsigned i=0; i<RISC_HW_MAX_CHANNELS; ++i)
         if (config->pins[i] != (i<4 ? pin_numbers[i] : 0)) return false;
     if (!sync->is_owner(sync->context) || !power->ready(power->context)) return false;
-    gpio_api = gpio; clock_api = clock; sync_api = sync;
+    gpio_api = gpio; clock_api = clock; sync_api = sync; diagnostic_source = source;
     quiescing = quiesced = gpio_fault = false;
     if (!sync_api->create(sync_api->context, &operation_mutex) || !operation_mutex) {
-        gpio_api = NULL; clock_api = NULL; sync_api = NULL; return false;
+        gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
     }
     if (!enter_lifecycle()) return false;
     x4pro_pin_output(X4PRO_PIN_SD_CLK, false);
@@ -412,16 +421,21 @@ static bool quiesce(void) {
      * terminal cleanup, with ordinary API admission fenced throughout. */
     if (!sync_api->destroy(sync_api->context, operation_mutex)) return false;
     operation_mutex = 0; quiesced = true;
-    gpio_api = NULL; clock_api = NULL; sync_api = NULL;
+    gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL;
     power_down_prepared = false;
     return true;
 }
 static void stop(void) { /* Successful quiesce has completed all fallible work. */ }
 static const risc_driver_v2 driver = {
     RISC_PROVIDER_DRIVER_ABI_V2, sizeof(driver), "x4pro-sd",
-    "storage.volume", 1, &api, start, stop, quiesce
+    "storage.volume", 1, &logging_api, start, stop, quiesce
 };
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
-    return abi == RISC_PROVIDER_DRIVER_ABI_V2 ? &driver : NULL;
+    if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
+    if (!logging_api.terminal.power.volume.base.api_version) {
+        logging_api = api;
+        logging_api.terminal.power.volume.base.last_error = bootlog_last_error;
+    }
+    return &driver;
 }
