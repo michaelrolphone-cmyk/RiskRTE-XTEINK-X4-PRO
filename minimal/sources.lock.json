@@ -2,12 +2,12 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "faa8f62936a5889c65cce3f271758d9d95f21d7b",
+    "commit": "aaa77ad11fc66b42430254ab7065590d33fd1fca",
     "version": "0.1.81"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+    "commit": "3f59913963840cb5ee8e2a65baa921f8d6af0b4d",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
   "status": "Runtime 0.1.81 removes synchronous provider service from app yields; X4 batches complete boot diagnostics and exports prior early NVS summaries. Hardware qualification pending."
