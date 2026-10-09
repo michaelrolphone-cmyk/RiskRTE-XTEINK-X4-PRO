@@ -22,7 +22,8 @@ The build records must be clean and exactly match the pinned source, ELF,
 manifest, native SDK and disabled X4 feed policy. Production store admission
 still checks all selected ELFs, graph bindings and app grants.
 
-After successful full admission, the bundle composer also writes `updates/`:
+After successful full admission and read-only SPIFFS decoding back to the exact
+source files, the bundle composer also writes `updates/`:
 
 - `xteink-x4-pro-cohort-VERSION.bin`: native firmware immediately followed by
   the complete immutable 0x510000-byte store. No partition table, NVS, app-data,

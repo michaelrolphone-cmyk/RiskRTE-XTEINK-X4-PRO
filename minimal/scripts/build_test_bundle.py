@@ -317,6 +317,10 @@ def build(a):
     image=out/'bootfs.bin';subprocess.run([str(a.mkspiffs),'-c',str(store),'-p','256','-b','4096','-s',str(0x510000),str(image)],check=True)
     filesystem=image.read_bytes()
     if len(filesystem)!=0x510000:raise ValueError('SPIFFS geometry mismatch')
+    if not a.skip_extended_checks:
+        from read_only_spiffs import read_image
+        if read_image(filesystem,0x510000)!=files:raise ValueError('Packed SPIFFS differs from admitted source files')
+        custody['store_image_verified']=True
     state=native.initial_bank_state(fw,filesystem,True);ota=native.initial_otadata()
     full=bytearray(b'\xff'*0x1000000)
     parts=[(0,loader),(0x8000,table),(0x10000,fw),(0x270000,data),(0x2f0000,filesystem),(0xff0000,ota),(0xff2000,state)]
