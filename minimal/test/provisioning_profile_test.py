@@ -105,6 +105,49 @@ class ProvisioningProfileTest(unittest.TestCase):
         (self.bundle / 'build-custody.json').unlink()
         self.refused()
 
+    def test_sleep_and_fast_panel_profiles_preserve_exact_selection(self):
+        for panel, provider in (('ssd1677', 'fallback'), ('uc8279', 'fallback'),
+                                ('uc8279', 'uc8279-fast')):
+            with self.subTest(panel=panel, provider=provider):
+                stage(panel, self.store, True, provider)
+                for manifest in self.store.rglob('manifest.json'):
+                    (manifest.parent / 'driver.elf').write_bytes(b'fixture driver')
+                self.add_policy()
+                self.custody.update(panel=panel, panel_driver=provider, sleep=True)
+                self.refresh()
+                out = self.root / (panel + '-' + provider)
+                self.run_create(output=out)
+                self.assertEqual((out / 'files/board.json').read_bytes(),
+                                 (self.store / 'board.json').read_bytes())
+                self.assertEqual((out / 'files/power/manifest.json').read_bytes(),
+                                 (self.store / 'power/manifest.json').read_bytes())
+
+    def test_profile_custody_cannot_relabel_fast_bus_or_power_owner(self):
+        stage('uc8279', self.store, True, 'uc8279-fast')
+        for manifest in self.store.rglob('manifest.json'):
+            (manifest.parent / 'driver.elf').write_bytes(b'fixture driver')
+        self.add_policy()
+        self.custody.update(panel='uc8279', panel_driver='uc8279-fast', sleep=True)
+        for key, value in (('panel_driver', 'fallback'), ('panel_driver', 'unknown'),
+                           ('sleep', False), ('sleep', 1)):
+            original = self.custody[key]
+            self.custody[key] = value
+            self.refresh()
+            self.refused()
+            self.custody[key] = original
+
+    def test_selected_power_provider_is_required(self):
+        stage('uc8279', self.store, True, 'uc8279-fast')
+        for manifest in self.store.rglob('manifest.json'):
+            (manifest.parent / 'driver.elf').write_bytes(b'fixture driver')
+        self.add_policy()
+        boot = json.loads((self.store / 'boot.json').read_text())
+        boot['drivers'] = [d for d in boot['drivers'] if d.get('instance_id') != 17]
+        write_json(self.store / 'boot.json', boot)
+        self.custody.update(panel='uc8279', panel_driver='uc8279-fast', sleep=True)
+        self.refresh()
+        self.refused()
+
     def test_missing_application_manifest_even_with_fresh_receipt(self):
         (self.store / 'default.json').unlink()
         self.refresh()
