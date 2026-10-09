@@ -1,0 +1,57 @@
+{
+  "schema": "x4.resident-final-image-qualification",
+  "schema_version": 1,
+  "status": "local-software-qualified-held",
+  "product_source": "912417e970149b5c577fb7ae70a6bd668bbafaff",
+  "runtime_source": "5ab1f4e9e3f17efb1153966868b52660bde53be0",
+  "native_composition_source": "efd4c0097b0450289188ff03f71e2068944016fa",
+  "image": {
+    "bytes": 16777216,
+    "name": "xteink-x4-pro-0.1.44-resident-shell-first-install.bin",
+    "sha256": "46bd3f7323a8964b56d16b05331ad7339fb9b7a952119552ef61129536f99841"
+  },
+  "full_composition_receipt": {
+    "filename": "build-custody.json",
+    "bytes": 821385,
+    "sha256": "1da54704611d367dafeca571cf45281912f79415b18885ce5a64b96d3c12643d"
+  },
+  "independent_review": {
+    "filename": "x4-044-independent-review.json",
+    "bytes": 254440,
+    "sha256": "42e0b4a01ea01cff573ddbbfd928b97161ef92bce2e2a8baebe2c290a0b14380",
+    "checks": 3429,
+    "findings": []
+  },
+  "inventory": {
+    "apps": 21,
+    "providers": 23,
+    "elfs": 44,
+    "foreground": 19,
+    "hosts": 1,
+    "legacy_apps": [
+      "gameboy.elf"
+    ],
+    "store_files": 91,
+    "store_payload_bytes": 4140940
+  },
+  "checks": [
+    "Full production Runtime/native ELF admission with zero hardware/storage calls",
+    "All nineteen foreground descriptors and per-app grants",
+    "Exactly one pre-compaction Quick Actions renderer in default.elf",
+    "All twenty-one application compactions preserve allocated bytes and loader semantics",
+    "Exact accepted DIO bootloader, partition table and initial AppData",
+    "Regenerated startup/options/source proofs and exact image readback",
+    "408-byte Clock payload within compiled 512-byte retained capacity",
+    "Nine existing Points KV permissions preserved and fresh AppData namespace 5",
+    "Sanitized GameBoy Runtime .90 journey and separate clean legacy handoff/return tests"
+  ],
+  "hardware_tested": false,
+  "known_limits": [
+    "Windows MSC disk access hang",
+    "USB exit/serial restoration target remains unverified",
+    "GameBoy uses clean legacy handoff and has no in-app resident overlay",
+    "Manual low-power policy control is queued",
+    "Physical resident-shell/wake validation pending"
+  ],
+  "delivery": "held while user sleeps; no hardware result claimed"
+}
