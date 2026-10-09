@@ -14,7 +14,12 @@ import tempfile
 
 ROOT=Path(__file__).resolve().parents[2]
 def run(args,**kwargs):
-    return subprocess.run(list(map(str,args)),check=True,**kwargs)
+    try:
+        return subprocess.run(list(map(str,args)),check=True,**kwargs)
+    except subprocess.CalledProcessError as exc:
+        if exc.stderr:
+            print(exc.stderr,flush=True)
+        raise
 
 def main():
     ap=argparse.ArgumentParser(description=__doc__)
@@ -73,6 +78,14 @@ def main():
                             assert frame['controller_polls']>0
                             assert frame['max_controller_gap_ms']<=interval+8
                     assert not data['frames'][0]['full']['partial'] and data['frames'][1]['partial']['partial']
+                    idle=data['idle']
+                    assert idle['bytes']==0 and idle['max_slice_bytes']==0
+                    assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
+                    assert 1600<=idle['elapsed_ms']<=1600+2*interval+20
+                    assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
+                    assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
+                    assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8
+                    assert data['after_settle']['scheduler_wait_ms']==interval
                     print(json.dumps(data),flush=True)
     sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputSnapshotV1.h',
         args.system/'lib/PortableApps/src/adapter.c',

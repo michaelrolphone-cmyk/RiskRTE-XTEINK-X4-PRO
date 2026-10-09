@@ -9,10 +9,10 @@ static bool owner=true, locked, lock_exists, fail_unlock, fail_destroy;
 static bool fail_claim, fail_gpio, fail_spi_begin, fail_spi_exchange, fail_spi_end, fail_spi_release;
 static bool fail_hold, fail_unhold, fail_retire, fail_release, no_busy, stuck_busy, stuck_power, fail_clock, reverse_clock;
 static bool ambiguous, zero_probe, unstable;static uint8_t lut_id=0x68;
-static uint64_t tick=100, busy_until, bus_deadline, gpio_serial=10, model_bus_token;
+static uint64_t tick=100, busy_from, busy_until, bus_deadline, gpio_serial=10, model_bus_token, last_refresh_at;
 static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, refreshes, pons, pofs, sleeps, polls;
 static uint32_t payload, max_exchange, max_poll_bytes;
-static unsigned command_cost, scheduler_gap=1, refresh_pulse_ms=20, reset_assertions;
+static unsigned command_cost, scheduler_gap=1, refresh_pulse_ms=20, refresh_assert_delay, reset_assertions;
 static unsigned commands[256], data_index;static uint8_t cmd, regs[256][42];
 static uint8_t ram[60000], old_ram[60000], visible[48000];
 static bool model_bus_held, ptin;
@@ -34,7 +34,7 @@ static bool gpio_claim(void*c,uint8_t p,bool out,bool level,bool pull,uint64_t*t
  if(fail_claim)return false;assert(!pins[p].token);pins[p].token=++gpio_serial;pins[p].output=out;pins[p].level=level;pins[p].held=false;*t=pins[p].token;return true;
 }
 static bool gpio_write(void*c,uint64_t t,bool level){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&pins[p].output&&!pins[p].held);++gpio_writes;if(fail_gpio)return false;pins[p].level=level;if(p==14&&!level){++reset_assertions;phase=0;busy_until=0;}return true;}
-static bool gpio_read(void*c,uint64_t t,bool*v){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&p==6);if(tick>=busy_until&&!stuck_busy&&!stuck_power)phase=0;*v=!((phase==1&&stuck_busy)||(phase==2&&stuck_power)||tick<busy_until);return true;}
+static bool gpio_read(void*c,uint64_t t,bool*v){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&p==6);if(tick>=busy_until&&!stuck_busy&&!stuck_power)phase=0;*v=!((phase==1&&stuck_busy)||(phase==2&&stuck_power)||(tick>=busy_from&&tick<busy_until));return true;}
 static bool gpio_release(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);if(fail_release||pins[p].held)return false;pins[p].token=0;return true;}
 static int32_t gpio_hold(void*c,uint64_t t,bool on){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].level);if(fail_unhold&&!on)return RISC_DEEP_SLEEP_RETAINED;if(fail_hold)return RISC_DEEP_SLEEP_PLATFORM;pins[p].held=on;return 0;}
 static bool gpio_retire(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].held);if(fail_retire)return false;pins[p].token=0;return true;}
@@ -56,11 +56,12 @@ static void model_command(uint8_t value){
  cmd=value;++commands[cmd];data_index=0;
  if(cmd==0x71)++probe_reads;
  if(cmd==0x91)ptin=true;if(cmd==0x92)ptin=false;
- if(cmd==0x04){++pons;phase=2;busy_until=tick+2;}
- if(cmd==0x02){++pofs;phase=2;busy_until=tick+2;}
+ if(cmd==0x04){++pons;phase=2;busy_from=tick;busy_until=tick+2;}
+ if(cmd==0x02){++pofs;phase=2;busy_from=tick;busy_until=tick+2;}
  if(cmd==0x07)++sleeps;
  if(cmd==0x12){
-  ++refreshes;phase=1;busy_until=no_busy?tick:tick+refresh_pulse_ms;
+  ++refreshes;phase=1;last_refresh_at=tick;busy_from=tick+refresh_assert_delay;
+  busy_until=no_busy?tick:busy_from+refresh_pulse_ms;
   unsigned top=0,height=480;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
@@ -178,6 +179,109 @@ static void test_snapshot(void) {
  assert(power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);assert(!ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
  baseline();assert(ext->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,buffer,sizeof(buffer),104));
 }
+static void owner_poll(uint32_t budget) {
+ const unsigned bytes=payload;const uint64_t at=tick;
+ ((const risc_driver_poll_v2*)t5_driver_get(2))->poll(budget);
+ assert(!locked&&payload-bytes<=16384u&&(reverse_clock||tick-at<=8u));
+}
+static void drain_settle(void) {
+ for(unsigned n=0;n<6000&&settle_stage;++n){owner_poll(8);++tick;}
+ assert(!settle_stage&&!ptin&&!presentation_fault&&!model_bus_held);
+}
+static void assert_idle(void) {
+ const unsigned e=exchanges,g=gpio_writes,r=refreshes;const uint64_t sampled=last_sample_ms;
+ for(unsigned n=0;n<10;++n){tick+=100;owner_poll(8);}
+ assert(e==exchanges&&g==gpio_writes&&r==refreshes&&sampled==last_sample_ms);
+}
+static void test_settle(const char *scenario) {
+ const risc_driver_v2 *d=t5_driver_get(2);
+ const risc_display_output_api_v1_power *p=risc_display_output_power(output);
+ assert(!settle_stage);assert_idle();
+ fast_band(440,40);assert(settle_stage==SETTLE_READY);
+ const uint64_t token=pending_token,until=settle_until;
+ const unsigned bytes=payload,dtm1=commands[0x10],dtm2=commands[0x13],r=refreshes;
+ const risc_display_present_metrics_v1 original=snapshot();
+ if(!strcmp(scenario,"settle-repeat")||!strcmp(scenario,"settle-short")||!strcmp(scenario,"settle-expiry")){
+  if(!strcmp(scenario,"settle-short"))refresh_pulse_ms=1;
+  if(!strcmp(scenario,"settle-expiry"))tick=until;
+  drain_settle();
+  assert(payload==bytes&&commands[0x10]==dtm1&&commands[0x13]==dtm2);
+  assert(settle_completed==refreshes-r&&settle_completed==settle_refreshes);
+  if(!strcmp(scenario,"settle-expiry"))assert(refreshes==r);
+  else {assert(refreshes>r+1&&last_refresh_at<until&&tick>=until&&tick<=until+refresh_pulse_ms+2);}
+  const risc_display_present_metrics_v1 after=snapshot();assert(!memcmp(&original,&after,sizeof(original)));
+  assert(completed_history&&visible[44002]==0x55&&visible[43902]==0xF0&&previous_frame[44002]==0xAA);
+  assert_idle();assert(d->quiesce());return;
+ }
+ if(!strncmp(scenario,"settle-replace",14)){
+  if(!strcmp(scenario,"settle-replace-window")){command_cost=1;owner_poll(1);assert(settle_stage==SETTLE_WINDOW);}
+  else if(!strcmp(scenario,"settle-replace-refresh")){command_cost=1;owner_poll(1);owner_poll(1);assert(settle_stage==SETTLE_REFRESH);}
+  else if(!strcmp(scenario,"settle-replace-assert")){refresh_assert_delay=5;owner_poll(8);assert(settle_stage==SETTLE_ASSERT);}
+  else if(strcmp(scenario,"settle-replace-ready")){owner_poll(8);assert(settle_stage==SETTLE_DONE);}
+  const unsigned repeats=refreshes;const uint64_t drained_at=busy_until;
+  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,48000);
+  const risc_display_rect_v1 replacement={16,3,8,1};
+  uint64_t new_token=submit_frame(f,&replacement,1,!strcmp(scenario,"settle-replace-clean"));
+  assert(new_token>token);command_cost=0;
+  if(!strcmp(scenario,"settle-replace-wait")){
+   risc_display_present_status_v1 status={0};assert(output->wait_present(NULL,new_token,5000,&status));
+   assert(status.state==PRESENT_COMPLETE&&refreshes==repeats+1&&visible[302]==0x99);
+   drain_settle();assert(d->quiesce());return;
+  }
+  while(settle_stage){owner_poll(8);assert(payload==bytes&&refreshes==repeats);++tick;}
+  if(repeats>r)assert(tick>=drained_at);
+  assert(!ptin);complete_frame(new_token);assert(refreshes==repeats+1);
+  assert(visible[302]==0x99&&previous_frame[302]==0x66);
+  if(!strcmp(scenario,"settle-replace-clean"))assert(!settle_stage&&payload-bytes==180000);
+  else {
+   assert(settle_until>until&&payload-bytes==4000&&visible[44002]==0x55);
+   /* Old bottom-band target plus new top-band target must both settle using
+    * the resident RAM, while the replacement upload remains only40 rows. */
+   assert(settle_area.y==0&&settle_area.height==480);drain_settle();
+   assert(visible[302]==0x99&&visible[44002]==0x55&&visible[20002]==0xF0);
+  }
+  assert(d->quiesce());return;
+ }
+ if(!strcmp(scenario,"settle-sleep")||!strcmp(scenario,"settle-sleep-budget")||!strcmp(scenario,"settle-cleanup")){
+  owner_poll(8);assert(settle_stage==SETTLE_DONE);const unsigned repeats=refreshes,poweroffs=pofs;
+  if(!strcmp(scenario,"settle-sleep-budget")){
+   const uint64_t began=tick;assert(p->prepare(NULL,5)==RISC_DISPLAY_POWER_TIMEOUT);
+   assert(tick-began==5&&settle_stop&&pofs==poweroffs&&settle_stage==SETTLE_DONE);
+  }
+  if(strcmp(scenario,"settle-cleanup"))assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);
+  else {
+   const uint64_t began=tick;assert(d->quiesce());
+   assert(tick-began<1500&&refreshes==repeats&&payload==bytes&&pofs==poweroffs+1);
+   assert(!model_bus_token&&!lock_exists&&!settle_stage);return;
+  }
+  assert(settle_stop&&pofs==poweroffs+1&&model_bus_token&&pins[14].token);
+  assert(!settle_stage&&refreshes==repeats&&payload==bytes);
+  if(strcmp(scenario,"settle-cleanup")){
+   assert_idle();
+   assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK&&!settle_stage&&!completed_history);
+   assert_idle();baseline();assert(!settle_stage);
+  }
+  assert(d->quiesce()&&!model_bus_token&&!lock_exists);return;
+ }
+ if(!strcmp(scenario,"settle-no-budget")){
+  const unsigned e=exchanges;owner_poll(0);assert(exchanges==e&&settle_stage==SETTLE_READY);
+  owner=false;owner_poll(8);assert(exchanges==e&&settle_stage==SETTLE_READY);owner=true;
+  drain_settle();assert(d->quiesce());return;
+ }
+ no_busy=!strcmp(scenario,"settle-busy-absent");stuck_busy=!strcmp(scenario,"settle-busy-stuck");
+ fail_spi_begin=!strcmp(scenario,"settle-spi-begin");fail_spi_exchange=!strcmp(scenario,"settle-spi-exchange");
+ fail_spi_end=!strcmp(scenario,"settle-spi-end");fail_gpio=!strcmp(scenario,"settle-gpio");
+ fail_clock=!strcmp(scenario,"settle-clock-fail");reverse_clock=!strcmp(scenario,"settle-clock-rollback");
+ const bool replacement=!strcmp(scenario,"settle-queued-failure");
+ if(replacement){no_busy=true;owner_poll(8);risc_display_surface_v1 f=acquire_frame();submit_frame(f,NULL,0,false);}
+ for(unsigned n=0;n<3600&&settle_stage;++n){owner_poll(8);++tick;}
+ assert(presentation_fault&&!completed_history&&!settle_stage&&settle_completed==0&&payload==bytes);
+ assert(present_state==(replacement?PRESENT_FAILED:PRESENT_COMPLETE));
+ risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));
+ assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());
+ if(fail_spi_end)assert(spi_held&&model_bus_held&&spi_token==model_bus_token);
+ else assert(!spi_held&&!model_bus_held);
+}
 int main(int argc,char**argv){
  assert(argc==2);const char*s=argv[1];if(!strcmp(s,"lut69"))lut_id=0x69;
  if(!strcmp(s,"busy-boundary")){command_cost=1;scheduler_gap=50;}
@@ -212,6 +316,7 @@ int main(int argc,char**argv){
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
  assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);baseline();
+ if(!strncmp(s,"settle-",7)){test_settle(s);goto done;}
  if(!strcmp(s,"busy-absent")||!strcmp(s,"busy-stuck")||!strcmp(s,"clock-fail")||!strcmp(s,"clock-rollback")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);no_busy=!strcmp(s,"busy-absent");stuck_busy=!strcmp(s,"busy-stuck");fail_clock=!strcmp(s,"clock-fail");reverse_clock=!strcmp(s,"clock-rollback");
   risc_display_present_status_v1 status={0};if(fail_clock){assert(!output->wait_present(NULL,t,5000,&status));((const risc_driver_poll_v2*)d)->poll(8);assert(output->present_status(NULL,t,&status));}else assert(output->wait_present(NULL,t,5000,&status));assert(status.state==PRESENT_FAILED&&!completed_history);risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));assert(risc_display_output_power(output)->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());

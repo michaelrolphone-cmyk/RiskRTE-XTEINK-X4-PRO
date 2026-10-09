@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.2
+# X4 UC8279 fast provider 0.1.3
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -134,3 +134,49 @@ silicon datasheet. The new test model decodes emitted LUTs and both RAM planes,
 and it reproduces the old failure before the correction. Physical confirmation
 of polarity/contrast remains pending. `polarity-source.json` pins the primary
 sources and the inferred mapping for review.
+
+
+## Resident-image settling (0.1.3)
+
+After each fast target genuinely completes BUSY, the provider releases its frame
+lease and keeps refreshing the resident controller image for 1,600 ms. Each
+repeat sends only PTIN, PTL, DRF and PTOUT. It sends no DTM1/DTM2 pixels and does
+not change the selected 20 MHz transport, 800x600 controller geometry, visible
+800x480 offset 120, PLL 0x0F or one-frame LUT. The first baseline and explicit
+CLEAN retain their existing OTP behavior and do not arm extra repeats.
+
+A valid newer submission immediately stops further old-target repeats. Any
+already-issued DRF must genuinely assert and finish BUSY before the replacement
+upload starts. Unfinished windows accumulate across consecutive partial targets;
+their vertical union expands only to tested 40/80/160/480-row windows. This lets
+the final resident refresh settle all recently changed bands without uploading
+those bands again. The 1,600 ms window restarts only on a newly completed target,
+never on a repeat. No new DRF starts at or beyond the deadline; an already active
+pulse is observed through completion and closed before the provider becomes idle.
+
+Settling runs through the existing provider poll callback even after the original
+presentation token completes. Each callback uses the existing 8 ms budget and at
+most eight control steps, then returns to input/scheduler work. Original token
+status and presentation metrics stay complete and unchanged. Diagnostics append
+settling state/completed/issued counts. A repeat failure invalidates history and
+blocks reuse and sleep; it does not retroactively fail an already completed
+token, but does fail a queued replacement. Failed bus drain keeps its token.
+
+Power preparation and teardown cancel new repeats and drain only an already
+issued pulse within the caller's existing total budget. A healthy pending repeat
+does not require a power caller to retry BUSY. Insufficient budget returns a
+truthful timeout, and uncertain BUSY or I/O retains resources. Resume discards
+settling and requires a new baseline. Light sleep that pauses owner polling can
+finish the electrical pulse while asleep; subsequent polling observes completion
+and the elapsed deadline without restarting expired repetitions.
+
+Focused tests cover zero pixel retransmission, unchanged metrics, idle no-work,
+1,600 ms bounds, one-ms pulses, supersession at every repeat phase, accumulated
+separate bands, replacement via wait_present, CLEAN, sleep/teardown, short sleep
+budgets, missing/stuck BUSY, queued failure, SPI/GPIO faults, clock failures and
+owner/budget guards. The real System adapter plus Runtime fixture continues
+polling inputs with no presentation token during settling: at 1/8/20/50 ms waits,
+modeled completed repeats were 77/50/40/17, all with zero pixel payload and input
+gaps no greater than the requested wait. These are 20 ms BUSY model measurements,
+not physical panel quality or power measurements. Hardware settling remains to
+be tested; this change does not flash a device.

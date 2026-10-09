@@ -91,6 +91,15 @@ static uint64_t phase_deadline;
 static uint8_t async_stage, setup_step;
 static uint32_t async_offset;
 static uint64_t async_deadline;
+/* Settling owns only the resident controller image, never a caller's frame.
+ * A new submission can queue while its last BUSY pulse is being drained. */
+enum { SETTLE_NONE, SETTLE_READY, SETTLE_WINDOW, SETTLE_REFRESH,
+       SETTLE_ASSERT, SETTLE_DONE, SETTLE_CLOSE };
+static uint8_t settle_stage;
+static bool settle_stop, settle_coverage_valid;
+static risc_display_rect_v1 settle_area;
+static uint64_t settle_until, settle_phase_deadline, settle_refresh_ms;
+static uint32_t settle_refreshes, settle_completed;
 static bool started, held, pins_ready;
 /* 0 awake, 1 POF sent, 2 POF observed, 3 DSLP sent, 4 retired, 5 resuming. */
 static uint8_t shutdown_stage;
@@ -258,12 +267,19 @@ static bool uc_init_panel(void) {
 /* Every native plane retains CS across all exchanges and owner polls. Native
  * exchanges are <=512 bytes with <=8 ms waits; a plane has a 1000 ms deadline.
  * One poll copies at most 16384 payload bytes, bounded independently of time. */
-static void window_data(void) {
-    const uint16_t top = (uint16_t)update_area.y + 120u;
-    const uint16_t bottom = top + update_area.height - 1u;
+static void window_for(const risc_display_rect_v1 *area) {
+    const uint16_t top = (uint16_t)area->y + 120u;
+    const uint16_t bottom = top + area->height - 1u;
     const uint8_t window[] = {0, 0, 3, 0x1F, (uint8_t)(top >> 8), (uint8_t)top,
         (uint8_t)(bottom >> 8), (uint8_t)bottom, 1};
     write_register(0x90, window, sizeof(window));
+}
+static void window_data(void) { window_for(&update_area); }
+static risc_display_rect_v1 tested_window(uint32_t top, uint32_t bottom) {
+    const uint32_t span = bottom - top;
+    const uint32_t height = span <= 40u ? 40u : (span <= 80u ? 80u : (span <= 160u ? 160u : 480u));
+    if (top > 480u - height) top = 480u - height;
+    return (risc_display_rect_v1){0, (int32_t)top, X4PRO_PANEL_WIDTH, height};
 }
 static void absolute_lut_table(unsigned i) {
     uint8_t table[42];
@@ -309,6 +325,82 @@ static void present_failed(void) {
      * Require restart; never publish a new baseline into unknown RAM mode. */
     presentation_fault = true;
     present_state = PRESENT_FAILED; held = false; async_stage = UC_ASYNC_NONE;
+    settle_stage = SETTLE_NONE;
+    settle_coverage_valid = false;
+}
+static bool arm_settle(void) {
+    if (busy_done_ms > UINT64_MAX - 1600u) { set_reason("settle clock overflow"); return false; }
+    uint32_t top = (uint32_t)update_area.y, bottom = top + update_area.height;
+    if (settle_coverage_valid) {
+        if ((uint32_t)settle_area.y < top) top = (uint32_t)settle_area.y;
+        const uint32_t old_bottom = (uint32_t)settle_area.y + settle_area.height;
+        if (old_bottom > bottom) bottom = old_bottom;
+    }
+    settle_area = tested_window(top, bottom); settle_coverage_valid = true;
+    settle_until = busy_done_ms + 1600u;
+    settle_stop = false; settle_refreshes = settle_completed = 0;
+    settle_stage = SETTLE_READY;
+    return true;
+}
+static void poll_settle_locked(uint32_t budget_ms) {
+    uint64_t now = 0;
+    if (!sample_now(&now)) goto failed;
+    const uint32_t slice = budget_ms > 8u ? 8u : budget_ms;
+    const uint64_t slice_end = now > UINT64_MAX - slice ? UINT64_MAX : now + slice;
+    /* Also bound steps when a clock has millisecond resolution or stands still.
+     * Each step performs at most one <=10-byte control transaction. */
+    for (unsigned steps = 0; steps < 8u && settle_stage; ++steps) {
+        if (!sample_now(&now)) goto failed;
+        const bool stop = settle_stop || present_state == PRESENT_QUEUED || now >= settle_until;
+        if (settle_stage == SETTLE_READY) {
+            if (stop) { settle_stage = SETTLE_NONE; break; }
+            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("settle busy already active"); goto failed; }
+            command(0x91); settle_stage = SETTLE_WINDOW;
+        } else if (settle_stage == SETTLE_WINDOW) {
+            if (stop) settle_stage = SETTLE_CLOSE;
+            else { window_for(&settle_area); settle_stage = SETTLE_REFRESH; }
+        } else if (settle_stage == SETTLE_REFRESH) {
+            if (stop) settle_stage = SETTLE_CLOSE;
+            else {
+                if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("settle busy already active"); goto failed; }
+                if (!sample_now(&settle_refresh_ms)) goto failed;
+                if (settle_refresh_ms > UINT64_MAX - 3500u) { set_reason("settle clock overflow"); goto failed; }
+                command(0x12); ++settle_refreshes;
+                if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) {
+                    settle_phase_deadline = settle_refresh_ms + 100u; settle_stage = SETTLE_ASSERT;
+                } else {
+                    settle_phase_deadline = settle_refresh_ms + 3500u; settle_stage = SETTLE_DONE;
+                }
+            }
+        } else if (settle_stage == SETTLE_ASSERT) {
+            if (now >= settle_phase_deadline) { set_reason("settle busy never asserted"); goto failed; }
+            if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            settle_phase_deadline = settle_refresh_ms + 3500u; settle_stage = SETTLE_DONE;
+        } else if (settle_stage == SETTLE_DONE) {
+            if (now >= settle_phase_deadline) { set_reason("settle busy completion timeout"); goto failed; }
+            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            ++settle_completed; settle_stage = SETTLE_CLOSE;
+        } else if (settle_stage == SETTLE_CLOSE) {
+            command(0x92);
+            settle_stage = stop ? SETTLE_NONE : SETTLE_READY;
+            /* Always yield after a repeat, even for an immediate BUSY pulse. */
+            if (io_failed) goto failed;
+            break;
+        } else { set_reason("invalid settle state"); goto failed; }
+        if (io_failed || !sample_now(&now)) goto failed;
+        if (now >= slice_end) break;
+    }
+    if (io_failed) goto failed;
+    /* Supersession keeps the unfinished coverage for the next target. */
+    if (!settle_stage && present_state != PRESENT_QUEUED) settle_coverage_valid = false;
+    return;
+failed: {
+    /* Do not retroactively fail the physically completed presentation. A
+     * queued replacement does fail, and uncertain hardware blocks all reuse. */
+    const bool was_complete = present_state == PRESENT_COMPLETE;
+    present_failed();
+    if (was_complete) present_state = PRESENT_COMPLETE;
+    }
 }
 static void poll_present_locked(uint32_t budget_ms) {
     uint64_t now = 0;
@@ -353,6 +445,7 @@ static void poll_present_locked(uint32_t budget_ms) {
                 if (!end_spi()) goto failed;
                 if (async_stage == UC_ASYNC_WHITE) { if (!begin_plane(0x13)) goto failed; async_stage = UC_ASYNC_NEW; }
                 else if (async_stage == UC_ASYNC_SYNC) {
+                    settle_coverage_valid = false;
                     remember_completed_frame(); present_state = PRESENT_COMPLETE; held = false;
                     previous_seeded = false; async_stage = UC_ASYNC_NONE; reason = "complete"; break;
                 } else {
@@ -430,6 +523,7 @@ static void poll_present_locked(uint32_t budget_ms) {
             if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE)) goto failed;
             if (fast_update) {
                 command(0x92); if (io_failed) goto failed;
+                if (!arm_settle()) goto failed;
                 remember_completed_frame(); present_state = PRESENT_COMPLETE; held = false;
                 previous_seeded = false; async_stage = UC_ASYNC_NONE; reason = "complete"; break;
             }
@@ -444,10 +538,15 @@ static void poll_present_locked(uint32_t budget_ms) {
 failed:
     present_failed();
 }
+static void poll_work_locked(uint32_t budget_ms) {
+    if (settle_stage) poll_settle_locked(budget_ms);
+    else if (present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE)
+        poll_present_locked(budget_ms);
+}
 static void poll_present(uint32_t budget_ms) {
     if (!budget_ms || !started || shutdown_stage ||
-        (present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
-    poll_present_locked(budget_ms); (void)leave();
+        (!settle_stage && present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
+    poll_work_locked(budget_ms); (void)leave();
 }
 static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     (void)context;
@@ -490,7 +589,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
                    size_t count, const risc_display_present_options_v1 *options,
                    risc_display_present_token_v1 *token_out) {
     (void)context;
-    if (!started || shutdown_stage || !held || frame_id != frame_serial || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE)
+    if (!started || shutdown_stage || presentation_fault || !held || frame_id != frame_serial || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE)
         return false;
     if (options && (options->intent > RISC_DISPLAY_PRESENT_CLEAN || options->queue_policy != RISC_DISPLAY_QUEUE_FIFO || options->reserved)) return false;
     if (!token_out || count > RISC_DISPLAY_MAX_DAMAGE_RECTS || (count && !damage)) return false;
@@ -516,10 +615,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     if (fast_update) {
         /* Use the source's tested gate-window heights. Preserve completed
          * pixels in both dimensions when damage needs a wider/taller band. */
-        const uint32_t height = update_area.height <= 40u ? 40u :
-            (update_area.height <= 80u ? 80u : (update_area.height <= 160u ? 160u : 480u));
-        const uint32_t top = (uint32_t)update_area.y > 480u - height ? 480u - height : (uint32_t)update_area.y;
-        update_area = (risc_display_rect_v1){0, (int32_t)top, X4PRO_PANEL_WIDTH, height};
+        update_area = tested_window((uint32_t)update_area.y, (uint32_t)update_area.y + update_area.height);
     } else update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
@@ -539,6 +635,8 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     previous_seeded = completed_history = false; // Invalid until this submission completes.
     present_state = PRESENT_QUEUED;
+    settle_stop = true;
+    if (settle_stage == SETTLE_READY) settle_stage = SETTLE_NONE;
     transfer_started = false;
     async_stage = UC_ASYNC_NONE;
     if (token_out) *token_out = pending_token;
@@ -621,7 +719,7 @@ static bool wait_present(void *c, risc_display_present_token_v1 token, uint32_t 
                 set_reason("wait present deadline"); present_failed();
             } else {
                 const uint64_t remaining = deadline - now;
-                poll_present_locked(remaining > 8u ? 8u : (uint32_t)remaining);
+                poll_work_locked(remaining > 8u ? 8u : (uint32_t)remaining);
             }
         }
         const bool ok = present_status_impl(c, token, out);
@@ -761,6 +859,9 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     physical_pins[X4PRO_PIN_EPD_DC] = (uint8_t)configuration->dc;
     physical_pins[X4PRO_PIN_EPD_RST] = (uint8_t)configuration->reset;
     shutdown_stage = 0; previous_seeded = completed_history = partial_update = false;
+    settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
+    settle_until = settle_phase_deadline = settle_refresh_ms = 0;
+    settle_refreshes = settle_completed = 0;
     present_state = PRESENT_NONE; pending_token = 0; last_sample_ms = now;
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
@@ -816,10 +917,34 @@ static int32_t power_ready(uint64_t deadline) {
     set_reason("panel power readiness bound");
     return RISC_DISPLAY_POWER_TIMEOUT;
 }
+static int32_t drain_settle_for_power(uint64_t deadline) {
+    settle_stop = true;
+    /* Power/teardown callers need not retry BUSY. Cancel unstarted repeats and
+     * drain just the current pulse within their existing total deadline. */
+    for (unsigned checks = 0; settle_stage; ++checks) {
+        int32_t result = power_checkpoint(deadline);
+        if (result) return result;
+        if (checks >= RISC_DISPLAY_POWER_MAX_BUDGET_MS) {
+            set_reason("settle power readiness bound"); return RISC_DISPLAY_POWER_TIMEOUT;
+        }
+        const uint64_t remaining = deadline - last_sample_ms;
+        poll_settle_locked(remaining > 8u ? 8u : (uint32_t)remaining);
+        if (presentation_fault || retained) return RISC_DISPLAY_POWER_RETAINED;
+        if (settle_stage) {
+            result = power_delay(deadline, 1u);
+            if (result) return result;
+        }
+    }
+    return RISC_DISPLAY_POWER_OK;
+}
 static int32_t prepare_power_impl(uint64_t deadline) {
     if (presentation_fault) return RISC_DISPLAY_POWER_RETAINED;
     if (held || present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE || shutdown_stage == 5u)
         return RISC_DISPLAY_POWER_BUSY;
+    if (settle_stage) {
+        const int32_t drained = drain_settle_for_power(deadline);
+        if (drained) return drained;
+    }
     if (!pins_ready || (!started && !shutdown_stage) || shutdown_stage == 4u ||
         (controller != PROBE_SSD && controller != PROBE_UC8279)) return RISC_DISPLAY_POWER_UNAVAILABLE;
     if (shutdown_stage == 3u && reset_held) return RISC_DISPLAY_POWER_OK;
@@ -911,6 +1036,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
     partial_update = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
+    settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
     return RISC_DISPLAY_POWER_OK;
 }
 #undef RESUME_SEND
@@ -999,7 +1125,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.2 cause=");
+    append(destination, capacity, &used, "v=0.1.3 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
@@ -1025,6 +1151,12 @@ static bool last_error(char *destination, size_t capacity) {
     append_u(destination, capacity, &used, busy_before);
     append(destination, capacity, &used, " assert=");
     append_u(destination, capacity, &used, busy_assert_ms);
+    append(destination, capacity, &used, " settle=");
+    append_u(destination, capacity, &used, settle_stage);
+    append(destination, capacity, &used, "/");
+    append_u(destination, capacity, &used, settle_completed);
+    append(destination, capacity, &used, "/");
+    append_u(destination, capacity, &used, settle_refreshes);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
     return used > 0;
