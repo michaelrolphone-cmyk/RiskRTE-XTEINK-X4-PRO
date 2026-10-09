@@ -257,7 +257,7 @@ def build(a):
         if sparse:
             custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name])
         if name=='settings' and not sparse:custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
-        if name=='settings' and sparse:custody['settings_power_ui']={'manual_light_sleep':True,'sleep_mode_selector':True,'deep_desk_clock':True,'hybrid':False,'default_mode':'light','native_time_editing':True}
+        if name=='settings' and sparse:custody['settings_power_ui']={'manual_light_sleep':False,'sleep_mode_selector':False,'deep_desk_clock':True,'hybrid':False,'home_key_mode':'locked-deep-desk-clock','native_time_editing':True}
         if name=='default' and desk:
             headers={name:sha(((a.runtime/'sdk/app' if name=='RiscRetainedWakeV1.h' else a.runtime/'sdk/driver' if name in ('RiscTimedSleepV1.h','RiscLightSleepV1.h','RiscDeepSleepV1.h') else a.drivers/'sdk')/name).read_bytes()) for name in ('RiscDisplayOutputV1.h','RiscDisplayOutputPowerV1.h','RiscTouchV1.h','RiscTouchPowerV1.h','RiscStorageVolumeV1.h','RiscRetainedWakeV1.h','RiscTimedSleepV1.h','RiscLightSleepV1.h','RiscDeepSleepV1.h')}
             if sparse:
@@ -336,6 +336,10 @@ def build(a):
     notes=ROOT/'minimal/docs'/('REPAIR_'+cohort['version'].replace('.','')+'.md')
     if notes.is_file():
         readme=out/'README.txt';readme.write_text(readme.read_text()+'\n'+notes.read_text())
+    if native_time and sparse:
+        readme=out/'README.txt';text=readme.read_text()
+        text=text.replace('requests the selected Light or Deep Desk Clock mode from Clock; Light is the default and GPIO3 wakes either mode.', 'locks the landscape Deep Desk Clock after key release; a later GPIO3 press wakes to Home.')
+        readme.write_text(text)
     archive=out.with_suffix('.zip')
     with zipfile.ZipFile(archive,'w',zipfile.ZIP_DEFLATED) as z:
         for p in sorted(out.rglob('*')):
