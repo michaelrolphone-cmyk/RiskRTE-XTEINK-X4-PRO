@@ -53,5 +53,15 @@
     "Manual low-power policy control is queued",
     "Physical resident-shell/wake validation pending"
   ],
-  "delivery": "held while user sleeps; no hardware result claimed"
+  "delivery": "held while user sleeps; no hardware result claimed",
+  "hosted_compatibility_scope": {
+    "ordinary_provider_sources_lock": "minimal/test/ordinary-driver-sources.lock.json",
+    "runtime": "aaa77ad11fc66b42430254ab7065590d33fd1fca",
+    "reader": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
+    "scope": "Generic host and ordinary-driver ABI compatibility, not a rebuild of the selected .90 resident image",
+    "local_target_providers_passed": 11,
+    "source_fixture": false,
+    "mismatched_lock_negative_cases_passed": 2,
+    "provisioning_contract_cases_passed": 24
+  }
 }
