@@ -189,7 +189,7 @@ def startup_proof(elf_data, record):
     require(marker in elf_data, 'Missing compiled X4 composition identity')
     linked = {}
     if elf['e_machine'] == 'EM_XTENSA':
-        # The pinned IDF and compiler use literal-loaded CALLX8 for long calls.
+        # The pinned compiler uses CALL8 and literal-loaded CALLX8 long calls.
         # Check the actual entry edges, not merely the existence of a wrapper.
         def bytes_at(address, size):
             for section in elf.iter_sections():
@@ -205,10 +205,19 @@ def startup_proof(elf_data, record):
             address, size = symbol['st_value'], symbol['st_size']
             data = bytes_at(address, size)
             calls = []
-            # Match only an adjacent L32R aN; CALLX8 aN pair. A target-native
-            # disassembly is retained alongside the proof as a human audit.
-            for offset in range(len(data) - 5):
+            # CALL8's signed 18-bit word offset is based on aligned PC+4.
+            # L32R's signed word offset is based on aligned PC+3. Recognize
+            # only adjacent L32R aN; CALLX8 aN for the indirect case. A native
+            # objdump disassembly is also retained for independent audit.
+            for offset in range(len(data) - 2):
                 op = data[offset]
+                if op & 63 == 0x25:
+                    immediate = int.from_bytes(data[offset:offset + 3], 'little') >> 6
+                    if immediate & (1 << 17):
+                        immediate -= 1 << 18
+                    target = ((address + offset) & ~3) + 4 + immediate * 4
+                    calls.append({'instruction': address + offset, 'target': target})
+                    continue
                 reg = op >> 4
                 if op & 15 != 1 or data[offset + 3:offset + 6] != bytes((0xe0, reg, 0)):
                     continue
