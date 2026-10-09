@@ -33,7 +33,7 @@ def build(a):
     frozen = dict(files)
     revision, system, reader = clean(ROOT), clean(a.system), clean(a.reader)
     product = json.loads((ROOT/'minimal/product.json').read_text())
-    require(product['version']=='0.1.31', 'Wrong product version')
+    require(product['version']=='0.1.32', 'Wrong product version')
     sys.path.insert(0,str(a.watch/'scripts'))
     from check_runtime_store_admission import admit_cohort
     from current_bootfs import build as pack_store
@@ -43,7 +43,7 @@ def build(a):
     platform = load('usb_platform',a.native_product/'minimal/scripts/build_test_bundle.py')
     native = json.loads((a.native/'candidate.json').read_text())
     native_proof = platform.validate_native_composition(a.native,native,a.runtime,a.native_product)
-    require(native['firmware_version']=='0.1.80' and native['stage_logs'] is True, 'Wrong native diagnostic selection')
+    require(native['firmware_version']=='0.1.81' and native['stage_logs'] is True, 'Wrong native diagnostic selection')
     require(native['build_options']=={'app_image_cache':True,'app_policy_rows':17,'usb_phy':True},
             'USB/native options differ')
     a.output.mkdir(parents=True)
@@ -122,7 +122,7 @@ def build(a):
     for offset,data in parts:
         require(offset+len(data)<=len(image) and all(offset+len(data)<=x or offset>=y for x,y in occupied),'Partition overlap/overflow')
         image[offset:offset+len(data)]=data;occupied.append((offset,offset+len(data)))
-    name='xteink-x4-pro-0.1.31-full-boot-trace-usb-first-install.bin'
+    name='xteink-x4-pro-0.1.32-batched-boot-trace-usb-first-install.bin'
     (a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(filesystem)
     for path,data in files.items():
         dest=a.output/'store'/path;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
