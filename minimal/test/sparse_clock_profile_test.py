@@ -59,4 +59,18 @@ class SparseProfile(unittest.TestCase):
   for field in ('paper_motion','paper_transition'):
    with self.subTest(field=field),self.assertRaises(ValueError):check({**record,field:{'enabled':False}})
 
+ def test_telemetry_is_explicit_and_bounded(self):
+  manifest={**self.manifest,'version':VERSIONS['default'],'requires':[
+   {**row,'api':2} if row['capability']=='alarm.service' else row for row in self.manifest['requires']]+[{'capability':'telemetry.broadcast','api':1}]}
+  record={**self.record,'version':VERSIONS['default'],'grant_count':15,
+   'build_defines':['-DPORTABLE_DESK_LOCK_HOME','-DPORTABLE_PAPER_TRANSITIONS','-DPORTABLE_PAPER_CROSSFADE','-DPORTABLE_STAGE_LOGS'],
+   'paper_motion':{'enabled':True},'paper_transition':{'enabled':True},
+   'home_points':{'clock_policy':'native-utc','storage_instance':5,'foreground_only':True,
+    'records':['points_utc_cfg','points_utc_meta'],'projection':'Utilities PointsUtcSchedule',
+    'model':'Watch nova_points_state','tap_app':'points_in_time.elf'}}
+  value=validate_sparse_clock_profile(manifest,self.blob,record,self.source,self.local,self.headers,True,True)
+  self.assertEqual(value['grant_count'],16)
+  with self.assertRaises(ValueError):validate_sparse_clock_profile(manifest,self.blob,record,self.source,self.local,self.headers,True)
+  with self.assertRaises(ValueError):validate_sparse_clock_profile(manifest,self.blob,{**record,'grant_count':14},self.source,self.local,self.headers,True,True)
+
 if __name__=='__main__':unittest.main()

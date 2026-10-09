@@ -5,7 +5,7 @@
   "productivity": "4921a4306bb11adea646d766eb7539242e0142a7",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "637e13b0bce62ad49b756bec2468a6271d163fc7",
-  "purpose": "Completed controls cohort: Home desk lock, landscape direction, clean desk waveform, awake maintenance, paper motion/backlight, Settings and Wi-Fi scrolling, SD Files and radio policy",
+  "purpose": "In-progress 0.1.17 integration of qualified telemetry, scrolling and update application units; final combined app pins pending",
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
@@ -33,5 +33,9 @@
     "ota_update": "7b92c3904cf0822f378b61ca6ce1a07b2ca9460c",
     "app_store": "7b92c3904cf0822f378b61ca6ce1a07b2ca9460c"
   },
-  "update_system_apps": "7b92c3904cf0822f378b61ca6ce1a07b2ca9460c"
+  "update_system_apps": "7b92c3904cf0822f378b61ca6ce1a07b2ca9460c",
+  "features": {
+    "ble_telemetry": true,
+    "updates": true
+  }
 }
