@@ -28,6 +28,7 @@ def main():
     ap.add_argument('--system',type=Path,required=True)
     ap.add_argument('--output',type=Path,required=True)
     ap.add_argument('--sanitize',action='store_true')
+    ap.add_argument('--paper-transitions',action='store_true',help='Pair with the selected LOW_LATENCY interactive adapter')
     args=ap.parse_args();runtime=args.runtime.resolve();args.output.mkdir(parents=True,exist_ok=True)
     fixture=ROOT/'minimal/test/uc8279_fast_cadence';results=[]
     san=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer','-no-pie'] if args.sanitize else []
@@ -48,6 +49,7 @@ def main():
             # PortableTime includes a sibling ../time path.
             shutil.copytree(system/'lib/PortableApps/time',include.parent/'time')
             flags=['-DPANEL_BASELINE_ADAPTER'] if baseline else []
+            if args.paper_transitions:flags.append('-DPORTABLE_PAPER_TRANSITIONS')
             adapter_cc=[os.environ.get('CC','cc'),'-std=c11','-O1','-g','-Wall','-Wextra','-Werror',*san]
             run([*adapter_cc,'-I'+str(include),'-I'+str(system/'lib/NativeApps/include'),
                 '-DPORTABLE_NATIVE_TIME_TOOLBAR','-DPORTABLE_NATIVE_CUSTODY_FENCE',*flags,
@@ -90,7 +92,7 @@ def main():
     sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputSnapshotV1.h',
         args.system/'lib/PortableApps/src/adapter.c',
         runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
-    receipt={'hardware':'not run','timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
+    receipt={'hardware':'not run','paper_transitions':args.paper_transitions,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
         'sources':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'runs':results}
     (args.output/'evidence.json').write_text(json.dumps(receipt,indent=2)+'\n')
 

@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.4
+# X4 UC8279 fast provider 0.1.5
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -23,10 +23,10 @@ and pull-up, CS and clock; DC/reset/BUSY retain their separate scoped GPIO.
 The native three-wire probe is a new integration route and still needs hardware
 qualification, even though the subsequent selected lab protocol was tested.
 
-After reset, the first presentation and every explicit CLEAN use the source's
+After reset, a presentation without reconstructed history and every explicit CLEAN use the source's
 OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion,
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
-rows). Normal later presentations use the one-frame absolute target LUT at PLL
+rows). Later DEFAULT/LOW_LATENCY presentations use the one-frame absolute target LUT at PLL
 0x0F: white-target entries 0x81, black-target entries 0x41, VCOM entry 0x01.
 Version0.1.2 corrects registers0x21/0x24 relative to the laboratory; every
 remaining42-byte table field and one-frame duration stays unchanged. No old-plane transfer occurs
@@ -40,7 +40,8 @@ union to the smallest tested 40/80/160/480-row height; the source's full-width
 RAM protocol is retained. Bytes outside the aligned submitted damage union come from the physically completed image,
 preventing unrelated caller edits from becoming visible. Only accepted,
 completed pixels become history. Caller seeding does not qualify an unshown
-image for the fast mode. A resume requires a new baseline.
+image for the fast mode. Resume clears inferred history; a validated caller reconstruction can
+seed an OTP QUALITY partial, otherwise the next frame uses a full baseline.
 
 ## Ownership, timing and failure behavior
 
@@ -63,8 +64,8 @@ preparation until restart, because PTIN or an active waveform may remain.
 Power preparation, reset holds, retirement and cleanup retries otherwise retain
 the existing typed lifecycle. Snapshot metrics report actual payload/GPIO counts.
 CLEAN_PRESENT is deliberately not advertised: ordinary application full-scene
-redraws use QUALITY and stay fast after the baseline, while explicit maintenance
-CLEAN is still accepted. For CLEAN, transfer-end is the end of the pre-refresh upload; payload also
+redraws in the paired interactive app cohort use LOW_LATENCY and stay fast after
+the baseline. QUALITY now selects stock OTP; explicit maintenance CLEAN is still accepted. For CLEAN, transfer-end is the end of the pre-refresh upload; payload also
 includes its post-BUSY DTM1 sync before COMPLETE.
 
 The nominal 10 Hz / 100 ms capability values are scheduling hints derived from
@@ -180,3 +181,45 @@ modeled completed repeats were 110/72/58/24, all with zero pixel payload and
 maximum input gaps of 2/8/20/50 ms. These are 20 ms BUSY model measurements,
 not physical panel quality or power measurements. Hardware settling remains to
 be tested; this change does not flash a device.
+
+
+## Desk-clock QUALITY contract (0.1.5)
+
+Intent dispatch is explicit:
+
+- DEFAULT(0) and LOW_LATENCY(1): existing absolute one-frame A2 and2.3-second
+  resident-image settling after completed history; full OTP baseline if absent.
+- QUALITY(2): stock OTP partial when nonempty damage has completed history or
+  a valid `seed_previous` reconstruction. Otherwise full OTP baseline.
+- CLEAN(3): full OTP baseline, regardless of damage/history.
+
+QUALITY partial uses the pre-existing X4 stock path from `x4pro_panel`: PLL0x0E,
+CDI0xD7, CCSET0x02, TSSET0x5A, PFS0x20, gate scan0x02, PON if needed, then exact
+aligned PTIN/PTL and post-PON OTP PSR `17 4D`. This is the normal built-in partial
+waveform, not the external one-frame A2 LUT. CLEAN/cold baseline retains CDI0x97
+and TSSET0x1E. Geometry stays800×600 gates with120 blank rows; SPI stays20MHz.
+No voltage, TCON, compact-geometry or overclock settings are introduced.
+
+Before each QUALITY partial, the provider uploads a complete merged NEW plane
+and the canonical completed/seeded OLD plane. This repairs stale OLD RAM left by
+A2 and controller RAM lost across reset. After observed BUSY completion it closes
+the partial window and synchronizes OLD from the merged completed image. Each
+normal partial transfers three60KB planes(180KB total), while only the exact
+aligned damage window receives the physical refresh. Rows/bytes outside the
+submitted damage union remain the prior visible image. No repeated A2 settling
+is armed. An existing settling pulse drains before the quality transfer begins.
+
+Deep-wake caller sequence: acquire MONO1; reconstruct the exact prior visible
+image; call `seed_previous`; render the changed clock image into the same lease;
+submit native-coordinate damage with QUALITY; wait for completion. Seeding is
+an assertion about the visible image and does not itself make the read-only
+completed snapshot available. A successful quality frame restores completed
+history. Invalid/missing reconstruction must use CLEAN/full baseline instead.
+
+Compatibility: old app builds used QUALITY for all MONO1 output while provider
+versions through0.1.4 treated it as fast. Those apps will now receive OTP.
+The paired interactive adapter must explicitly select LOW_LATENCY; the selected
+`PORTABLE_PAPER_TRANSITIONS` adapter does so. The Clock-specific lock/wake and
+orientation policy belongs to the app, not this provider. No Runtime API change
+is required. All timing fixtures are host models; physical quality remains a
+separate check.

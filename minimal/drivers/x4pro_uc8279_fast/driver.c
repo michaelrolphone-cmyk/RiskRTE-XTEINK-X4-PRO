@@ -20,7 +20,7 @@ enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
 static const garden_spi_v1 *spi;
 static uint64_t spi_token;
-static bool spi_held, screen_powered, fast_update, presentation_fault;
+static bool spi_held, screen_powered, fast_update, quality_partial, presentation_fault;
 static uint32_t spi_hz = 100000u;
 static const risc_frontlight_api_v1 *frontlight;
 static const risc_provider_sync_api_v1 *sync_api;
@@ -84,9 +84,9 @@ static uint8_t frame[FRAME_BYTES], previous_frame[FRAME_BYTES];
 static bool previous_seeded, completed_history, partial_update;
 static risc_display_rect_v1 update_area;
 static bool transfer_started;
-enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PREPARE, UC_ASYNC_WHITE, UC_ASYNC_NEW,
+enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PREPARE, UC_ASYNC_WHITE, UC_ASYNC_NEW, UC_ASYNC_OLD,
        UC_ASYNC_SETUP, UC_ASYNC_PON_ASSERT, UC_ASYNC_PON_DONE,
-       UC_ASYNC_OTP, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE, UC_ASYNC_SYNC };
+       UC_ASYNC_QUALITY_IN, UC_ASYNC_QUALITY_WINDOW, UC_ASYNC_OTP, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE, UC_ASYNC_SYNC };
 static uint64_t phase_deadline;
 static uint8_t async_stage, setup_step;
 static uint32_t async_offset;
@@ -270,7 +270,9 @@ static bool uc_init_panel(void) {
 static void window_for(const risc_display_rect_v1 *area) {
     const uint16_t top = (uint16_t)area->y + 120u;
     const uint16_t bottom = top + area->height - 1u;
-    const uint8_t window[] = {0, 0, 3, 0x1F, (uint8_t)(top >> 8), (uint8_t)top,
+    const uint16_t left = (uint16_t)area->x, right = left + area->width - 1u;
+    const uint8_t window[] = {(uint8_t)(left >> 8), (uint8_t)(left & 0xF8u),
+        (uint8_t)(right >> 8), (uint8_t)(right | 7u), (uint8_t)(top >> 8), (uint8_t)top,
         (uint8_t)(bottom >> 8), (uint8_t)bottom, 1};
     write_register(0x90, window, sizeof(window));
 }
@@ -305,14 +307,15 @@ static bool damaged_byte(uint32_t index) {
     return false;
 }
 static uint8_t frame_byte(uint32_t offset) {
-    if (!fast_update) return offset < 12000u ? 0xFFu : (uint8_t)~frame[offset - 12000u];
-    const uint32_t index = (uint32_t)update_area.y * 100u + offset;
+    if (!fast_update && offset < 12000u) return 0xFFu;
+    const uint32_t index = fast_update ? (uint32_t)update_area.y * 100u + offset : offset - 12000u;
+    if (!fast_update && !quality_partial) return (uint8_t)~frame[index];
     /* Full-width, expanded-height RAM bands preserve all bytes outside the
      * union of submitted damage, including gaps between separate rectangles. */
     return (uint8_t)~(damaged_byte(index) ? frame[index] : previous_frame[index]);
 }
 static void remember_completed_frame(void) {
-    if (fast_update) {
+    if (fast_update || quality_partial) {
         const uint32_t first = (uint32_t)update_area.y * 100u;
         const uint32_t last = first + update_area.height * 100u;
         for (uint32_t i = first; i < last; ++i) if (damaged_byte(i)) previous_frame[i] = frame[i];
@@ -427,24 +430,33 @@ static void poll_present_locked(uint32_t budget_ms) {
             else if (fast_update && setup_step == 1u) window_data();
             else if (!fast_update && setup_step == 0u) reg1(0x30, 0x0E);
             else {
-                if (!begin_plane(fast_update ? 0x13 : 0x10)) goto failed;
-                async_stage = fast_update ? UC_ASYNC_NEW : UC_ASYNC_WHITE;
+                if (!begin_plane(fast_update || quality_partial ? 0x13 : 0x10)) goto failed;
+                async_stage = fast_update || quality_partial ? UC_ASYNC_NEW : UC_ASYNC_WHITE;
             }
             ++setup_step;
-        } else if (async_stage == UC_ASYNC_WHITE || async_stage == UC_ASYNC_NEW || async_stage == UC_ASYNC_SYNC) {
+        } else if (async_stage == UC_ASYNC_WHITE || async_stage == UC_ASYNC_NEW || async_stage == UC_ASYNC_OLD || async_stage == UC_ASYNC_SYNC) {
             const uint32_t total = fast_update ? update_area.height * 100u : 60000u;
             uint32_t count = total - async_offset;
             if (count > 512u) count = 512u;
             if (count > 16384u - work) count = 16384u - work;
             uint8_t buffer[512];
-            for (uint32_t i = 0; i < count; ++i)
-                buffer[i] = async_stage == UC_ASYNC_WHITE ? 0xFFu : frame_byte(async_offset + i);
+            for (uint32_t i = 0; i < count; ++i) {
+                const uint32_t offset = async_offset + i;
+                buffer[i] = async_stage == UC_ASYNC_WHITE ? 0xFFu :
+                    (async_stage == UC_ASYNC_OLD ? (offset < 12000u ? 0xFFu :
+                        (uint8_t)~previous_frame[offset - 12000u]) : frame_byte(offset));
+            }
             if (!exchange_spi(buffer, NULL, count)) goto failed;
             async_offset += count; bytes_sent += count; work += count;
             if (async_offset == total) {
                 if (!end_spi()) goto failed;
                 if (async_stage == UC_ASYNC_WHITE) { if (!begin_plane(0x13)) goto failed; async_stage = UC_ASYNC_NEW; }
-                else if (async_stage == UC_ASYNC_SYNC) {
+                else if (async_stage == UC_ASYNC_NEW && quality_partial) {
+                    /* Fast A2 never syncs OLD; deep wake loses panel RAM. Restore
+                     * the canonical previous image before every OTP partial. */
+                    if (!begin_plane(0x10)) goto failed;
+                    async_stage = UC_ASYNC_OLD;
+                } else if (async_stage == UC_ASYNC_SYNC) {
                     settle_coverage_valid = false;
                     remember_completed_frame(); present_state = PRESENT_COMPLETE; held = false;
                     previous_seeded = false; async_stage = UC_ASYNC_NONE; reason = "complete"; break;
@@ -457,7 +469,7 @@ static void poll_present_locked(uint32_t budget_ms) {
         } else if (async_stage == UC_ASYNC_SETUP) {
             /* Exactly one bounded control transaction per step. Poll time is
              * sampled after every register/LUT, not just after the whole set. */
-            const unsigned finish = fast_update ? 14u : 3u;
+            const unsigned finish = fast_update ? 14u : (quality_partial ? 5u : 3u);
             if (fast_update) {
                 switch (setup_step) {
                 case 0: reg1(0x30, 0x0F); break;
@@ -472,9 +484,11 @@ static void poll_present_locked(uint32_t budget_ms) {
                 default: if (setup_step < finish) absolute_lut_table(setup_step - 9u); break;
                 }
             } else {
-                if (setup_step == 0u) reg1(0x50, 0x97);
+                if (setup_step == 0u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
                 else if (setup_step == 1u) reg1(0xE0, 0x02);
-                else if (setup_step == 2u) reg1(0xE5, 0x1E);
+                else if (setup_step == 2u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
+                else if (quality_partial && setup_step == 3u) reg1(0x03, 0x20);
+                else if (quality_partial && setup_step == 4u) reg1(0xE1, 0x02);
             }
             if (setup_step++ == finish) {
                 if (!screen_powered) {
@@ -486,7 +500,7 @@ static void poll_present_locked(uint32_t budget_ms) {
                     } else {
                         phase_deadline = now + 1500u; async_stage = UC_ASYNC_PON_DONE;
                     }
-                } else async_stage = fast_update ? UC_ASYNC_REFRESH : UC_ASYNC_OTP;
+                } else async_stage = fast_update ? UC_ASYNC_REFRESH : (quality_partial ? UC_ASYNC_QUALITY_IN : UC_ASYNC_OTP);
             }
         } else if (async_stage == UC_ASYNC_PON_ASSERT) {
             if (now >= phase_deadline) { set_reason("power busy never asserted"); goto failed; }
@@ -495,7 +509,11 @@ static void poll_present_locked(uint32_t budget_ms) {
         } else if (async_stage == UC_ASYNC_PON_DONE) {
             if (now >= phase_deadline) { set_reason("power busy completion timeout"); goto failed; }
             if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
-            screen_powered = true; async_stage = fast_update ? UC_ASYNC_REFRESH : UC_ASYNC_OTP;
+            screen_powered = true; async_stage = fast_update ? UC_ASYNC_REFRESH : (quality_partial ? UC_ASYNC_QUALITY_IN : UC_ASYNC_OTP);
+        } else if (async_stage == UC_ASYNC_QUALITY_IN) {
+            command(0x91); async_stage = UC_ASYNC_QUALITY_WINDOW;
+        } else if (async_stage == UC_ASYNC_QUALITY_WINDOW) {
+            window_data(); async_stage = UC_ASYNC_OTP;
         } else if (async_stage == UC_ASYNC_OTP) {
             const uint8_t psr[] = {0x17, 0x4D}; write_register(0x00, psr, sizeof(psr));
             async_stage = UC_ASYNC_REFRESH;
@@ -527,6 +545,8 @@ static void poll_present_locked(uint32_t budget_ms) {
                 remember_completed_frame(); present_state = PRESENT_COMPLETE; held = false;
                 previous_seeded = false; async_stage = UC_ASYNC_NONE; reason = "complete"; break;
             }
+            /* Full-stride OLD sync must run outside the partial RAM window. */
+            if (quality_partial) command(0x92);
             if (!begin_plane(0x10)) goto failed;
             async_stage = UC_ASYNC_SYNC;
         } else { set_reason("invalid async state"); goto failed; }
@@ -593,8 +613,10 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
         return false;
     if (options && (options->intent > RISC_DISPLAY_PRESENT_CLEAN || options->queue_policy != RISC_DISPLAY_QUEUE_FIFO || options->reserved)) return false;
     if (!token_out || count > RISC_DISPLAY_MAX_DAMAGE_RECTS || (count && !damage)) return false;
-    fast_update = completed_history && (!options || options->intent != RISC_DISPLAY_PRESENT_CLEAN);
-    partial_update = count && fast_update;
+    const uint8_t intent = options ? options->intent : RISC_DISPLAY_PRESENT_DEFAULT;
+    quality_partial = intent == RISC_DISPLAY_PRESENT_QUALITY && count && (completed_history || previous_seeded);
+    fast_update = completed_history && (intent == RISC_DISPLAY_PRESENT_DEFAULT || intent == RISC_DISPLAY_PRESENT_LOW_LATENCY);
+    partial_update = count && (fast_update || quality_partial);
     update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (count) {
         uint32_t left = X4PRO_PANEL_WIDTH, top = X4PRO_PANEL_HEIGHT, right = 0, bottom = 0;
@@ -616,7 +638,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
         /* Use the source's tested gate-window heights. Preserve completed
          * pixels in both dimensions when damage needs a wider/taller band. */
         update_area = tested_window((uint32_t)update_area.y, (uint32_t)update_area.y + update_area.height);
-    } else update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
+    } else if (!quality_partial) update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
     pending_token = token_serial;
@@ -859,6 +881,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     physical_pins[X4PRO_PIN_EPD_DC] = (uint8_t)configuration->dc;
     physical_pins[X4PRO_PIN_EPD_RST] = (uint8_t)configuration->reset;
     shutdown_stage = 0; previous_seeded = completed_history = partial_update = false;
+    fast_update = quality_partial = false;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
     settle_until = settle_phase_deadline = settle_refresh_ms = 0;
     settle_refreshes = settle_completed = 0;
@@ -1035,7 +1058,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     started = true; screen_powered = false; shutdown_stage = 0; pending_token = 0; present_state = PRESENT_NONE;
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
-    partial_update = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
+    partial_update = fast_update = quality_partial = false; async_stage = UC_ASYNC_NONE; transfer_started = false;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
     return RISC_DISPLAY_POWER_OK;
 }
@@ -1125,7 +1148,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.4 cause=");
+    append(destination, capacity, &used, "v=0.1.5 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

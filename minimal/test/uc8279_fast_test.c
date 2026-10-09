@@ -62,13 +62,26 @@ static void model_command(uint8_t value){
  if(cmd==0x12){
   ++refreshes;phase=1;last_refresh_at=tick;busy_from=tick+refresh_assert_delay;
   busy_until=no_busy?tick:busy_from+refresh_pulse_ms;
-  unsigned top=0,height=480;
+  unsigned top=0,height=480,left=0,width=800;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
    for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){uint8_t want=0;if(i==0||i==5||i==6)want=1;if(i==1)want=r==0?1:(r<=2?0x81:0x41);assert(regs[0x20+r][i]==want);}
    top=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])-120;
    height=(((unsigned)regs[0x90][6]<<8)|regs[0x90][7])-120-top+1;
-  }else assert(regs[0x00][0]==0x17&&regs[0x30][0]==0x0E);
+  }else {
+   assert(regs[0x00][0]==0x17&&regs[0x30][0]==0x0E);
+   if(ptin){
+    assert(regs[0x50][0]==0xD7&&regs[0xE5][0]==0x5A&&regs[0xE0][0]==2);
+    left=((unsigned)regs[0x90][0]<<8)|regs[0x90][1];
+    width=(((unsigned)regs[0x90][2]<<8)|regs[0x90][3])-left+1;
+    top=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])-120;
+    height=(((unsigned)regs[0x90][6]<<8)|regs[0x90][7])-120-top+1;
+    assert(!(left&7u)&&!(width&7u)&&left+width<=800);
+    /* Normal differential OTP must compare with the real completed image,
+     * even after absolute A2 left stale OLD RAM or a reset destroyed it. */
+    assert(!memcmp(old_ram+12000,visible,sizeof(visible)));
+   }else assert(regs[0x50][0]==0x97&&regs[0xE5][0]==0x1E);
+  }
   assert(top+height<=480);
   if(regs[0x00][0]==0x37){
    /* Independent X4 plane-code oracle, derived from FreeInk's absolute
@@ -84,7 +97,10 @@ static void model_command(uint8_t value){
     }
     visible[y*100+x]=result;
    }
-  }else memcpy(visible+top*100,ram+(top+120)*100,height*100);
+  }else {
+   for(unsigned y=top;y<top+height;++y)
+    memcpy(visible+y*100+left/8,ram+(y+120)*100+left/8,width/8);
+  }
  }
 }
 static void model_data(uint8_t value){
@@ -192,6 +208,82 @@ static void assert_idle(void) {
  const unsigned e=exchanges,g=gpio_writes,r=refreshes;const uint64_t sampled=last_sample_ms;
  for(unsigned n=0;n<10;++n){tick+=100;owner_poll(8);}
  assert(e==exchanges&&g==gpio_writes&&r==refreshes&&sampled==last_sample_ms);
+}
+static uint64_t submit_quality(risc_display_surface_v1 f,const risc_display_rect_v1 *damage,size_t count){
+ const risc_display_present_options_v1 options={RISC_DISPLAY_PRESENT_QUALITY,RISC_DISPLAY_QUEUE_FIFO,0};
+ uint64_t token=0;assert(output->submit(NULL,f.frame,damage,count,&options,&token));return token;
+}
+static void assert_quality_done(unsigned old1,unsigned old2,unsigned lut_count,const risc_display_rect_v1 *damage){
+ assert(!fast_update&&quality_partial&&partial_update&&!settle_stage&&!settle_coverage_valid);
+ assert(commands[0x10]==old1+2&&commands[0x13]==old2+1&&commands[0x20]==lut_count&&bytes_sent==180000);
+ assert(regs[0x00][0]==0x17&&regs[0x30][0]==0x0E&&regs[0xE5][0]==0x5A&&regs[0x50][0]==0xD7&&!ptin);
+ assert(update_area.x==(damage->x&~7)&&update_area.y==damage->y&&update_area.height==damage->height);
+ assert(!memcmp(old_ram,ram,sizeof(ram))&&!memcmp(old_ram+12000,visible,sizeof(visible)));
+ assert_idle();
+}
+static void test_quality_cold(void){
+ risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x33,48000);
+ const risc_display_rect_v1 damage={17,478,1,1};uint64_t token=submit_quality(f,&damage,1);
+ assert(!fast_update&&!quality_partial&&!partial_update);complete_frame(token);
+ assert(bytes_sent==180000&&commands[0x10]==2&&commands[0x13]==1&&!settle_stage);
+ assert(regs[0xE5][0]==0x1E&&regs[0x50][0]==0x97&&visible[0]==0xCC&&visible[47999]==0xCC);
+ assert(!memcmp(old_ram,ram,sizeof(ram)));assert_idle();assert(t5_driver_get(2)->quiesce());
+}
+static void test_quality_seeded_cold(void){
+ /* Reconstructed physical image supplied immediately after fresh start, with
+  * no completed frame in this provider instance and unusable controller RAM. */
+ memset(visible,0xC3,sizeof(visible));memset(ram,0,sizeof(ram));memset(old_ram,0x55,sizeof(old_ram));
+ risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x3C,48000);
+ assert(risc_display_output_history(output)->seed_previous(NULL,f.frame));assert(previous_seeded&&!completed_history);
+ ((uint8_t*)f.pixels)[0]=0xF0;const risc_display_rect_v1 damage={0,0,8,1};
+ const unsigned old1=commands[0x10],old2=commands[0x13],luts=commands[0x20];
+ uint64_t token=submit_quality(f,&damage,1);assert(quality_partial&&!fast_update);complete_frame(token);
+ assert_quality_done(old1,old2,luts,&damage);assert(visible[0]==0x0F&&visible[1]==0xC3&&previous_frame[0]==0xF0&&previous_frame[1]==0x3C);
+ assert(t5_driver_get(2)->quiesce());
+}
+static void test_quality(const char *scenario){
+ const risc_driver_v2 *d=t5_driver_get(2);const risc_display_output_api_v1_power *power=risc_display_output_power(output);
+ /* Fast leaves OLD RAM stale and may still be repeating a resident waveform. */
+ fast_band(440,40);owner_poll(8);assert(settle_stage==SETTLE_DONE);
+ const uint64_t last_busy=busy_until;const unsigned bytes_before=payload;
+ const unsigned old1=commands[0x10],old2=commands[0x13],lut_count=commands[0x20];
+ risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,48000);
+ const risc_display_rect_v1 damage={17,440,1,4};uint64_t token=submit_quality(f,&damage,1);
+ assert(!fast_update&&quality_partial&&partial_update);
+ while(tick<last_busy){owner_poll(8);assert(payload==bytes_before);++tick;}
+ complete_frame(token);assert_quality_done(old1,old2,lut_count,&damage);
+ const uint8_t expected_window[]={0,16,0,23,2,48,2,51,1};assert(!memcmp(regs[0x90],expected_window,sizeof(expected_window)));
+ assert(visible[44002]==0x99&&visible[44001]==0xF0&&visible[44402]==0x55);
+ /* Deep-sleep reconstruction: RAM and provider history are invalid after
+  * resume, while visible pigment remains. Only the canonical seed authorizes
+  * a differential QUALITY partial rather than the full cold baseline. */
+ static uint8_t image[48000];assert(risc_display_output_snapshot(output)->copy_completed(NULL,RISC_DISPLAY_FORMAT_MONO1,image,sizeof(image),100));
+ assert(power->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);assert(power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK&&!completed_history);
+ memset(old_ram,0,sizeof(old_ram));memset(ram,0,sizeof(ram));
+ f=acquire_frame();memcpy(f.pixels,image,sizeof(image));assert(risc_display_output_history(output)->seed_previous(NULL,f.frame));
+ assert(previous_seeded&&!completed_history);((uint8_t*)f.pixels)[47999]=0xAA;
+ const risc_display_rect_v1 minute={799,479,1,1};
+ const unsigned old1_wake=commands[0x10],old2_wake=commands[0x13],lut_wake=commands[0x20];
+ token=submit_quality(f,&minute,1);assert(quality_partial&&!fast_update);
+ if(!strcmp(scenario,"quality-busy-absent")||!strcmp(scenario,"quality-busy-stuck")){
+  no_busy=!strcmp(scenario,"quality-busy-absent");stuck_busy=!strcmp(scenario,"quality-busy-stuck");
+  risc_display_present_status_v1 status={0};assert(output->wait_present(NULL,token,5000,&status)&&status.state==PRESENT_FAILED);
+  assert(!completed_history&&!settle_stage&&!d->quiesce());return;
+ }
+ if(!strcmp(scenario,"quality-transfer-failure")){
+  while(async_stage!=UC_ASYNC_OLD){owner_poll(8);++tick;}
+  fail_spi_exchange=true;owner_poll(8);assert(present_state==PRESENT_FAILED&&retained&&!completed_history&&!settle_stage&&!d->quiesce());return;
+ }
+ complete_frame(token);assert_quality_done(old1_wake,old2_wake,lut_wake,&minute);
+ assert(visible[47999]==0x55&&visible[47998]==(uint8_t)~image[47998]&&visible[47899]==(uint8_t)~image[47899]);
+ const uint8_t minute_window[]={3,24,3,31,2,87,2,87,1};assert(!memcmp(regs[0x90],minute_window,sizeof(minute_window)));
+ /* Return to the interactive contract: explicit LOW_LATENCY, no OLD sync,
+  * one native band upload and resident settling re-enabled. */
+ f=acquire_frame();((uint8_t*)f.pixels)[47999]=0x55;
+ const risc_display_present_options_v1 fast={RISC_DISPLAY_PRESENT_LOW_LATENCY,RISC_DISPLAY_QUEUE_FIFO,0};
+ const unsigned synced=commands[0x10];assert(output->submit(NULL,f.frame,&minute,1,&fast,&token));complete_frame(token);
+ assert(fast_update&&!quality_partial&&bytes_sent==4000&&commands[0x10]==synced&&settle_stage==SETTLE_READY&&visible[47999]==0xAA);
+ assert(d->quiesce());
 }
 static void test_settle(const char *scenario) {
  const risc_driver_v2 *d=t5_driver_get(2);
@@ -316,7 +408,10 @@ int main(int argc,char**argv){
  if(!strcmp(s,"probe-spi-fail")){fail_spi_exchange=true;assert(!d->start(deps,7)&&!d->quiesce()&&!model_bus_held);goto done;}
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
  assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
- risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);baseline();
+ risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);
+ if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
+ if(!strcmp(s,"quality-seeded-cold")){test_quality_seeded_cold();goto done;}baseline();
+ if(!strncmp(s,"quality-",8)){test_quality(s);goto done;}
  if(!strncmp(s,"settle-",7)){test_settle(s);goto done;}
  if(!strcmp(s,"busy-absent")||!strcmp(s,"busy-stuck")||!strcmp(s,"clock-fail")||!strcmp(s,"clock-rollback")){
   risc_display_surface_v1 f=acquire_frame();uint64_t t=submit_frame(f,NULL,0,false);no_busy=!strcmp(s,"busy-absent");stuck_busy=!strcmp(s,"busy-stuck");fail_clock=!strcmp(s,"clock-fail");reverse_clock=!strcmp(s,"clock-rollback");
