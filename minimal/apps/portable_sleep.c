@@ -454,8 +454,12 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     /* Pure adapter state, set only after validated timer-record admission. */
     if(portable_desk_adapter_timer_only())return desk_timer_sleep(rt,display,alarms);
 #endif
-    risc_runtime_capability_v1 prefs={.struct_size=sizeof(prefs)};
     unsigned mode=PORTABLE_SLEEP_LIGHT;
+#ifdef PORTABLE_DESK_LOCK_HOME
+    if(portable_desk_clock_lock_requested())mode=PORTABLE_SLEEP_DEEP;
+    else {
+#endif
+    risc_runtime_capability_v1 prefs={.struct_size=sizeof(prefs)};
     if(rt->acquire("storage.key-value",1,PORTABLE_SLEEP_STORE_INSTANCE,&prefs)) {
         (void)portable_sleep_load_profile(prefs.api,PORTABLE_SLEEP_MASK_LIGHT|PORTABLE_SLEEP_MASK_DEEP,
                                          PORTABLE_SLEEP_LIGHT,&mode);
@@ -463,6 +467,9 @@ int portable_app_alarm_sleep(const risc_runtime_api_v1 *rt,const risc_display_ou
     }
 #ifdef PORTABLE_DESK_CLOCK_SPARSE_START
     else return -2; /* Unobservable failed-start cleanup is not a clean miss. */
+#endif
+#ifdef PORTABLE_DESK_LOCK_HOME
+    }
 #endif
     if(mode!=PORTABLE_SLEEP_DEEP)return portable_x4_light_sleep(rt,display,gauge,alarms);
     if(!display || display->api_version!=RISC_DISPLAY_OUTPUT_API_V1 ||
