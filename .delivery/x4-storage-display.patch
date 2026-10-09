@@ -1,0 +1,437 @@
+diff --git a/minimal/drivers/x4pro_sd/driver.c b/minimal/drivers/x4pro_sd/driver.c
+index 5259335..d0ebcb3 100644
+--- a/minimal/drivers/x4pro_sd/driver.c
++++ b/minimal/drivers/x4pro_sd/driver.c
+@@ -1,2 +1,2 @@
+-/* X4 native one-bit CLK/CMD/DAT0 SD transport, ordinary provider ABI2.
++/* X4 hardware one-bit SDMMC transport with legacy GPIO fallback, provider ABI2.
+  * Protocol derived from Drivers/x4pro_sd/driver.c at Reader 34d8e694.
+@@ -10,2 +10,3 @@
+ #include <GardenPlatformV1.h>
++#include <RiscGpioSdmmcV1.h>
+ #include "../x4pro_board_power/PowerReadyV1.h"
+@@ -20,2 +21,5 @@ static const risc_platform_clock_api_v1 *clock_api;
+ static const garden_gpio_v1 *gpio_api;
++static const risc_sdmmc_host_api_v1 *sdmmc_api;
++static uint64_t sdmmc_token;
++static bool sdmmc_fault;
+ static const risc_provider_sync_api_v1 *sync_api;
+@@ -209,3 +213,21 @@ static bool response_for(uint8_t index, const uint8_t response[6]) {
+ }
++/* Close the peripheral before remuxing pins or removing card power. A failed
++ * close keeps its token, so terminal cleanup can retry without losing custody. */
++static bool close_sdmmc(void) {
++    if (!sdmmc_token) return !sdmmc_fault;
++    if (!sdmmc_api || !sdmmc_api->release(sdmmc_api->context, sdmmc_token)) {
++        sdmmc_fault = true; fail("sdmmc close retained"); return false;
++    }
++    sdmmc_token = 0; sdmmc_fault = false; card_ready = false;
++    return true;
++}
++static bool sdmmc_result(bool okay, const char *reason) {
++    if (!okay) { sdmmc_fault = true; fail(reason); }
++    return okay;
++}
+ static bool read_sector(uint32_t lba, uint8_t out[512]) {
++    if (sdmmc_api) {
++        if (!out || !sdmmc_token || sdmmc_fault || (uint64_t)lba >= card_block_count) return false;
++        return sdmmc_result(sdmmc_api->read(sdmmc_api->context, sdmmc_token, lba, 1u, out), "sdmmc read failed");
++    }
+     uint8_t response[6];
+@@ -261,3 +283,3 @@ static bool init_card(void) {
+     uint8_t response[17] = {0};
+-    if (gpio_fault) return false;
++    if (gpio_fault || !close_sdmmc()) return false;
+     high_capacity = false;
+@@ -269,2 +291,27 @@ static bool init_card(void) {
+     if (clock_api) clock_api->sleep_ms(clock_api->context, 120);
++    if (sdmmc_api) {
++        /* The controller takes the same CLK/CMD/DAT0 pins, not GPIO5 power.
++         * Retire static GPIO claims from startup/sleep before changing mux. */
++        for (unsigned i = 1; i < 4; ++i) if (pins[i].token) {
++            if (pins[i].held || !gpio_api->release(gpio_api->context, pins[i].token)) {
++                gpio_fault = true; fail("sdmmc pin handoff failed"); return false;
++            }
++            pins[i].token = 0;
++        }
++        if (gpio_fault) return false;
++        risc_sdmmc_card_info_v1 info = {0};
++        const bool opened = sdmmc_api->open(sdmmc_api->context, X4PRO_PIN_SD_CLK,
++            X4PRO_PIN_SD_CMD, X4PRO_PIN_SD_DAT0, RISC_SDMMC_MAX_HZ, &sdmmc_token, &info);
++        if (!opened || !sdmmc_token || info.struct_size != sizeof(info) || info.reserved ||
++            info.sector_size != 512u || !info.sector_count || info.sector_count > (UINT64_C(1) << 32) ||
++            !info.clock_hz || info.clock_hz > RISC_SDMMC_MAX_HZ) {
++            fail("sdmmc initialization failed");
++            if (sdmmc_token) (void)close_sdmmc();
++            return false; /* Never switch transport after a hardware failure. */
++        }
++        card_block_count = info.sector_count; card_ready = true;
++        const bool okay = mount_filesystem();
++        bootlog_mount_pending = okay;
++        return okay;
++    }
+     x4pro_pin_release(X4PRO_PIN_SD_CMD);
+@@ -314,2 +361,6 @@ static bool init_card(void) {
+ static bool write_sector(uint32_t lba, const uint8_t data[512]) {
++    if (sdmmc_api) {
++        if (!data || !sdmmc_token || sdmmc_fault || (uint64_t)lba >= card_block_count) return false;
++        return sdmmc_result(sdmmc_api->write(sdmmc_api->context, sdmmc_token, lba, 1u, data), "sdmmc write failed");
++    }
+     uint8_t response[6];
+@@ -347,7 +398,12 @@ static bool write_sector(uint32_t lba, const uint8_t data[512]) {
+ 
+-static bool sync_card(void) { return !gpio_fault && wait_dat0(true, 262144, 1000); }
++static bool sync_card(void) {
++    if (sdmmc_api) return !gpio_fault && sdmmc_token && !sdmmc_fault &&
++        sdmmc_result(sdmmc_api->sync(sdmmc_api->context, sdmmc_token), "sdmmc sync failed");
++    return !gpio_fault && wait_dat0(true, 262144, 1000);
++}
+ /* All native one-bit transfers are synchronous. A failed GPIO transition is
+  * uncertain transport state and cannot pass a power-down barrier. */
+-static bool transport_idle(void) { return !gpio_fault && !gpio_retained; }
++static bool transport_idle(void) { return !gpio_fault && !gpio_retained && !sdmmc_fault; }
+ static bool commit_sleep_rails(void) {
++    if (!close_sdmmc()) return false;
+     x4pro_pin_output(X4PRO_PIN_SD_CLK, false);
+@@ -364,3 +420,3 @@ static bool resume_sleep_media(void) {
+     (void)init_card();
+-    return !gpio_fault && !gpio_retained && pins[0].token && !pins[0].held;
++    return !gpio_fault && !gpio_retained && !sdmmc_fault && pins[0].token && !pins[0].held;
+ }
+@@ -368,3 +424,3 @@ static bool resume_sleep_media(void) {
+ #define STORAGE_VOLUME_TRY_RESUME_POWER_DOWN resume_sleep_media
+-#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained))
++#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained || sdmmc_fault))
+ #define STORAGE_VOLUME_EXTERNAL_GUARD
+@@ -418,6 +474,6 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
+     if (!sync->is_owner(sync->context) || !power->ready(power->context)) return false;
+-    gpio_api = gpio; clock_api = clock; sync_api = sync; diagnostic_source = source;
++    gpio_api = gpio; sdmmc_api = risc_gpio_sdmmc(gpio); clock_api = clock; sync_api = sync; diagnostic_source = source;
+     quiescing = quiesced = gpio_fault = false;
+     if (!sync_api->create(sync_api->context, &operation_mutex) || !operation_mutex) {
+-        gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
++        gpio_api = NULL; sdmmc_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
+     }
+@@ -431,4 +487,4 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
+     (void)init_card(); /* An absent card preserves refresh capability. */
+-    if (gpio_fault) { io_failed = true; mounted = false; }
+-    const bool okay = !gpio_fault;
++    if (gpio_fault || sdmmc_fault) { io_failed = true; mounted = false; }
++    const bool okay = !gpio_fault && !sdmmc_fault;
+     return leave() && okay;
+@@ -436,2 +492,3 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
+ static bool release_pins(void) {
++    if (!close_sdmmc()) return false;
+     /* Cleanup is allowed after a transport fault. Establish safe static rails
+@@ -468,3 +525,3 @@ static bool quiesce(void) {
+     operation_mutex = 0; quiesced = true;
+-    gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL;
++    gpio_api = NULL; sdmmc_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL;
+     power_down_prepared = false;
+diff --git a/minimal/drivers/x4pro_sd/manifest.json b/minimal/drivers/x4pro_sd/manifest.json
+index 96242ef..05ce425 100644
+--- a/minimal/drivers/x4pro_sd/manifest.json
++++ b/minimal/drivers/x4pro_sd/manifest.json
+@@ -3,3 +3,3 @@
+   "id": "x4pro-sd",
+-  "version": "0.2.11",
++  "version": "0.2.12",
+   "driver_abi": 2,
+diff --git a/minimal/drivers/x4pro_uc8279_fast/DELAYED_POLL.md b/minimal/drivers/x4pro_uc8279_fast/DELAYED_POLL.md
+index d04a117..63501c9 100644
+--- a/minimal/drivers/x4pro_uc8279_fast/DELAYED_POLL.md
++++ b/minimal/drivers/x4pro_uc8279_fast/DELAYED_POLL.md
+@@ -9 +9,5 @@ Version 0.1.7 checks the actual completion level before applying that timeout. T
+ The added production-driver tests cover delayed completion followed by a replacement frame, delayed stuck BUSY, an entirely unobserved pulse, and a BUSY-read failure. The full existing panel suite is run normally and under ASan/UBSan. This is a reproduced software defect consistent with the hardware log; a new physical-device test must confirm the user-visible repair.
++
++## Normal refresh and SPI lifetime (0.1.8)
++
++The same completion-before-timeout handling now covers normal refresh completion and power-on completion after a witnessed assertion. Each owner poll releases SPI; a later poll continues RAM data without replaying the RAM command or resetting its cursor. Foreground time between polls does not consume the aggregate service budget, while genuinely active BUSY signals retain their physical timeouts. Eight additional production-driver cases cover upload and completion gaps, stuck/unobserved pulses and read errors. The existing settling-path repair remains unchanged.
+diff --git a/minimal/drivers/x4pro_uc8279_fast/driver.c b/minimal/drivers/x4pro_uc8279_fast/driver.c
+index 3867d96..624f0de 100644
+--- a/minimal/drivers/x4pro_uc8279_fast/driver.c
++++ b/minimal/drivers/x4pro_uc8279_fast/driver.c
+@@ -92,3 +92,5 @@ static uint8_t async_stage, setup_step;
+ static uint32_t async_offset;
+-static uint64_t async_deadline;
++/* The aggregate budget charges provider execution, not unrelated foreground
++ * work between polls. BUSY deadlines below remain absolute wall-clock limits. */
++static uint64_t async_deadline, async_last_poll_ms;
+ /* Settling owns only the resident controller image, never a caller's frame.
+@@ -270,5 +272,6 @@ static bool uc_init_panel(void) {
+ }
+-/* Every native plane retains CS across all exchanges and owner polls. Native
+- * exchanges are <=512 bytes with <=8 ms waits; a plane has a 1000 ms deadline.
+- * One poll copies at most 16384 payload bytes, bounded independently of time. */
++/* A RAM plane can span owner polls, but an SPI transaction cannot. CS is
++ * released before returning to foreground work; the controller's RAM cursor
++ * continues on the next data transaction without reissuing the RAM command.
++ * Exchanges stay <=512 bytes and each poll copies at most 16384 bytes. */
+ static void window_for(const risc_display_rect_v1 *area) {
+@@ -300,3 +303,3 @@ static bool begin_plane(uint8_t cmd) {
+     command(cmd); panel_pin_level(X4PRO_PIN_EPD_DC, true); async_offset = 0;
+-    return !io_failed && begin_spi(1000u);
++    return !io_failed;
+ }
+@@ -434,4 +437,4 @@ static void poll_present_locked(uint32_t budget_ms) {
+     if (!sample_now(&now)) goto failed;
++    if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
+     if (present_state == PRESENT_QUEUED) {
+-        if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
+         wait_start_ms = transfer_start_ms = now; wait_budget_ms = 10000u;
+@@ -441,3 +444,10 @@ static void poll_present_locked(uint32_t budget_ms) {
+         async_stage = UC_ASYNC_PRE; async_offset = 0; async_deadline = now + 10000u;
++        phase_deadline = now + 10000u; async_last_poll_ms = now;
+         present_state = PRESENT_ACTIVE;
++    } else {
++        /* Storage and application execution outside this callback do not use
++         * the display's service budget. Never extend a hardware phase timer. */
++        const uint64_t idle_ms = now - async_last_poll_ms;
++        if (async_deadline > UINT64_MAX - idle_ms) { set_reason("clock overflow"); goto failed; }
++        async_deadline += idle_ms;
+     }
+@@ -449,3 +459,8 @@ static void poll_present_locked(uint32_t budget_ms) {
+         if (async_stage == UC_ASYNC_PRE) {
+-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
++            const bool ready = panel_pin_read(X4PRO_PIN_EPD_BUSY);
++            if (io_failed) goto failed;
++            if (!ready) {
++                if (now >= phase_deadline) { set_reason("pre-transfer busy timeout"); goto failed; }
++                break;
++            }
+             setup_step = 0; async_stage = UC_ASYNC_PREPARE;
+@@ -472,2 +487,3 @@ static void poll_present_locked(uint32_t budget_ms) {
+             }
++            if (!spi_held && !begin_spi(1000u)) goto failed;
+             if (!exchange_spi(buffer, NULL, count)) goto failed;
+@@ -533,4 +549,8 @@ static void poll_present_locked(uint32_t budget_ms) {
+         } else if (async_stage == UC_ASYNC_PON_DONE) {
+-            if (now >= phase_deadline) { set_reason("power busy completion timeout"); goto failed; }
+-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
++            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
++            if (io_failed) goto failed;
++            if (!complete) {
++                if (now >= phase_deadline) { set_reason("power busy completion timeout"); goto failed; }
++                break;
++            }
+             screen_powered = true; async_stage = fast_update ? UC_ASYNC_REFRESH : (quality_partial ? UC_ASYNC_QUALITY_IN : UC_ASYNC_OTP);
+@@ -562,4 +582,10 @@ static void poll_present_locked(uint32_t budget_ms) {
+         } else if (async_stage == UC_ASYNC_DONE) {
+-            if (now >= phase_deadline) { set_reason("busy completion timeout"); goto failed; }
+-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
++            /* Assertion was observed on entry to DONE. A late owner poll is
++             * not evidence of a stuck panel when BUSY has already deasserted. */
++            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
++            if (io_failed) goto failed;
++            if (!complete) {
++                if (now >= phase_deadline) { set_reason("busy completion timeout"); goto failed; }
++                break;
++            }
+             if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE)) goto failed;
+@@ -579,3 +605,3 @@ static void poll_present_locked(uint32_t budget_ms) {
+     } while (now < slice_end && work < 16384u);
+-    if (io_failed) goto failed;
++    if (io_failed || !end_spi() || !sample_now(&async_last_poll_ms)) goto failed;
+     return;
+@@ -1193,3 +1219,3 @@ static bool last_error(char *destination, size_t capacity) {
+     destination[0] = 0;
+-    append(destination, capacity, &used, "v=0.1.7 cause=");
++    append(destination, capacity, &used, "v=0.1.8 cause=");
+     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
+diff --git a/minimal/drivers/x4pro_uc8279_fast/manifest.json b/minimal/drivers/x4pro_uc8279_fast/manifest.json
+index 36df4dc..e952d0f 100644
+--- a/minimal/drivers/x4pro_uc8279_fast/manifest.json
++++ b/minimal/drivers/x4pro_uc8279_fast/manifest.json
+@@ -3,3 +3,3 @@
+   "id": "x4pro-uc8279-fast",
+-  "version": "0.1.7",
++  "version": "0.1.8",
+   "driver_abi": 2,
+diff --git a/minimal/native/build.py b/minimal/native/build.py
+index 22728be..aeead63 100644
+--- a/minimal/native/build.py
++++ b/minimal/native/build.py
+@@ -21,3 +21,3 @@ options = record.get('build_options')
+ required = {'app_policy_rows', 'app_image_cache'}
+-if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'}:
++if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'sdmmc'}:
+     raise ValueError('Invalid native build options')
+@@ -33,2 +33,4 @@ if 'failure_evidence' in options and options['failure_evidence'] is not True:
+     raise ValueError('Failure evidence must be an explicit true opt-in')
++if 'sdmmc' in options and options['sdmmc'] is not True:
++    raise ValueError('SDMMC must be an explicit true opt-in')
+ # SCons processes BUILD_FLAGS after this pre-build hook. Refuse preexisting
+@@ -37,3 +39,3 @@ if 'failure_evidence' in options and options['failure_evidence'] is not True:
+ for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
+-    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_RETAINED_WAKE_BYTES|RISC_NATIVE_FAILURE_EVIDENCE|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
++    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_ENABLE_SDMMC|RISC_RETAINED_WAKE_BYTES|RISC_NATIVE_FAILURE_EVIDENCE|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
+         raise ValueError('Native option flags must come only from the composition record: ' + key)
+@@ -73,2 +75,5 @@ env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1),
+                       ('RISC_APP_IMAGE_CACHE', int(options['app_image_cache']))])
++if options.get('sdmmc'):
++    env.Append(CPPDEFINES=[('RISC_ENABLE_SDMMC', 1)])
++    env.Append(LINKFLAGS=['-Wl,-u,risc_sdmmc_host_abi'])
+ if options.get('usb_phy'):
+diff --git a/minimal/scripts/prepare_native_runtime.py b/minimal/scripts/prepare_native_runtime.py
+index 81f00d2..11387f9 100644
+--- a/minimal/scripts/prepare_native_runtime.py
++++ b/minimal/scripts/prepare_native_runtime.py
+@@ -79,3 +79,3 @@ def validate_build_options(options):
+     require(isinstance(options, dict) and required <= set(options) and
+-            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'},
++            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'sdmmc'},
+             'Invalid native build options')
+@@ -91,2 +91,4 @@ def validate_build_options(options):
+             'Failure evidence must be an explicit true opt-in')
++    require('sdmmc' not in options or options['sdmmc'] is True,
++            'SDMMC must be an explicit true opt-in')
+     return options
+@@ -96,3 +98,3 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
+             app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False,
+-            retained_wake_bytes=None, failure_evidence=False):
++            retained_wake_bytes=None, failure_evidence=False, sdmmc=False):
+     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
+@@ -108,2 +110,5 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
+         options['failure_evidence'] = True
++    require(type(sdmmc) is bool, 'SDMMC selection must be boolean')
++    if sdmmc:
++        options['sdmmc'] = True
+     validate_build_options(options)
+@@ -137,2 +142,6 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
+     require('sdk/driver/RiscDiagnosticSourceV1.h' in files, 'Runtime diagnostic source SDK missing')
++    if sdmmc:
++        require('sdk/driver/RiscGpioSdmmcV1.h' in files and
++                b'risc_sdmmc_host_abi' in files.get('src/ports/esp32s3/NativeHardware.cpp', (b'', 0))[0],
++                'Runtime lacks the native SDMMC feature; integrate its source before composing')
+     original_config = files['platformio.ini'][0]
+@@ -467,2 +476,10 @@ def runtime_options_proof(blobs, record):
+         result['failure_evidence'] = {'enabled': True, 'abi': 1, 'marker': evidence.name}
++    sdmmc_marker = symbols.get('risc_sdmmc_host_abi')
++    if options.get('sdmmc'):
++        require(sdmmc_marker is not None and sdmmc_marker['st_info']['bind'] == 'STB_GLOBAL' and
++                elf_symbol_bytes(elf, sdmmc_marker) == (1).to_bytes(4, 'little'),
++                'Missing enabled SDMMC ABI marker')
++        result['sdmmc'] = {'enabled': True, 'abi': 1, 'marker': sdmmc_marker.name}
++    elif sdmmc_marker is not None:
++        require(sdmmc_marker['st_shndx'] == 'SHN_UNDEF', 'Unrecorded enabled SDMMC feature')
+     retained = retained_wake_proof(elf, symbols, options)
+@@ -687,2 +704,4 @@ def main():
+                          help='Opt in to the pinned native panic recorder and linked closure audit')
++    prepare.add_argument('--sdmmc', action='store_true',
++                         help='Enable hardware one-bit SDMMC on the selected GPIO bank; requires the native host feature')
+     freeze = actions.add_parser('stage')
+diff --git a/minimal/test/native_composition_test.py b/minimal/test/native_composition_test.py
+index 847e9ad..9d49695 100644
+--- a/minimal/test/native_composition_test.py
++++ b/minimal/test/native_composition_test.py
+@@ -54,2 +54,21 @@ class CompositionTest(unittest.TestCase):
+ 
++    def test_sdmmc_requires_native_feature_and_records_selection(self):
++        with self.assertRaisesRegex(ValueError, 'Runtime lacks the native SDMMC'):
++            self.prepare(sdmmc=True)
++        self.assertFalse(self.output.exists())
++        (self.runtime / 'sdk/driver/RiscGpioSdmmcV1.h').write_text('/* feature fixture */')
++        (self.runtime / 'src/ports/esp32s3/NativeHardware.cpp').write_text('const unsigned risc_sdmmc_host_abi=1;')
++        self.revision = commit(self.runtime)
++        record = self.prepare(sdmmc=True, runtime_commit=self.revision)
++        self.assertIs(record['build_options']['sdmmc'], True)
++        composition.verify_source_custody(self.runtime, record, self.platform)
++        self.assertEqual(record, composition.verify_composition(self.output))
++
++    def test_sdmmc_non_boolean_selection_rejected(self):
++        for value in (1, None, 'true'):
++            with self.assertRaisesRegex(ValueError, 'SDMMC selection'):
++                self.prepare(sdmmc=value)
++        with self.assertRaisesRegex(ValueError, 'SDMMC must'):
++            composition.validate_build_options({'app_policy_rows': 16, 'app_image_cache': False, 'sdmmc': False})
++
+     def test_exact_composition_preserves_inputs_and_records_overlay(self):
+diff --git a/minimal/test/run_sd_test.sh b/minimal/test/run_sd_test.sh
+index ee73813..fff6fa3 100755
+--- a/minimal/test/run_sd_test.sh
++++ b/minimal/test/run_sd_test.sh
+@@ -12,3 +12,3 @@ flags=(-std=c11 -O1 -g -Wall -Wextra -Werror -Wno-overflow)
+ if [[ -n "${X4_SD_DRIVER_SOURCE:-}" ]]; then flags+=("-DX4_SD_DRIVER_SOURCE=\"$X4_SD_DRIVER_SOURCE\""); else flags+=(-DX4_EXPECT_BATCHING=1); fi
+-if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer); fi
++if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -no-pie); fi
+ "${CC:-cc}" "${flags[@]}" -I"$build/sdk" -I"$RISCRTE_READER_ROOT/Drivers/storage_fatfs" \
+@@ -17,3 +17,3 @@ if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-s
+  "$RISCRTE_READER_ROOT/Drivers/storage_fatfs/fatfs/ffunicode.c" -o "$build/test"
+-for scenario in validation absent lifetime mbr files-paths stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail \
++for scenario in sdmmc-roundtrip sdmmc-absent sdmmc-open-invalid sdmmc-open-retained sdmmc-close-retained sdmmc-read-failure sdmmc-write-failure sdmmc-sleep sdmmc-export validation absent lifetime mbr files-paths stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail \
+  sleep-empty sleep-absent sleep-handles sleep-busy sleep-refusal sleep-legacy sleep-sync sleep-prepare-unlock sleep-reentry \
+diff --git a/minimal/test/run_uc8279_fast_test.sh b/minimal/test/run_uc8279_fast_test.sh
+index 0eacf07..939817e 100644
+--- a/minimal/test/run_uc8279_fast_test.sh
++++ b/minimal/test/run_uc8279_fast_test.sh
+@@ -10,3 +10,3 @@ if [[ "${SANITIZE:-0}" == 1 ]];then flags+=(-fsanitize=address,undefined -fno-sa
+ "${CC:-cc}" "${flags[@]}" -I"$build/sdk" "$root/minimal/test/uc8279_fast_test.c" -o "$build/test"
+-for scenario in settle-delayed-poll settle-delayed-stuck settle-delayed-unseen settle-delayed-read-error idle-boundary idle-gates idle-replace-ready idle-replace-window idle-replace-assert idle-replace-busy idle-quality idle-sleep-wait idle-sleep-active idle-sleep-budget idle-cleanup idle-busy-absent idle-busy-stuck idle-spi-failure idle-clock-fail idle-clock-rollback quality-cold quality-seeded-cold quality-cycle quality-busy-absent quality-busy-stuck quality-transfer-failure settle-repeat settle-short settle-expiry settle-replace-ready settle-replace-window settle-replace-refresh settle-replace-assert settle-replace-busy settle-replace-clean settle-replace-wait settle-sleep settle-sleep-budget settle-cleanup settle-no-budget settle-busy-absent settle-busy-stuck settle-spi-begin settle-spi-exchange settle-spi-end settle-gpio settle-clock-fail settle-clock-rollback settle-queued-failure validation happy busy-boundary busy-short polarity snapshot lut69 floating zero-probe unstable lut-bad claim-fail probe-spi-fail busy-absent busy-stuck clock-fail clock-rollback spi-begin spi-exchange spi-end gpio-fail unlock-fail foreign-owner hold-retry release-retry retire-retry destroy-retry;do
++for scenario in storage-upload-gap storage-power-gap storage-power-stuck storage-refresh-gap storage-refresh-short-gap storage-refresh-stuck storage-refresh-unseen storage-refresh-read-error settle-delayed-poll settle-delayed-stuck settle-delayed-unseen settle-delayed-read-error idle-boundary idle-gates idle-replace-ready idle-replace-window idle-replace-assert idle-replace-busy idle-quality idle-sleep-wait idle-sleep-active idle-sleep-budget idle-cleanup idle-busy-absent idle-busy-stuck idle-spi-failure idle-clock-fail idle-clock-rollback quality-cold quality-seeded-cold quality-cycle quality-busy-absent quality-busy-stuck quality-transfer-failure settle-repeat settle-short settle-expiry settle-replace-ready settle-replace-window settle-replace-refresh settle-replace-assert settle-replace-busy settle-replace-clean settle-replace-wait settle-sleep settle-sleep-budget settle-cleanup settle-no-budget settle-busy-absent settle-busy-stuck settle-spi-begin settle-spi-exchange settle-spi-end settle-gpio settle-clock-fail settle-clock-rollback settle-queued-failure validation happy busy-boundary busy-short polarity snapshot lut69 floating zero-probe unstable lut-bad claim-fail probe-spi-fail busy-absent busy-stuck clock-fail clock-rollback spi-begin spi-exchange spi-end gpio-fail unlock-fail foreign-owner hold-retry release-retry retire-retry destroy-retry;do
+  "$build/test" "$scenario"
+diff --git a/minimal/test/sd_test.c b/minimal/test/sd_test.c
+index bd9dcae..06b875f 100644
+--- a/minimal/test/sd_test.c
++++ b/minimal/test/sd_test.c
+@@ -638,2 +638,3 @@ static void preparation_flow_case(bool capacity_stress) {
+ #include "sd_export_test.inc"
++#include "sdmmc_storage_test.inc"
+ int main(int argc,char **argv){
+@@ -643,2 +644,3 @@ int main(int argc,char **argv){
+     assert(t5_driver_get(2)==&driver.poll.streams.driver && !t5_driver_get(1));
++    if(!strncmp(scenario,"sdmmc-",6)){sdmmc_storage_cases(scenario);goto done;}
+     if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
+diff --git a/minimal/test/uc8279_fast_test.c b/minimal/test/uc8279_fast_test.c
+index cb08f38..f741476 100644
+--- a/minimal/test/uc8279_fast_test.c
++++ b/minimal/test/uc8279_fast_test.c
+@@ -201,2 +201,45 @@ static void owner_poll(uint32_t budget) {
+  assert(!locked&&payload-bytes<=16384u&&(reverse_clock||tick-at<=8u));
++ if(!retained)assert(!model_bus_held&&!spi_held);
++}
++/* A foreground SD request may run for tens of seconds between owner polls.
++ * Use the real provider's state machine and RAM-cursor model, not a copied
++ * timeout implementation. Every delay is outside the provider callback. */
++static void test_storage_gap(const char *scenario) {
++ const bool upload=!strcmp(scenario,"storage-upload-gap");
++ const bool power=!strncmp(scenario,"storage-power-",14);
++ const bool stuck=strstr(scenario,"stuck")!=NULL;
++ const bool unseen=strstr(scenario,"unseen")!=NULL;
++ const bool read_error=strstr(scenario,"read-error")!=NULL;
++ const bool short_gap=!strcmp(scenario,"storage-refresh-short-gap");
++ const risc_driver_v2 *d=t5_driver_get(2);
++ if(!power)baseline();
++ const unsigned first_payload=payload;
++ risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x69,FRAME_BYTES);
++ const uint64_t token=submit_frame(f,NULL,0,power);
++ if(unseen)refresh_assert_delay=5;
++ if(stuck){if(power)stuck_power=true;else stuck_busy=true;}
++ const uint8_t wanted=upload?UC_ASYNC_NEW:(power?UC_ASYNC_PON_DONE:(unseen?UC_ASYNC_ASSERT:UC_ASYNC_DONE));
++ for(unsigned n=0;n<2000&&async_stage!=wanted;++n){owner_poll(1);++tick;}
++ assert(present_state==PRESENT_ACTIVE&&async_stage==wanted);
++ const unsigned bytes=payload;
++ if(upload)assert(async_offset>0&&async_offset<48000u);
++ /* No bus transaction may outlive the callback which admitted it. */
++ if(upload)assert(!model_bus_held&&!spi_held);
++ tick+=short_gap?4500u:45000u;
++ if(read_error)fail_gpio_read=true;
++ owner_poll(8);
++ if(stuck||unseen||read_error){
++  assert(presentation_fault&&present_state==PRESENT_FAILED&&!completed_history);
++  assert(payload==bytes&&!model_bus_held&&!spi_held);
++  if(stuck)assert(!strcmp(reason,power?"power busy completion timeout":"busy completion timeout"));
++  if(unseen)assert(!strcmp(reason,"busy never asserted"));
++  if(read_error)assert(!strcmp(reason,"gpio operation retained"));
++  assert(!d->quiesce());return;
++ }
++ if(presentation_fault)fprintf(stderr,"completed refresh/paused upload rejected: %s\n",reason);
++ assert(!presentation_fault&&!retained&&!model_bus_held&&!spi_held);
++ complete_frame(token);
++ assert(payload-first_payload==(power?180000u:48000u));
++ for(unsigned i=0;i<FRAME_BYTES;++i)assert(visible[i]==(uint8_t)~0x69u&&previous_frame[i]==0x69);
++ assert(d->quiesce());
+ }
+@@ -517,2 +560,3 @@ int main(int argc,char**argv){
+  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);
++ if(!strncmp(s,"storage-",8)){test_storage_gap(s);goto done;}
+  if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
