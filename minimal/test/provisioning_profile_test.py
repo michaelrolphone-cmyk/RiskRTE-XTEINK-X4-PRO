@@ -170,6 +170,33 @@ class ProvisioningProfileTest(unittest.TestCase):
         (self.native / 'firmware.bin').write_bytes(b'changed')
         self.refused()
 
+    def test_debug_native_elf_uses_shared_32mib_bound_only(self):
+        path = self.native / 'firmware.elf'
+        marker = path.read_bytes()
+        raw = marker + b'\0' * (17 * 1024 * 1024 - len(marker))
+        path.write_bytes(raw)
+        self.candidate['assets']['firmware.elf'] = digest(raw)
+        self.refresh()
+        self.run_create(output=self.root / 'large-debug-elf')
+        # The debug allowance does not enlarge the app slot or profile/files.
+        firmware = self.native / 'firmware.bin'
+        original_firmware = firmware.read_bytes()
+        firmware.write_bytes(raw)
+        self.candidate['assets']['firmware.bin'] = digest(raw)
+        (self.bundle / 'firmware.bin').write_bytes(raw)
+        self.refresh()
+        self.refused()
+        firmware.write_bytes(original_firmware)
+        self.candidate['assets']['firmware.bin'] = digest(original_firmware)
+        (self.bundle / 'firmware.bin').write_bytes(original_firmware)
+        self.refresh()
+        with path.open('wb') as stream:
+            stream.write(marker)
+            stream.truncate(32 * 1024 * 1024 + 1)
+        with self.assertRaisesRegex(ValueError, 'input file bounds'):
+            self.run_create()
+        self.assertFalse(self.output.exists())
+
     def test_mixed_firmware_store(self):
         (self.bundle / 'firmware.bin').write_bytes(b'other candidate')
         self.refused()

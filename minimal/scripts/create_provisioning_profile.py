@@ -65,13 +65,18 @@ def create(runtime, bundle, native, panel, base_url, profile_url, output):
     assets = candidate['assets']
     p.require({'firmware.bin', 'firmware.elf', 'bootloader.bin', 'partitions.bin',
                'appdata.bin', 'appdata-image.json'} <= assets.keys(), 'incomplete native candidate')
+    native_blobs = {}
     for name, digest in assets.items():
         p.relative(name)
-        blob = p.read(native / name)
+        # Match the shared release/candidate bound for the debug-bearing native
+        # ELF. It is not an installed store file or a larger firmware slot.
+        blob = p.read(native / name, 32 * 1024 * 1024 if name == 'firmware.elf'
+                      else 16 * 1024 * 1024)
         p.require(digest == {'bytes': len(blob), 'sha256': p.sha(blob)}, 'native asset hash mismatch')
-    firmware = p.read(native / 'firmware.bin')
+        native_blobs[name] = blob
+    firmware = native_blobs['firmware.bin']
     for name in ('firmware.bin', 'firmware.elf'):
-        blob = p.read(native / name)
+        blob = native_blobs[name]
         for marker in ('RTE_SOURCE=' + lock['commit'], 'RISC_RUNTIME_VERSION:' + lock['version'],
                        'RISC_PAIRED_STORE_ABI:2'):
             p.require(marker.encode() + b'\0' in blob, 'compiled native identity mismatch')

@@ -138,7 +138,12 @@ class TargetSeedExtensionTest(unittest.TestCase):
     def test_real_frozen_seed_revalidates_explicit_callback_and_receipt(self):
         reference = Path(os.environ['X4_SEED_REFERENCE'])
         reference_work = self.root / 'reference-verify'; reference_work.mkdir()
-        original, _ = self.device.verify_seed(reference, reference_work)
+        # The reference can itself be an X4 seed after canonical composition.
+        # Select this already-bound test callback explicitly, never executable
+        # code from a seed-provided identifier or path.
+        reference_record = json.loads((reference / 'seed.json').read_bytes())
+        reference_validator = self.validator if 'extension' in reference_record else None
+        original, _ = self.device.verify_seed(reference, reference_work, reference_validator)
         self.assertEqual(original['store_abi'], 2)
         record, blobs = self.validate()
         # Retain a previously verified genuine generic seed store. This tests
