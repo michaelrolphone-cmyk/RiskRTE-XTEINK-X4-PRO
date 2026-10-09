@@ -684,11 +684,12 @@ static void poll_present_locked(uint32_t budget_ms) {
                 sync_full = settle_update;
                 if (!begin_plane(0x10)) goto failed;
                 async_stage = UC_ASYNC_SYNC;
+            } else {
+                /* Full-stride OLD sync must run outside the partial RAM window. */
+                if (quality_partial) command(0x92);
+                if (!begin_plane(0x10)) goto failed;
+                async_stage = UC_ASYNC_SYNC;
             }
-            /* Full-stride OLD sync must run outside the partial RAM window. */
-            if (quality_partial) command(0x92);
-            if (!begin_plane(0x10)) goto failed;
-            async_stage = UC_ASYNC_SYNC;
         } else { set_reason("invalid async state"); goto failed; }
         if (io_failed) goto failed;
         if (!sample_now(&now)) goto failed;
