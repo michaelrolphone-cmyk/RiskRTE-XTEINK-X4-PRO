@@ -1,0 +1,57 @@
+name: X4 offline boot-log image
+on:
+  push:
+    branches: [fix/x4-offline-boot-log-0130]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: x4-offline-boot-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native:
+    name: X4 0.1.30 native build and logger linkage
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: x4-offline-boot-pio6130-arduino20017-dio-v1
+      - name: Install pinned build tools
+        run: python -m pip install platformio==6.1.18 pyelftools==0.32
+      - name: Fetch reviewed Runtime with USB-independent drain
+        uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: dc41f90795d7580abea335f082e1132936bffe50
+          path: build/runtime
+          fetch-depth: 1
+          persist-credentials: false
+          submodules: recursive
+      - name: Compile X4 native firmware and verify logger linkage
+        run: |
+          set -o pipefail
+          mkdir -p build/offline-boot
+          python3 minimal/scripts/build_offline_boot.py --runtime build/runtime --output build/offline-boot 2>&1 | tee build/native-build.log
+      - name: Include pinned offline SPIFFS image tool
+        run: |
+          curl --fail --location --retry 3 https://raw.githubusercontent.com/espressif/esp-idf/v4.4.7/components/spiffs/spiffsgen.py -o build/offline-boot/spiffsgen.py
+          echo '5779792a4d98a12383233267511735769a201b5c2c79b582186a40c22b7c6466  build/offline-boot/spiffsgen.py' | sha256sum -c -
+      - name: Publish native build and packaging inputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: x4-offline-boot-0.1.30-${{ github.sha }}
+          path: |
+            build/offline-boot/
+            build/native-build.log
+          if-no-files-found: error
+          retention-days: 30
