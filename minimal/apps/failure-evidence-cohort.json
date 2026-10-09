@@ -1,0 +1,39 @@
+{
+  "schema": "x4.failure-evidence-selection",
+  "schema_version": 1,
+  "baseline": {
+    "version": "0.1.44",
+    "source": "912417e970149b5c577fb7ae70a6bd668bbafaff",
+    "receipt": {
+      "bytes": 821385,
+      "sha256": "1da54704611d367dafeca571cf45281912f79415b18885ce5a64b96d3c12643d"
+    },
+    "image": {
+      "bytes": 16777216,
+      "sha256": "46bd3f7323a8964b56d16b05331ad7339fb9b7a952119552ef61129536f99841"
+    }
+  },
+  "home": {
+    "version": "0.3.19",
+    "source": "b95850b5a4b1979ce16116102a4ee1877980c506",
+    "elf": {
+      "bytes": 411768,
+      "sha256": "eb86263689cda7f4791d53a2aa8a5baaba39eb3edfe91b46c9f0d98cc7c46694"
+    },
+    "manifest": {
+      "bytes": 1261,
+      "sha256": "1a1416085c3b2a91356df2558a807c0c783d21370a8cbc426662b661a3950ea2"
+    },
+    "receipt": {
+      "bytes": 52606,
+      "sha256": "85519250b188d9c0374552e0fcdc58a80f63a2c88803a95cbdc4585c02dddb88"
+    }
+  },
+  "packaging_source": "c55beb0040a131f70fc582b3f7f1f4539a70bc7e",
+  "changed_store_paths": [
+    "cohort.json",
+    "default.elf",
+    "default.json"
+  ],
+  "publication": "held-local-only"
+}
