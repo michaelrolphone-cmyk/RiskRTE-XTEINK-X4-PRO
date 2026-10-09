@@ -14,6 +14,7 @@ if [[ "${SANITIZE:-0}" == 1 ]]; then
 fi
 includes=(-I"$build/sdk" -I"$runtime/src" -I"$runtime/sdk/app" -I"$runtime/lib/ArduinoJson/src" -I"$runtime/test/drivers/stubs")
 sources=("$runtime/src/bootstrap/Json.cpp" "$runtime/src/bootstrap/Board.cpp" "$runtime/src/bootstrap/Runtime.cpp"
+         "$runtime/src/runtime/streams/ProviderQueueHost.cpp" "$runtime/src/runtime/streams/AppStreamSessions.cpp"
          "$runtime/src/runtime/drivers/ProviderGraphV2.cpp" "$runtime/src/runtime/drivers/ProviderModuleV2.cpp"
          "$runtime/src/ports/esp32s3/CpuPort.cpp")
 "${CC:-cc}" "${cflags[@]}" "${san[@]}" -I"$build/sdk" -c "$root/minimal/drivers/x4pro_frontlight/driver.c" -o "$build/frontlight.o"
