@@ -430,7 +430,10 @@ def build(a):
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
     if idle:
-        (out/'README.txt').write_text((ROOT/'minimal/docs'/('BUILD_0_1_21.md' if contexts else 'BUILD_0_1_20.md')).read_text()+'\nExact app, provider, native-partition and image hashes are in build-custody.json. See update-artifacts.json for local paired payload custody.\n')
+        release_notes=ROOT/'minimal/docs'/('BUILD_'+cohort['version'].replace('.','_')+'.md')
+        if not release_notes.is_file():
+            release_notes=ROOT/'minimal/docs'/('BUILD_0_1_21.md' if contexts else 'BUILD_0_1_20.md')
+        (out/'README.txt').write_text(release_notes.read_text()+'\nExact app, provider, native-partition and image hashes are in build-custody.json. See updates/update-artifacts.json for local paired payload custody.\n')
     if not a.skip_extended_checks:
         custody['update_artifacts']=update_artifacts.create(out,cohort,fw,filesystem,files,full)
         (out/'build-custody.json').write_bytes(encoded(custody))
