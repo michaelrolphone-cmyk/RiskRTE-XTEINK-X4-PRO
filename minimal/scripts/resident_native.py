@@ -46,7 +46,7 @@ def main():
     result = native.compose(args.runtime, args.output,
                             runtime_commit=spec['runtime_source'], environment=spec['environment'],
                             app_policy_rows=17, app_image_cache=True, usb_phy=True,
-                            retained_wake_bytes=512, boot_flash_dio=True)
+                            retained_wake_bytes=512, boot_flash_dio=True, failure_evidence=True)
     print('Prepared accepted DIO resident native: ' + result['composition_sha256'])
 
 

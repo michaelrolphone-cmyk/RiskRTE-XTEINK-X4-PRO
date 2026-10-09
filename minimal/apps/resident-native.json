@@ -1,15 +1,16 @@
 {
   "schema": "x4.resident-native-selection",
   "schema_version": 1,
-  "baseline_product": "0.1.43",
-  "runtime_source": "5ab1f4e9e3f17efb1153966868b52660bde53be0",
-  "runtime_version": "0.1.90",
+  "baseline_product": "0.1.44",
+  "runtime_source": "148ad226b55db00e1dc451f21f11696f2b77f0a5",
+  "runtime_version": "0.1.93",
   "environment": "esp32s3-16mb-appdata-iq-stage",
   "build_options": {
     "app_image_cache": true,
     "app_policy_rows": 17,
     "usb_phy": true,
-    "retained_wake_bytes": 512
+    "retained_wake_bytes": 512,
+    "failure_evidence": true
   },
   "boot_flash_selection": "dio-opi-80mhz",
   "preserved_assets": {

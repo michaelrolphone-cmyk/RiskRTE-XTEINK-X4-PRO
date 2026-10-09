@@ -19,7 +19,7 @@ if env.subst('$PIOENV') != record['build_environment']:
     raise ValueError('This composed workspace only builds its recorded X4 environment')
 options = record.get('build_options')
 required = {'app_policy_rows', 'app_image_cache'}
-if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes'}:
+if not isinstance(options, dict) or not required <= set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'}:
     raise ValueError('Invalid native build options')
 if type(options['app_policy_rows']) is not int or options['app_policy_rows'] not in (16, 17):
     raise ValueError('App policy rows must be 16 or 17')
@@ -29,11 +29,13 @@ if 'usb_phy' in options and options['usb_phy'] is not True:
     raise ValueError('USB PHY must be an explicit true opt-in')
 if 'retained_wake_bytes' in options and (type(options['retained_wake_bytes']) is not int or options['retained_wake_bytes'] != 512):
     raise ValueError('Extended retained wake must be an explicit 512-byte opt-in')
+if 'failure_evidence' in options and options['failure_evidence'] is not True:
+    raise ValueError('Failure evidence must be an explicit true opt-in')
 # SCons processes BUILD_FLAGS after this pre-build hook. Refuse preexisting
 # definitions and undefines, including command-line/environment overrides,
 # instead of allowing flag order to replace the recorded selection.
 for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
-    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_RETAINED_WAKE_BYTES|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
+    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|RISC_RETAINED_WAKE_BYTES|RISC_NATIVE_FAILURE_EVIDENCE|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
         raise ValueError('Native option flags must come only from the composition record: ' + key)
 observed = set()
 for folder, directories, names in os.walk(root):
@@ -73,5 +75,9 @@ if options.get('usb_phy'):
     env.Append(CPPDEFINES=[('RISC_ENABLE_USB_PHY', 1)])
 if 'retained_wake_bytes' in options:
     env.Append(CPPDEFINES=[('RISC_RETAINED_WAKE_BYTES', options['retained_wake_bytes'])])
+if options.get('failure_evidence'):
+    env.Append(CPPDEFINES=[('RISC_NATIVE_FAILURE_EVIDENCE', 1)])
+    env.Append(CCFLAGS=['-fstack-usage'])
+    env.Append(LINKFLAGS=['-Wl,--wrap=esp_panic_handler', '-Wl,-u,risc_native_failure_evidence_abi'])
 env.Append(LINKFLAGS=['-Wl,-u,risc_x4_native_composition_identity', '-Wl,--wrap=app_main'])
 env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp>')
