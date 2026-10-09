@@ -28,6 +28,10 @@ The original capture does not identify the first triggering crash guard. The rep
 The 0.1.8 delayed-poll repair is retained. The current Game Boy test package removes
 the no-upload 30-second maintenance refresh, uses differential DEFAULT frames,
 bounds LOW_LATENCY absolute bursts, synchronizes both complete controller planes
-before powered idle, powers the panel off after the 2.3-second quiet period, and
-replays the selected profile after PON. Game Boy, save formats, Runtime and the
-SD provider are otherwise unchanged.
+before powered idle, and powers the panel off after the 2.3-second quiet period.
+
+PON is issued only when a new frame is ready. Because PON can restore controller
+MTP defaults, 0.1.9 then replays the complete selected refresh profile before
+DRF: PLL and OTP clean/quality controls for those paths, or PLL, PSR, partial
+window controls and the external differential/absolute LUT for fast paths.
+Game Boy, save formats, Runtime and the SD provider are otherwise unchanged.
