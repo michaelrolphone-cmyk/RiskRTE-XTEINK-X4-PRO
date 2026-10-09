@@ -344,6 +344,13 @@ def build(a):
             for record in src.glob('*.json'):shutil.copyfile(record,evidence/record.name)
             if not (src/'licenses').is_dir():raise ValueError('Missing telemetry provider license custody')
             shutil.copytree(src/'licenses',licenses/'providers'/identity,dirs_exist_ok=True)
+    # Preserve the full source/debug provider as a sidecar. The shared compactor
+    # proves loaded segments, symbols and relocation semantics remain identical.
+    # This recovers SPIFFS page headroom without removing an application.
+    if sparse:
+        hid_path=store/'hid/driver.elf'
+        custody['provider_elf_compaction']={'hid/driver.elf':compact_tool.compact(hid_path,str(a.app_compiler),debug_path=out/'debug-originals/hid/driver.elf')}
+        custody['hid_provider']['packaged_sha256']=sha(hid_path.read_bytes())
     (store/'boot.json').write_bytes(encoded(boot));(store/'board.json').write_bytes(encoded(board))
     # IQ authority requires the exact native reservation proof, not just a table name.
     iq_proof=custody['runtime'].get('native_proof',{}).get('radio_iq',{})
@@ -390,6 +397,8 @@ def build(a):
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
+    if idle:
+        (out/'README.txt').write_text((ROOT/'minimal/docs/BUILD_0_1_17.md').read_text()+'\nExact app, provider, native-partition and image hashes are in build-custody.json. See update-artifacts.json for local paired payload custody.\n')
     if not a.skip_extended_checks:
         custody['update_artifacts']=update_artifacts.create(out,cohort,fw,filesystem,files,full)
         (out/'build-custody.json').write_bytes(encoded(custody))
