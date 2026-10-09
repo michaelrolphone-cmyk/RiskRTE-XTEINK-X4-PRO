@@ -10,5 +10,5 @@
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Inversion-only fast provider0.1.2 over unchanged Runtime0.1.61 and16-app cohort"
+  "status": "Resident-image settling fast provider0.1.3 over unchanged Runtime0.1.61 and16-app cohort"
 }
