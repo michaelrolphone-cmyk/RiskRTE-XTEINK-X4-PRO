@@ -72,4 +72,18 @@ class NativeCohort(unittest.TestCase):
   self.assertEqual(len({key for key,_,_ in n.ALARM_KEYS}),9)
   self.assertFalse(any(key in ('alarm_cfg','timer_cfg','points_cfg') for key,_,_ in n.ALARM_KEYS))
 
+
+class CurrentUtilitySdk(unittest.TestCase):
+ def test_idle_utility_requires_exact_current_runtime(self):
+  import hashlib
+  from idle_cohort import HEADERS,RUNTIME_HEADERS
+  headers={k:'e'*64 for k in (*HEADERS,*RUNTIME_HEADERS)}
+  name='battery';blob=b'compiled';source='a'*40
+  manifest={'version':n.VERSIONS[name],'file_name':name+'.elf','requires':[{'capability':'alarm.service','api':2},{'capability':'storage.key-value','api':1},{'capability':'runtime.realtime','api':1}]}
+  sdk=dict(n.SDK);sdk.update(headers);sdk.update(n.IDLE_SDK['overrides'])
+  receipt={'schema':1,'app':name,'version':n.VERSIONS[name],'source_revision':source,'system_source_revision':'b'*40,'source_repo':'michaelrolphone-cmyk/RiscRTE-Utilities','runtime_source_revision':n.IDLE_SDK['runtime_source'],'alarm_source_revision':n.ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana','elf_sha256':hashlib.sha256(blob).hexdigest(),'elf_bytes':len(blob),'requires':manifest['requires'],'sdk_sha256':sdk}
+  n.validate_app(name,manifest,blob,receipt,source,headers)
+  for mutated in ({**receipt,'runtime_source_revision':n.RUNTIME},{**receipt,'sdk_sha256':{**sdk,'RiscRuntimeV1.h':n.SDK['RiscRuntimeV1.h']}}):
+   with self.assertRaises(ValueError):n.validate_app(name,manifest,blob,mutated,source,headers)
+
 if __name__=='__main__':unittest.main()

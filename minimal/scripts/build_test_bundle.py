@@ -295,6 +295,11 @@ def build(a):
             if sparse:
                 for header in ('RiscRuntimeV1.h','RiscRealtimeV1.h','RiscProviderPromotionV1.h'):
                     headers[header]=sha((a.runtime/'sdk/app'/header).read_bytes())
+                headers['RiscDisplayOutputSnapshotV1.h']=sha((a.drivers/'sdk/RiscDisplayOutputSnapshotV1.h').read_bytes())
+                if retain:
+                    compatibility=native_time_cohort.IDLE_SDK['promotion_header_compatibility']
+                    if headers['RiscProviderPromotionV1.h']!=compatibility['runtime_sha256']:raise ValueError('Promotion Runtime header differs from the reviewed documentation-only successor')
+                    headers['RiscProviderPromotionV1.h']=compatibility['compiled_sha256']
             validator=validate_sparse_clock_profile if sparse else validate_desk_clock_profile
             custody['desk_clock']=validator(m,blob,json.loads((src/'build-evidence.json').read_text()),app_sources['desk_clock_system_apps'],(ROOT/'minimal/apps/portable_sleep.c').read_bytes(),headers,**({'tagged_alarm':True,'broadcast':broadcast} if sparse else {}))
             for notice in ('LICENSE-NotoSans.txt','LICENSE-NotoSerif.txt','SOURCES.json'):

@@ -7,6 +7,7 @@ from pathlib import Path
 RUNTIME = '30dcec5ce6ce33223f2b203a2399283e1f758567'
 ALARMS = '637e13b0bce62ad49b756bec2468a6271d163fc7'
 PERFORMANCE = json.loads((Path(__file__).resolve().parents[1]/'performance-sdk.json').read_text())
+IDLE_SDK = json.loads((Path(__file__).resolve().parents[1]/'idle-sdk.json').read_text())
 DIAGNOSTIC_APPS = {'default','springboard','settings'}
 def expected_sdk(name):
     if name not in DIAGNOSTIC_APPS:return RUNTIME, dict(SDK)
@@ -32,7 +33,11 @@ def validate_app(name, manifest, blob, receipt, source, idle_headers=None):
     if name not in VERSIONS or not re.fullmatch(r'[0-9a-f]{40}',source):
         raise ValueError('Unknown native app or unpinned source')
     runtime_source, compiled_sdk = expected_sdk(name)
-    if idle_headers:compiled_sdk.update(idle_headers)
+    if idle_headers:
+        compiled_sdk.update(idle_headers)
+        if name in IDLE_SDK['apps']:
+            runtime_source=IDLE_SDK['runtime_source']
+            compiled_sdk.update(IDLE_SDK['overrides'])
     expected = {'schema':1,'app':name,'version':VERSIONS[name],
         'source_revision':source,'runtime_source_revision':runtime_source,
         'alarm_source_revision':ALARMS,'alarm_api':2,'time_policy':'native-realtime-iana',
