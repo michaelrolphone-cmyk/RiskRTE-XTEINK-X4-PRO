@@ -1,0 +1,53 @@
+name: X4 storage and fast-display regression
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['minimal/**', '.github/workflows/x4-storage-display.yml']
+  pull_request:
+    paths: ['minimal/**', '.github/workflows/x4-storage-display.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+          persist-credentials: false
+      - name: Archive exact regression sources
+        run: |
+          mkdir -p source-artifacts
+          git archive --format=tar.gz -o source-artifacts/x4.tar.gz HEAD
+          git -C .shared/runtime archive --format=tar.gz -o "$GITHUB_WORKSPACE/source-artifacts/runtime.tar.gz" HEAD
+          git -C .shared/reader archive --format=tar.gz -o "$GITHUB_WORKSPACE/source-artifacts/reader.tar.gz" HEAD
+          { git rev-parse HEAD; git -C .shared/runtime rev-parse HEAD; git -C .shared/reader rev-parse HEAD; } > source-artifacts/source-shas.txt
+          sha256sum source-artifacts/*.tar.gz > source-artifacts/SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-storage-display-sources-${{ github.event.pull_request.head.sha || github.sha }}
+          path: source-artifacts/
+          retention-days: 7
+      - name: Production driver regressions
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        run: |
+          for mode in 0 1; do
+            SANITIZE=$mode bash minimal/test/run_uc8279_fast_test.sh
+            SANITIZE=$mode bash minimal/test/run_sd_test.sh
+          done
