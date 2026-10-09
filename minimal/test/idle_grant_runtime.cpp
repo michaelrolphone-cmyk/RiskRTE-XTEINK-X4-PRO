@@ -13,4 +13,4 @@ int main(int argc,char**argv){assert(argc==2||argc==3);RiscBoot::KeyValueBackend
  RiscBoot::Runtime r({owner,health,delay,line,nullptr,&kv});bool prepared=r.prepare(argv[1]);
  if(argc==3){assert(!prepared&&!completed);printf("Rejected invalid idle mapping before activation: %s\n",r.error());return 0;}
  if(!prepared)fprintf(stderr,"%s\n",r.error());assert(prepared);assert(r.run()&&!r.retained()&&completed==1);
- puts("Actual Runtime/Graph: physical 17/3/4/9/15/16 + alarm2/0 + KV1; no raw/deep authority PASS");}
+ puts("Actual Runtime/Graph: physical 17/3/4/9/15/16 + alarm2/0 + KV1; no raw or retained-wake grants PASS");}
