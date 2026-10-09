@@ -29,19 +29,6 @@ jobs:
           ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
           path: .shared/reader
           persist-credentials: false
-      - name: Archive exact regression sources
-        run: |
-          mkdir -p source-artifacts
-          git archive --format=tar.gz -o source-artifacts/x4.tar.gz HEAD
-          git -C .shared/runtime archive --format=tar.gz -o "$GITHUB_WORKSPACE/source-artifacts/runtime.tar.gz" HEAD
-          git -C .shared/reader archive --format=tar.gz -o "$GITHUB_WORKSPACE/source-artifacts/reader.tar.gz" HEAD
-          { git rev-parse HEAD; git -C .shared/runtime rev-parse HEAD; git -C .shared/reader rev-parse HEAD; } > source-artifacts/source-shas.txt
-          sha256sum source-artifacts/*.tar.gz > source-artifacts/SHA256SUMS
-      - uses: actions/upload-artifact@v4
-        with:
-          name: x4-storage-display-sources-${{ github.event.pull_request.head.sha || github.sha }}
-          path: source-artifacts/
-          retention-days: 7
       - name: Production driver regressions
         env:
           RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
@@ -51,3 +38,20 @@ jobs:
             SANITIZE=$mode bash minimal/test/run_uc8279_fast_test.sh
             SANITIZE=$mode bash minimal/test/run_sd_test.sh
           done
+          python3 minimal/test/native_composition_test.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Compile fast-display and SD ELF packages
+        run: |
+          pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+          python minimal/scripts/build_drivers.py --runtime .shared/runtime --reader .shared/reader --source-lock minimal/test/ordinary-driver-sources.lock.json --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" --output build/minimal-fast-drivers --sleep --panel-driver uc8279-fast
+          git rev-parse HEAD > build/minimal-fast-drivers/platform-source-sha.txt
+          printf '%s\n' 'These are ELF provider packages, not a full firmware image. SDMMC throughput requires the matching native host feature; legacy runtimes use the GPIO fallback.' > build/minimal-fast-drivers/BUILD-NOTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-fast-display-sd-drivers-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/minimal-fast-drivers/
+          if-no-files-found: error
+          retention-days: 14
