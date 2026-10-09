@@ -1,14 +1,30 @@
 {
   "schema": 1,
   "id": "usb_sd_transfer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "file_name": "usb_sd_transfer.elf",
   "usb_role": "device",
   "grants": [
-    {"capability": "display.output", "api": 1, "instance_id": 3},
-    {"capability": "input.touch.raw", "api": 1, "instance_id": 4},
-    {"capability": "input.navigation", "api": 1, "instance_id": 6},
-    {"capability": "usb.device.msc", "api": 1, "instance_id": 0}
+    {
+      "capability": "display.output",
+      "api": 1,
+      "instance_id": 3
+    },
+    {
+      "capability": "input.touch.raw",
+      "api": 1,
+      "instance_id": 4
+    },
+    {
+      "capability": "input.navigation",
+      "api": 1,
+      "instance_id": 6
+    },
+    {
+      "capability": "usb.device.msc",
+      "api": 1,
+      "instance_id": 0
+    }
   ],
   "launch": {
     "springboard_catalog": "USB Transfer",
@@ -22,5 +38,16 @@
   "sleep": false,
   "navigation_requires_release": true,
   "configured_stop_requires_cable_confirmation": true,
-  "log_files": ["x4-boot.log", "x4-boot.previous.log"]
+  "log_files": [
+    "x4-boot.log",
+    "x4-boot.previous.log"
+  ],
+  "sd_preparation": {
+    "extension_tag": "0x554d5031",
+    "extension_version": 1,
+    "explicit_step": true,
+    "settled_screen_required": true,
+    "max_steps_per_input_poll": 1,
+    "wait_poll_prepares": false
+  }
 }
