@@ -55,7 +55,7 @@ class CompositionTest(unittest.TestCase):
         self.assertEqual((self.runtime / 'platformio.ini').read_bytes(), original)
         self.assertEqual((self.output / 'src/main.cpp').read_bytes(), (self.runtime / 'src/main.cpp').read_bytes())
         self.assertEqual(set(record['platform_source_sha256']), {
-            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/build.py', 'minimal/scripts/prepare_native_runtime.py'})
+            'minimal/native/X4EarlyBoot.cpp', 'minimal/native/X4BootRecord.h', 'minimal/native/build.py', 'minimal/scripts/prepare_native_runtime.py'})
         self.assertIn(b'pre:x4-native/build.py', (self.output / 'platformio.ini').read_bytes())
         self.assertEqual(composition.git(self.runtime, 'status', '--porcelain'), '')
         composition.verify_source_custody(self.runtime, record, self.platform)
@@ -123,7 +123,7 @@ class CompositionTest(unittest.TestCase):
         record = self.prepare()
         source = self.root / 'proof.c'
         binary = self.root / 'proof'
-        code = ('void initVariant(void) {}\nconst char* risc_native_startup_error(void) {return 0;}\n'
+        code = ('void initVariant(void) {}\nvoid __wrap_app_main(void) {}\nvoid app_main(void) {}\nchar risc_x4_boot_record[60];\nconst char* risc_native_startup_error(void) {return 0;}\n'
                 'const char risc_x4_native_composition_identity[] = "X4_NATIVE_COMPOSITION:' +
                 record['composition_sha256'] + '";\nint main(void) {initVariant(); return 0;}\n')
         source.write_text(code)

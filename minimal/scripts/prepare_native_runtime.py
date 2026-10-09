@@ -20,7 +20,7 @@ import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
 ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
-NATIVE_FILES = ('X4EarlyBoot.cpp', 'build.py')
+NATIVE_FILES = ('X4EarlyBoot.cpp', 'X4BootRecord.h', 'build.py')
 SCHEMA = 'x4.native-composition'
 
 
@@ -179,17 +179,66 @@ def startup_proof(elf_data, record):
     from elftools.elf.elffile import ELFFile
     elf = ELFFile(io.BytesIO(elf_data))
     symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
-    names = ('initVariant', 'risc_native_startup_error', 'risc_x4_native_composition_identity')
+    names = ('initVariant', '__wrap_app_main', 'app_main', 'risc_x4_boot_record',
+             'risc_native_startup_error', 'risc_x4_native_composition_identity')
     for name in names:
         symbol = symbols.get(name)
         require(symbol is not None and symbol['st_shndx'] != 'SHN_UNDEF' and
                 symbol['st_info']['bind'] == 'STB_GLOBAL', 'Missing strong X4 native symbol: ' + name)
     marker = ('X4_NATIVE_COMPOSITION:' + record['composition_sha256']).encode() + b'\0'
     require(marker in elf_data, 'Missing compiled X4 composition identity')
+    linked = {}
+    if elf['e_machine'] == 'EM_XTENSA':
+        # The pinned IDF and compiler use literal-loaded CALLX8 for long calls.
+        # Check the actual entry edges, not merely the existence of a wrapper.
+        def bytes_at(address, size):
+            for section in elf.iter_sections():
+                if section['sh_type'] != 'SHT_NOBITS' and section['sh_addr'] <= address and \
+                        address + size <= section['sh_addr'] + section['sh_size']:
+                    start = address - section['sh_addr']
+                    return section.data()[start:start + size]
+            raise ValueError('X4 startup instruction/literal is outside a loaded section')
+
+        def literal_calls(name):
+            symbol = symbols.get(name)
+            require(symbol is not None and symbol['st_size'], 'Missing startup caller: ' + name)
+            address, size = symbol['st_value'], symbol['st_size']
+            data = bytes_at(address, size)
+            calls = []
+            # Match only an adjacent L32R aN; CALLX8 aN pair. A target-native
+            # disassembly is retained alongside the proof as a human audit.
+            for offset in range(len(data) - 5):
+                op = data[offset]
+                reg = op >> 4
+                if op & 15 != 1 or data[offset + 3:offset + 6] != bytes((0xe0, reg, 0)):
+                    continue
+                immediate = int.from_bytes(data[offset + 1:offset + 3], 'little', signed=True)
+                literal = ((address + offset + 3) & ~3) + immediate * 4
+                target = int.from_bytes(bytes_at(literal, 4), 'little')
+                calls.append({'instruction': address + offset, 'literal': literal, 'target': target})
+            return calls
+
+        edges = [('main_task', '__wrap_app_main'), ('__wrap_app_main', 'app_main'),
+                 ('app_main', 'initArduino')]
+        for caller, callee in edges:
+            target = symbols.get(callee)
+            require(target is not None, 'Missing startup callee: ' + callee)
+            matches = [edge for edge in literal_calls(caller) if edge['target'] == target['st_value']]
+            require(len(matches) == 1, 'Unproven X4 startup call: ' + caller + ' -> ' + callee)
+            linked[caller + ' -> ' + callee] = matches[0]
+        require(not any(edge['target'] == symbols['app_main']['st_value'] for edge in literal_calls('main_task')),
+                'IDF main_task bypasses X4 startup wrapper')
+        rtc = symbols['risc_x4_boot_record']
+        section = elf.get_section(rtc['st_shndx'])
+        require(section.name == '.rtc_noinit' and rtc['st_size'] == 60,
+                'X4 reset breadcrumb is not in the retained RTC no-init section')
     return {'schema': 'x4.native-startup-proof', 'schema_version': 1,
             'composition_sha256': record['composition_sha256'], 'elf_sha256': sha(elf_data),
             'required_strong_symbols': list(names), 'pin': 1, 'initial_level': 1,
             'hold': True, 'startup_status': 'risc_native_startup_error',
+            'entry_hook': '__wrap_app_main', 'target_call_edges': linked,
+            'earliest_scope': 'IDF app_main; after IDF hardware/PSRAM/core initialization',
+            'rtc_record_bytes': 60,
             'hardware_qualified': False}
 
 
