@@ -12,6 +12,7 @@ def expected_sdk(name):
     if name not in DIAGNOSTIC_APPS:return RUNTIME, dict(SDK)
     headers=dict(PERFORMANCE['headers'])
     if name=='default':headers.update(PERFORMANCE['clock_overrides'])
+    if name in ('default','springboard'):headers.update(PERFORMANCE['crossfade_headers'])
     return PERFORMANCE['runtime_source'],headers
 
 SDK = {

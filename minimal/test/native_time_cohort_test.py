@@ -32,6 +32,19 @@ class NativeCohort(unittest.TestCase):
   for name in n.SDK:
    r=copy.deepcopy(self.receipt);r['sdk_sha256'][name]='c'*64
    with self.subTest(name=name),self.assertRaises(ValueError):self.check(receipt=r)
+ def test_selected_crossfade_header_is_exact(self):
+  runtime,headers=n.expected_sdk('springboard')
+  self.assertIn('RiscDisplayOutputSnapshotV1.h',headers)
+  self.assertNotIn('RiscDisplayOutputSnapshotV1.h',n.expected_sdk('settings')[1])
+  m={**self.manifest,'file_name':'springboard.elf','version':n.VERSIONS['springboard']}
+  r={**self.receipt,'app':'springboard','version':m['version'],
+     'runtime_source_revision':runtime,'sdk_sha256':headers}
+  n.validate_app('springboard',m,self.blob,r,self.source)
+  for replacement in (None,'0'*64):
+   changed=copy.deepcopy(r)
+   if replacement is None:changed['sdk_sha256'].pop('RiscDisplayOutputSnapshotV1.h')
+   else:changed['sdk_sha256']['RiscDisplayOutputSnapshotV1.h']=replacement
+   with self.assertRaises(ValueError):n.validate_app('springboard',m,self.blob,changed,self.source)
  def test_no_abi_authority_mix(self):
   for req in [self.manifest['requires']+[{'capability':'rtc.clock','api':2}],
    self.manifest['requires']+[{'capability':'runtime.realtime-control','api':1}],

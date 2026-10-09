@@ -42,5 +42,8 @@
   },
   "clock_overrides": {
     "RiscStorageVolumeV1.h": "d477167a06004640b2c07c05d662c103be6e1b9e4a4d866f6fce13e754ef02f5"
+  },
+  "crossfade_headers": {
+    "RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6"
   }
 }
