@@ -450,6 +450,9 @@ static void test_settle(const char *scenario) {
  if(fail_spi_end)assert(spi_held&&model_bus_held&&spi_token==model_bus_token);
  else assert(!spi_held&&!model_bus_held);
 }
+#ifdef TEST_X4_IDLE_POLICY
+#include "idle_panel_policy.inc"
+#endif
 int main(int argc,char**argv){
  assert(argc==2);const char*s=argv[1];if(!strcmp(s,"lut69"))lut_id=0x69;
  if(!strcmp(s,"busy-boundary")){command_cost=1;scheduler_gap=50;}
@@ -486,6 +489,9 @@ int main(int argc,char**argv){
  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);
  if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
  if(!strcmp(s,"quality-seeded-cold")){test_quality_seeded_cold();goto done;}baseline();
+#ifdef TEST_X4_IDLE_POLICY
+ if(!strncmp(s,"policy-",7)){idle_policy_panel(s);goto done;}
+#endif
  if(!strncmp(s,"quality-",8)){test_quality(s);goto done;}
  if(!strncmp(s,"settle-",7)){test_settle(s);goto done;}
  if(!strncmp(s,"idle-",5)){test_maintenance(s);goto done;}

@@ -13,7 +13,8 @@ APPS=('default','springboard','file_browser','ble_scanner','points_in_time','set
 CAPS={'software.update.firmware':0,'software.update.apps':0,'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
 KV_NAMESPACES={'ota_update':(6,1),'app_store':(6,1),'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
 APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
-def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False):
+def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False, idle_policy=False):
+    if idle_policy and (not sleep or name not in APPS):raise ValueError("Idle policy requires an explicit selected app and sleep graph")
     if desk_clock and not sleep:raise ValueError('Desk clock requires the explicit sleep graph')
     if sparse_clock and not desk_clock:raise ValueError('Sparse clock requires the explicit desk-clock profile')
     grants=[]
@@ -28,8 +29,8 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
             raise ValueError('Provider promotion restricted to explicit sparse default Clock')
         if cap=='runtime.realtime-control' and (name not in ('default','settings') or not sparse_clock or type(req['api']) is not int or req['api']!=1):
             raise ValueError('Native time control restricted to explicit sparse Clock/Settings')
-        if cap=='x4.power' and (name!='default' or not sleep):
-            raise ValueError('Power authority restricted to explicit sleep Clock')
+        if cap=='x4.power' and (not sleep or (name!='default' and not idle_policy) or type(req['api']) is not int or req['api']!=1):
+            raise ValueError('Power authority requires explicit Clock sleep or app idle policy')
         if cap=='runtime.retained-wake' and (name!='default' or not desk_clock or req['api']!=1):
             raise ValueError('Retained-wake authority restricted to explicit desk Clock')
         if cap=='storage.app-data' and name not in APPDATA_NAMESPACES:
@@ -38,6 +39,11 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
         for instance in instances:
             grant={'capability':cap,'api':req['api'],'instance_id':instance}
             if grant not in grants:grants.append(grant)
+    if idle_policy:
+        required={('x4.power',1),('display.output',1),('input.touch.raw',1),('storage.volume',1),
+                  ('net.wifi',1),('bluetooth.hci',1),('alarm.service',2),('storage.key-value',1)}
+        if not required.issubset({(r['capability'],r['api']) for r in requirements}):
+            raise ValueError('Idle policy requires complete typed Light, alarm and preference authority')
     if sleep and name=='default' and not any(g['capability']=='x4.power' for g in grants):
         raise ValueError('Sleep graph requires explicit Clock power grant')
     if len({(r['capability'],r['api']) for r in requirements})>(16 if sparse_clock else 12) or len(grants)>16:
