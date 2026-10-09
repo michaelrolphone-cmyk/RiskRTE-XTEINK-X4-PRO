@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "5ab1f4e9e3f17efb1153966868b52660bde53be0",
-    "version": "0.1.90"
+    "commit": "148ad226b55db00e1dc451f21f11696f2b77f0a5",
+    "version": "0.1.93"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Local consolidated resident-shell candidate from accepted X4 0.1.43. Runtime 0.1.90 preserves the qualified shell/file/retained-payload changes and adds validated GPIO-read hints. USB 0.1.87 remains excluded while its target action is stopped. No device qualification or delivery claimed."
+  "status": "Held native failure-evidence candidate over frozen X4 0.1.44. Only Home 0.3.19 and the native Runtime are replaced. Runtime 0.1.94 host/resource work and stopped USB 0.1.87 are excluded. No publication or hardware qualification."
 }

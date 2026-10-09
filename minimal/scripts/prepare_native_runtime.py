@@ -77,7 +77,7 @@ def snapshot(root, revision):
 def validate_build_options(options):
     required = {'app_policy_rows', 'app_image_cache'}
     require(isinstance(options, dict) and required <= set(options) and
-            set(options) <= required | {'usb_phy', 'retained_wake_bytes'},
+            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'},
             'Invalid native build options')
     require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
             'App policy rows must be 16 or 17')
@@ -87,12 +87,14 @@ def validate_build_options(options):
     require('retained_wake_bytes' not in options or
             (type(options['retained_wake_bytes']) is int and options['retained_wake_bytes'] == 512),
             'Extended retained wake must be an explicit 512-byte opt-in')
+    require('failure_evidence' not in options or options['failure_evidence'] is True,
+            'Failure evidence must be an explicit true opt-in')
     return options
 
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
             app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False,
-            retained_wake_bytes=None):
+            retained_wake_bytes=None, failure_evidence=False):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
     require(type(usb_phy) is bool, 'USB PHY selection must be boolean')
@@ -101,6 +103,9 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
         options['usb_phy'] = True
     if retained_wake_bytes is not None:
         options['retained_wake_bytes'] = retained_wake_bytes
+    require(type(failure_evidence) is bool, 'Failure evidence selection must be boolean')
+    if failure_evidence:
+        options['failure_evidence'] = True
     validate_build_options(options)
     require(type(boot_flash_dio) is bool, 'DIO selection must be boolean')
     flash_selection = {'boot_flash_experiment': flash_profile.DIO} if boot_flash_dio else {}
@@ -454,6 +459,12 @@ def runtime_options_proof(blobs, record):
             'app_image_cache': cache, 'hardware_qualified': False}
     if usb is not None:
         result['usb_phy'] = usb
+    if options.get('failure_evidence'):
+        evidence = symbols.get('risc_native_failure_evidence_abi')
+        require(evidence is not None and evidence['st_info']['bind'] == 'STB_GLOBAL' and
+                elf_symbol_bytes(elf, evidence) == (1).to_bytes(4, 'little'),
+                'Missing strong failure-evidence ABI marker')
+        result['failure_evidence'] = {'enabled': True, 'abi': 1, 'marker': evidence.name}
     retained = retained_wake_proof(elf, symbols, options)
     if retained is not None:
         result['retained_wake'] = retained
@@ -535,6 +546,27 @@ def load_shared(runtime, name):
     return module
 
 
+def failure_evidence_proof(blobs, record, runtime):
+    """Rerun the pinned Runtime audit over exact staged ELF, BIN and stack report."""
+    if not record['build_options'].get('failure_evidence'):
+        return None
+    require('NativeFailureEvidence.cpp.su' in blobs, 'Missing native recorder stack-usage evidence')
+    with tempfile.TemporaryDirectory(prefix='x4-failure-proof-') as folder:
+        root = Path(folder)
+        for name in ('firmware.elf', 'firmware.bin'):
+            (root / name).write_bytes(blobs[name])
+        stack = root / 'src/ports/esp32s3/NativeFailureEvidence.cpp.su'
+        stack.parent.mkdir(parents=True)
+        stack.write_bytes(blobs['NativeFailureEvidence.cpp.su'])
+        subprocess.check_call([sys.executable, str(Path(runtime) / 'scripts/audit_failure_evidence.py'),
+            '--enabled', '1', '--elf', str(root / 'firmware.elf'), '--objdump', xtensa_objdump(),
+            '--output', str(root / 'audit.json')], stdout=subprocess.DEVNULL)
+        result = json.loads((root / 'audit.json').read_text())
+    result['elf'] = 'firmware.elf'
+    result['stack_usage_sha256'] = sha(blobs['NativeFailureEvidence.cpp.su'])
+    return result
+
+
 def stage(runtime, workspace, output, appdata):
     runtime, workspace, output = (Path(p).resolve() for p in (runtime, workspace, output))
     record = verify_composition(workspace)
@@ -589,6 +621,11 @@ def stage(runtime, workspace, output, appdata):
         proof['stage_logs']={'enabled':True,'automatic':True,'recorder':False,'symbol':sink.name}
     x4_proof = startup_proof(blobs['firmware.elf'], record)
     options_proof = runtime_options_proof(blobs, record)
+    if record['build_options'].get('failure_evidence'):
+        blobs['NativeFailureEvidence.cpp.su'] = (build / 'src/ports/esp32s3/NativeFailureEvidence.cpp.su').read_bytes()
+    failure_proof = failure_evidence_proof(blobs, record, runtime)
+    if failure_proof is not None:
+        blobs['x4-failure-evidence-proof.json'] = encoded(failure_proof)
     blobs['radio-iq-proof.json'] = encoded(proof['radio_iq'])
     blobs['x4-native-proof.json'] = encoded(x4_proof)
     blobs['x4-native-composition.json'] = encoded(record)
@@ -614,6 +651,8 @@ def stage(runtime, workspace, output, appdata):
                  'scope': 'X4 platform-owned early boot linked over immutable Runtime source. Empty app-data is only for explicit new installation. No device action or hardware qualification.'}
     if flash_proof is not None:
         candidate['x4_native_composition']['boot_flash_proof'] = flash_proof
+    if failure_proof is not None:
+        candidate['x4_native_composition']['failure_evidence_proof'] = failure_proof
     blobs['candidate.json'] = encoded(candidate)
     blobs['SHA256SUMS'] = ''.join(f'{sha(data)}  {name}\n' for name, data in sorted(blobs.items())).encode()
     output.mkdir(parents=True)
@@ -644,6 +683,8 @@ def main():
                          help='Explicitly enable the native USB PHY ownership lease for the SD export provider')
     prepare.add_argument('--retained-wake-bytes', type=int, choices=(512,),
                          help='Explicitly enable the bounded extended retained payload; default remains 128 bytes')
+    prepare.add_argument('--failure-evidence', action='store_true',
+                         help='Opt in to the pinned native panic recorder and linked closure audit')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)

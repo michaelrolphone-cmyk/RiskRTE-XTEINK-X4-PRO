@@ -129,6 +129,12 @@ def validate_native_composition(folder,candidate,runtime,platform_root=ROOT,nati
         require('x4-boot-flash-proof.json' in blobs and json.loads(blobs['x4-boot-flash-proof.json'])==flash,
                 'Staged DIO boot flash proof mismatch')
         expected['boot_flash_proof']=flash
+    failure=native_composition.failure_evidence_proof(blobs,record,runtime)
+    if failure is not None:
+        require('x4-failure-evidence-proof.json' in blobs and
+                json.loads(blobs['x4-failure-evidence-proof.json'])==failure,
+                'Staged failure evidence proof mismatch')
+        expected['failure_evidence_proof']=failure
     require(composition==expected,'Native candidate composition summary mismatch')
     return expected
 
