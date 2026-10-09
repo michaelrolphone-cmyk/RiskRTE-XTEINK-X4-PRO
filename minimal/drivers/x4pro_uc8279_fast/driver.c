@@ -387,8 +387,16 @@ static void poll_settle_locked(uint32_t budget_ms) {
             if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
             settle_phase_deadline = settle_refresh_ms + 3500u; settle_stage = SETTLE_DONE;
         } else if (settle_stage == SETTLE_DONE) {
-            if (now >= settle_phase_deadline) { set_reason("settle busy completion timeout"); goto failed; }
-            if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            /* BUSY assertion was observed before entering DONE. A foreground
+             * operation can defer owner polling beyond the timeout although
+             * that pulse has already completed. Test the actual level first;
+             * only a still-active pulse is a completion timeout. */
+            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!complete) {
+                if (now >= settle_phase_deadline) { set_reason("settle busy completion timeout"); goto failed; }
+                break;
+            }
             ++settle_completed; settle_stage = SETTLE_CLOSE;
         } else if (settle_stage == SETTLE_CLOSE) {
             command(0x92);
@@ -1183,7 +1191,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.6 cause=");
+    append(destination, capacity, &used, "v=0.1.7 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
