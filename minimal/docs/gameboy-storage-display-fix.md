@@ -21,3 +21,13 @@ Eight production fast-display regressions exercise 45-second upload/power/refres
 Nine new real-ELF/FatFs storage scenarios exercise ROM and state-sized file roundtrips, absent media, failed initialization/teardown, read/write failures, sleep/wake and USB export/return. Exact reads of 524288-byte and 1048576-byte ROM fixtures and a 59320-byte state fixture make zero per-bit GPIO calls. Existing GPIO-transport, filesystem, sleep, export and boot-log tests remain active. These are hardware-boundary models, not measured SD-card speed or emulator snapshot deserialization.
 
 The original capture does not identify the first triggering crash guard. The repaired display defects are reproduced software failures consistent with storage-induced delays; a physical run must still confirm the actual save-state crash is gone. No panel waveform, voltage, BUSY polarity, display geometry, ROM contents or save contents is changed.
+
+
+## UC8279 0.1.9 plane-coherent idle follow-up
+
+The 0.1.8 delayed-poll repair is retained. The next Game Boy test package removes
+the no-upload 30-second maintenance refresh, uses differential DEFAULT frames,
+bounds LOW_LATENCY absolute bursts, synchronizes both complete controller planes
+before powered idle, powers the panel off after the 2.3-second quiet period, and
+replays the selected profile after PON. Game Boy, save formats, Runtime and the
+SD provider are otherwise unchanged.

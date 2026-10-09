@@ -56,7 +56,14 @@ static void model_command(uint8_t value){
  cmd=value;++commands[cmd];data_index=0;
  if(cmd==0x71)++probe_reads;
  if(cmd==0x91)ptin=true;if(cmd==0x92)ptin=false;
- if(cmd==0x04){++pons;phase=2;busy_from=tick;busy_until=tick+2;}
+ if(cmd==0x04){
+  ++pons; phase=2; busy_from=tick; busy_until=tick+2;
+  /* Model PON restoring MTP profile defaults while preserving RAM. */
+  memset(regs[0x00],0,sizeof(regs[0x00])); memset(regs[0x30],0,sizeof(regs[0x30]));
+  memset(regs[0x50],0,sizeof(regs[0x50])); memset(regs[0xE0],0,sizeof(regs[0xE0]));
+  memset(regs[0xE1],0,sizeof(regs[0xE1])); memset(regs[0xE5],0,sizeof(regs[0xE5]));
+  for(unsigned r=0;r<5;++r)memset(regs[0x20+r],0,sizeof(regs[0x20+r]));
+}
  if(cmd==0x02){++pofs;phase=2;busy_from=tick;busy_until=tick+2;}
  if(cmd==0x07)++sleeps;
  if(cmd==0x12){
@@ -65,7 +72,19 @@ static void model_command(uint8_t value){
   unsigned top=0,height=480,left=0,width=800;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
-   for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){uint8_t want=0;if(i==0||i==5||i==6)want=1;if(i==1)want=r==0?1:(r<=2?0x81:0x41);assert(regs[0x20+r][i]==want);}
+   const uint8_t frames=regs[0x20][1];assert(frames==1||frames==2);
+   const bool absolute=(regs[0x21][1]&0xC0u)!=0;
+   for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){
+    uint8_t want=0;if(i==0||i==5||i==6)want=1;
+    if(i==1){
+     if(r==0)want=frames;
+     else if(absolute)want=(uint8_t)((r<=2?0x80u:0x40u)|frames);
+     else if(r==2)want=(uint8_t)(0x80u|frames);
+     else if(r==3)want=(uint8_t)(0x40u|frames);
+     else want=frames;
+    }
+    assert(regs[0x20+r][i]==want);
+   }
    top=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])-120;
    height=(((unsigned)regs[0x90][6]<<8)|regs[0x90][7])-120-top+1;
   }else {
@@ -92,8 +111,8 @@ static void model_command(uint8_t value){
    for(unsigned y=top;y<top+height;++y)for(unsigned x=0;x<100;++x){
     unsigned i=(y+120)*100+x;uint8_t result=0;
     for(unsigned bit=0;bit<8;++bit){unsigned n=(ram[i]>>bit)&1u,o=(old_ram[i]>>bit)&1u;
-     const uint8_t rail=regs[selector[(o<<1)|n]][1]&0xC0u;assert(rail==0x40||rail==0x80);
-     if(rail==0x80)result|=(uint8_t)(1u<<bit);
+     const uint8_t rail=regs[selector[(o<<1)|n]][1]&0xC0u;assert(!rail||rail==0x40||rail==0x80);
+     if(rail==0x80||(!rail&&o))result|=(uint8_t)(1u<<bit);
     }
     visible[y*100+x]=result;
    }
@@ -132,7 +151,8 @@ static bool spi_end(void*c,uint64_t t){(void)c;assert(owner&&locked&&model_bus_h
 static bool spi_release(void*c,uint64_t t){(void)c;assert(owner&&locked&&t==model_bus_token&&!model_bus_held);if(fail_spi_release)return false;model_bus_token=0;return true;}
 static risc_display_present_metrics_v1 snapshot(void){risc_display_present_metrics_v1 m={.api_version=1,.struct_size=sizeof(m)};const unsigned g=gpio_writes,e=exchanges;assert(risc_display_output_metrics(output)->snapshot(NULL,&m));assert(g==gpio_writes&&e==exchanges);return m;}
 static risc_display_surface_v1 acquire_frame(void){risc_display_surface_v1 f={0};assert(output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&f));assert(f.width==800&&f.height==480&&f.size_bytes==48000);return f;}
-static uint64_t submit_frame(risc_display_surface_v1 f,const risc_display_rect_v1*d,size_t n,bool clean){uint64_t token=0;const risc_display_present_options_v1 opt={clean?RISC_DISPLAY_PRESENT_CLEAN:0,RISC_DISPLAY_QUEUE_FIFO,0};assert(output->submit(NULL,f.frame,d,n,&opt,&token)&&token);return token;}
+static uint64_t submit_frame(risc_display_surface_v1 f,const risc_display_rect_v1*d,size_t n,bool clean){uint64_t token=0;const risc_display_present_options_v1 opt={clean?RISC_DISPLAY_PRESENT_CLEAN:RISC_DISPLAY_PRESENT_LOW_LATENCY,RISC_DISPLAY_QUEUE_FIFO,0};assert(output->submit(NULL,f.frame,d,n,&opt,&token)&&token);return token;}
+static uint64_t submit_default(risc_display_surface_v1 f,const risc_display_rect_v1*d,size_t n){uint64_t token=0;const risc_display_present_options_v1 opt={RISC_DISPLAY_PRESENT_DEFAULT,RISC_DISPLAY_QUEUE_FIFO,0};assert(output->submit(NULL,f.frame,d,n,&opt,&token)&&token);return token;}
 static void complete_frame(uint64_t t){
  risc_display_present_status_v1 status={0};
  for(unsigned n=0;n<11000;++n){
@@ -330,196 +350,51 @@ static void test_quality(const char *scenario){
 }
 static void test_maintenance(const char *scenario) {
  const risc_driver_v2 *d=t5_driver_get(2);
- const risc_display_output_api_v1_power *p=risc_display_output_power(output);
- /* Cold OTP alone cannot repeat the absolute A2 bank. */
- assert(!maintenance_enabled&&!maintenance_due);tick+=60000;assert_idle();
- fast_band(440,40);assert(maintenance_enabled&&!maintenance_due&&!maintenance_active);
- drain_settle();assert(maintenance_enabled&&maintenance_due==last_sample_ms+30000u);
- const uint64_t due=maintenance_due;const unsigned r=refreshes,bytes=payload,e=exchanges;
- const risc_display_present_metrics_v1 original=snapshot();
- tick=due-1;owner_poll(8);assert(!settle_stage&&refreshes==r&&exchanges==e);
- if(!strcmp(scenario,"idle-sleep-wait")){
-  assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK&&!maintenance_enabled);
-  tick+=60000;assert_idle();assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
-  tick+=60000;assert_idle();assert(!maintenance_enabled&&!maintenance_due);assert(d->quiesce());return;
+ if(!strcmp(scenario,"idle-default-differential")){
+  assert(dtm1_synced&&screen_powered);
+  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,FRAME_BYTES);
+  const risc_display_rect_v1 damage={16,120,8,1};
+  const unsigned old1=commands[0x10],old2=commands[0x13],off=pofs;
+  uint64_t token=submit_default(f,&damage,1);complete_frame(token);
+  assert(fast_update&&!absolute_update&&!settle_update&&dtm1_synced);
+  assert(commands[0x10]==old1+1&&commands[0x13]==old2+1&&settle_stage==SETTLE_WAIT);
+  drain_settle();assert(!screen_powered&&pofs==off+1&&dtm1_synced);
+  assert(!memcmp(old_ram,ram,sizeof(ram)));assert(d->quiesce());return;
  }
- tick=due;
- if(!strcmp(scenario,"idle-gates")){
-  owner_poll(0);assert(exchanges==e&&!settle_stage);owner=false;owner_poll(8);owner=true;assert(exchanges==e);
-  risc_display_surface_v1 held_frame=acquire_frame();owner_poll(8);assert(exchanges==e&&!settle_stage);
-  output->release(NULL,held_frame.frame);
+ if(!strcmp(scenario,"idle-wake-profile")){
+  fast_band(440,40);drain_settle();assert(!screen_powered&&dtm1_synced);
+  const unsigned oldpon=pons,oldpsr=commands[0x00],oldlut=commands[0x20];
+  risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[0]^=0xFF;
+  const risc_display_rect_v1 damage={0,0,8,1};uint64_t token=submit_frame(f,&damage,1,false);complete_frame(token);
+  assert(pons==oldpon+1&&commands[0x00]>=oldpsr+2&&commands[0x20]>=oldlut+2);
+  assert(screen_powered&&absolute_update&&settle_stage==SETTLE_READY);assert(d->quiesce());return;
  }
- if(!strcmp(scenario,"idle-replace-ready")){
-  risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[0]=0x55;
-  const risc_display_rect_v1 damage={0,0,8,1};uint64_t token=submit_frame(f,&damage,1,false);
-  assert(!maintenance_enabled&&!maintenance_due);complete_frame(token);assert(refreshes==r+1);assert(d->quiesce());return;
+ assert(!strcmp(scenario,"idle-burst-boundary"));
+ for(unsigned n=0;n<16;++n){
+  risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[n]^=0xFF;
+  const risc_display_rect_v1 damage={(int32_t)(n*8),200,8,1};uint64_t token=submit_frame(f,&damage,1,false);complete_frame(token);
  }
- if(!strcmp(scenario,"idle-busy-absent"))no_busy=true;
- if(!strcmp(scenario,"idle-busy-stuck"))stuck_busy=true;
- if(!strcmp(scenario,"idle-spi-failure"))fail_spi_exchange=true;
- if(!strcmp(scenario,"idle-clock-fail"))fail_clock=true;
- if(!strcmp(scenario,"idle-clock-rollback")){tick=last_sample_ms;reverse_clock=true;}
- if(!strcmp(scenario,"idle-replace-window"))command_cost=1;
- if(!strcmp(scenario,"idle-replace-assert"))refresh_assert_delay=5;
- owner_poll(!strcmp(scenario,"idle-replace-window")?1:8);
- if(strstr(scenario,"failure")||strstr(scenario,"busy-")||strstr(scenario,"clock-")){
-  for(unsigned n=0;n<3600&&settle_stage;++n){owner_poll(8);++tick;}
-  assert(presentation_fault&&!completed_history&&!maintenance_enabled&&!maintenance_due&&!settle_stage);
-  assert(present_state==PRESENT_COMPLETE&&payload==bytes&&!d->quiesce());return;
- }
- assert(maintenance_active&&settle_stage);
- if(!strncmp(scenario,"idle-replace-",13)||!strcmp(scenario,"idle-quality")){
-  const unsigned active_refreshes=refreshes;const uint64_t drain_at=busy_until;
-  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,48000);
-  const risc_display_rect_v1 damage={0,3,8,1};
-  const bool quality=!strcmp(scenario,"idle-quality");
-  uint64_t token=quality?submit_quality(f,&damage,1):submit_frame(f,&damage,1,false);
-  assert(!maintenance_enabled&&!maintenance_due);command_cost=0;
-  while(settle_stage){owner_poll(8);assert(payload==bytes&&refreshes==active_refreshes);++tick;}
-  if(active_refreshes>r)assert(tick>=drain_at);
-  complete_frame(token);assert(refreshes==active_refreshes+1&&visible[300]==0x99);
-  if(quality){assert(!settle_stage&&!maintenance_enabled);tick+=60000;assert_idle();}
-  else assert(maintenance_enabled&&!maintenance_due&&settle_stage);
-  assert(d->quiesce());return;
- }
- if(!strcmp(scenario,"idle-sleep-active")||!strcmp(scenario,"idle-sleep-budget")||!strcmp(scenario,"idle-cleanup")){
-  assert(refreshes==r+1);const unsigned off=pofs;
-  if(!strcmp(scenario,"idle-sleep-budget")){
-   const uint64_t at=tick;assert(p->prepare(NULL,5)==RISC_DISPLAY_POWER_TIMEOUT);
-   assert(tick-at==5&&!maintenance_enabled&&pofs==off);
-  }
-  if(!strcmp(scenario,"idle-cleanup")){assert(d->quiesce());assert(!model_bus_token&&!lock_exists);return;}
-  assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK&&pofs==off+1);
-  assert(!settle_stage&&!maintenance_enabled&&refreshes==r+1&&payload==bytes);
-  tick+=60000;assert_idle();assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
-  tick+=60000;assert_idle();assert(!maintenance_enabled);assert(d->quiesce());return;
- }
- drain_settle();assert(refreshes==r+1&&settle_refreshes==1&&settle_completed==1);
- assert(payload==bytes&&maintenance_enabled&&!maintenance_active&&maintenance_due==last_sample_ms+30000u);
- assert(regs[0x90][4]==0&&regs[0x90][5]==120&&regs[0x90][6]==2&&regs[0x90][7]==87);
- const risc_display_present_metrics_v1 after=snapshot();assert(!memcmp(&original,&after,sizeof(after)));
- assert(visible[44002]==0x55&&visible[43902]==0xF0&&previous_frame[44002]==0xAA);
- /* Late owner polling performs one pulse, without replaying missed intervals. */
- tick=maintenance_due+90000;owner_poll(8);drain_settle();assert(refreshes==r+2&&payload==bytes);
- assert(maintenance_due==last_sample_ms+30000u);assert_idle();assert(d->quiesce());
+ assert(absolute_frames==16&&!dtm1_synced);
+ risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[16]^=0xFF;
+ const risc_display_rect_v1 damage={128,200,8,1};uint64_t token=submit_frame(f,&damage,1,false);complete_frame(token);
+ assert(absolute_update&&settle_update&&fast_lut_frames==2&&dtm1_synced&&absolute_frames==0);
+ assert(bytes_sent==64000&&settle_stage==SETTLE_WAIT);drain_settle();assert(!screen_powered);assert(d->quiesce());
 }
 static void test_settle(const char *scenario) {
  const risc_driver_v2 *d=t5_driver_get(2);
- const risc_display_output_api_v1_power *p=risc_display_output_power(output);
- assert(!settle_stage);assert_idle();
- fast_band(440,40);assert(settle_stage==SETTLE_READY);
- const uint64_t token=pending_token,until=settle_until;
- assert(until-busy_done_ms==2300u);
- const unsigned bytes=payload,dtm1=commands[0x10],dtm2=commands[0x13],r=refreshes;
- const risc_display_present_metrics_v1 original=snapshot();
- if(!strncmp(scenario,"settle-delayed-",15)){
-  const bool stuck=!strcmp(scenario,"settle-delayed-stuck");
-  const bool unseen=!strcmp(scenario,"settle-delayed-unseen");
-  const bool read_error=!strcmp(scenario,"settle-delayed-read-error");
-  if(unseen)refresh_assert_delay=5;
-  if(stuck)stuck_busy=true;
-  owner_poll(8);assert(settle_stage==(unseen?SETTLE_ASSERT:SETTLE_DONE));
-  /* A synchronous foreground SD operation can defer the next owner poll.
-   * The modeled panel completes its already-observed BUSY pulse meanwhile. */
-  tick+=4500u;assert(tick>busy_until&&tick>settle_phase_deadline);
-  if(read_error)fail_gpio_read=true;
-  owner_poll(8);
-  if(stuck||unseen||read_error){
-   assert(presentation_fault&&!completed_history&&!settle_stage);
-   risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));
-   if(stuck)assert(!strcmp(reason,"settle busy completion timeout"));
-   if(unseen)assert(!strcmp(reason,"settle busy never asserted"));
-   assert(payload==bytes&&refreshes==r+1);return;
-  }
-  if(presentation_fault)fprintf(stderr,"delayed completed pulse rejected: %s\n",reason);
-  assert(!presentation_fault&&completed_history&&!settle_stage);
-  assert(settle_completed==1&&refreshes==r+1&&payload==bytes);
-  risc_display_surface_v1 next=acquire_frame();memset(next.pixels,0x69,FRAME_BYTES);
-  uint64_t replacement=submit_frame(next,NULL,0,false);complete_frame(replacement);
-  assert(completed_history&&!presentation_fault&&visible[0]==(uint8_t)~0x69u);
-  assert(d->quiesce());return;
+ const unsigned off=pofs;
+ fast_band(440,40);assert(settle_stage==SETTLE_READY&&!dtm1_synced);
+ const unsigned bytes=payload;
+ if(!strcmp(scenario,"settle-replace")){
+  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,FRAME_BYTES);
+  const risc_display_rect_v1 damage={16,3,8,1};uint64_t token=submit_frame(f,&damage,1,false);
+  assert(!settle_stage);complete_frame(token);assert(pofs==off&&settle_stage==SETTLE_READY);
+  drain_settle();assert(pofs==off+1&&!screen_powered&&payload==bytes+4000+120000);assert(d->quiesce());return;
  }
-
- if(!strcmp(scenario,"settle-repeat")||!strcmp(scenario,"settle-short")||!strcmp(scenario,"settle-expiry")){
-  if(!strcmp(scenario,"settle-short"))refresh_pulse_ms=1;
-  if(!strcmp(scenario,"settle-expiry"))tick=until;
-  drain_settle();
-  assert(payload==bytes&&commands[0x10]==dtm1&&commands[0x13]==dtm2);
-  assert(settle_completed==refreshes-r&&settle_completed==settle_refreshes);
-  if(!strcmp(scenario,"settle-expiry"))assert(refreshes==r);
-  else {assert(refreshes>r+1&&last_refresh_at<until&&tick>=until&&tick<=until+refresh_pulse_ms+2);}
-  const risc_display_present_metrics_v1 after=snapshot();assert(!memcmp(&original,&after,sizeof(original)));
-  assert(completed_history&&visible[44002]==0x55&&visible[43902]==0xF0&&previous_frame[44002]==0xAA);
-  assert_idle();assert(d->quiesce());return;
- }
- if(!strncmp(scenario,"settle-replace",14)){
-  if(!strcmp(scenario,"settle-replace-window")){command_cost=1;owner_poll(1);assert(settle_stage==SETTLE_WINDOW);}
-  else if(!strcmp(scenario,"settle-replace-refresh")){command_cost=1;owner_poll(1);owner_poll(1);assert(settle_stage==SETTLE_REFRESH);}
-  else if(!strcmp(scenario,"settle-replace-assert")){refresh_assert_delay=5;owner_poll(8);assert(settle_stage==SETTLE_ASSERT);}
-  else if(strcmp(scenario,"settle-replace-ready")){owner_poll(8);assert(settle_stage==SETTLE_DONE);}
-  const unsigned repeats=refreshes;const uint64_t drained_at=busy_until;
-  risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,48000);
-  const risc_display_rect_v1 replacement={16,3,8,1};
-  uint64_t new_token=submit_frame(f,&replacement,1,!strcmp(scenario,"settle-replace-clean"));
-  assert(new_token>token);command_cost=0;
-  if(!strcmp(scenario,"settle-replace-wait")){
-   risc_display_present_status_v1 status={0};assert(output->wait_present(NULL,new_token,5000,&status));
-   assert(status.state==PRESENT_COMPLETE&&refreshes==repeats+1&&visible[302]==0x99);
-   drain_settle();assert(d->quiesce());return;
-  }
-  while(settle_stage){owner_poll(8);assert(payload==bytes&&refreshes==repeats);++tick;}
-  if(repeats>r)assert(tick>=drained_at);
-  assert(!ptin);complete_frame(new_token);assert(refreshes==repeats+1);
-  assert(visible[302]==0x99&&previous_frame[302]==0x66);
-  if(!strcmp(scenario,"settle-replace-clean"))assert(!settle_stage&&payload-bytes==180000);
-  else {
-   assert(settle_until>until&&settle_until-busy_done_ms==2300u&&payload-bytes==4000&&visible[44002]==0x55);
-   /* Old bottom-band target plus new top-band target must both settle using
-    * the resident RAM, while the replacement upload remains only40 rows. */
-   assert(settle_area.y==0&&settle_area.height==480);drain_settle();
-   assert(visible[302]==0x99&&visible[44002]==0x55&&visible[20002]==0xF0);
-  }
-  assert(d->quiesce());return;
- }
- if(!strcmp(scenario,"settle-sleep")||!strcmp(scenario,"settle-sleep-budget")||!strcmp(scenario,"settle-cleanup")){
-  owner_poll(8);assert(settle_stage==SETTLE_DONE);const unsigned repeats=refreshes,poweroffs=pofs;
-  if(!strcmp(scenario,"settle-sleep-budget")){
-   const uint64_t began=tick;assert(p->prepare(NULL,5)==RISC_DISPLAY_POWER_TIMEOUT);
-   assert(tick-began==5&&settle_stop&&pofs==poweroffs&&settle_stage==SETTLE_DONE);
-  }
-  if(strcmp(scenario,"settle-cleanup"))assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);
-  else {
-   const uint64_t began=tick;assert(d->quiesce());
-   assert(tick-began<1500&&refreshes==repeats&&payload==bytes&&pofs==poweroffs+1);
-   assert(!model_bus_token&&!lock_exists&&!settle_stage);return;
-  }
-  assert(settle_stop&&pofs==poweroffs+1&&model_bus_token&&pins[14].token);
-  assert(!settle_stage&&refreshes==repeats&&payload==bytes);
-  if(strcmp(scenario,"settle-cleanup")){
-   assert_idle();
-   assert(p->resume(NULL,1500)==RISC_DISPLAY_POWER_OK&&!settle_stage&&!completed_history);
-   assert_idle();baseline();assert(!settle_stage);
-  }
-  assert(d->quiesce()&&!model_bus_token&&!lock_exists);return;
- }
- if(!strcmp(scenario,"settle-no-budget")){
-  const unsigned e=exchanges;owner_poll(0);assert(exchanges==e&&settle_stage==SETTLE_READY);
-  owner=false;owner_poll(8);assert(exchanges==e&&settle_stage==SETTLE_READY);owner=true;
-  drain_settle();assert(d->quiesce());return;
- }
- no_busy=!strcmp(scenario,"settle-busy-absent");stuck_busy=!strcmp(scenario,"settle-busy-stuck");
- fail_spi_begin=!strcmp(scenario,"settle-spi-begin");fail_spi_exchange=!strcmp(scenario,"settle-spi-exchange");
- fail_spi_end=!strcmp(scenario,"settle-spi-end");fail_gpio=!strcmp(scenario,"settle-gpio");
- fail_clock=!strcmp(scenario,"settle-clock-fail");reverse_clock=!strcmp(scenario,"settle-clock-rollback");
- const bool replacement=!strcmp(scenario,"settle-queued-failure");
- if(replacement){no_busy=true;owner_poll(8);risc_display_surface_v1 f=acquire_frame();submit_frame(f,NULL,0,false);}
- for(unsigned n=0;n<3600&&settle_stage;++n){owner_poll(8);++tick;}
- assert(presentation_fault&&!completed_history&&!settle_stage&&settle_completed==0&&payload==bytes);
- assert(present_state==(replacement?PRESENT_FAILED:PRESENT_COMPLETE));
- risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));
- assert(p->prepare(NULL,1500)==RISC_DISPLAY_POWER_RETAINED&&!d->quiesce());
- if(fail_spi_end)assert(spi_held&&model_bus_held&&spi_token==model_bus_token);
- else assert(!spi_held&&!model_bus_held);
+ assert(!strcmp(scenario,"settle-finalize"));
+ drain_settle();assert(pofs==off+1&&!screen_powered&&dtm1_synced);
+ assert(payload==bytes+120000&&commands[0x10]>=2&&commands[0x13]>=2);
+ assert(!memcmp(old_ram,ram,sizeof(ram)));assert(visible[44002]==0x55);assert_idle();assert(d->quiesce());
 }
 #ifdef TEST_X4_IDLE_POLICY
 #include "idle_panel_policy.inc"

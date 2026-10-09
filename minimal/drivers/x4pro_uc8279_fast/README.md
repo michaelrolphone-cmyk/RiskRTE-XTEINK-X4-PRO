@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.6
+# X4 UC8279 fast provider 0.1.9
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -225,7 +225,7 @@ is required. All timing fixtures are host models; physical quality remains a
 separate check.
 
 
-## Awake resident maintenance (0.1.6)
+## Awake resident maintenance (0.1.6; removed in 0.1.9)
 
 After a completed interactive fast frame finishes its 2.3-second settling,
 ordinary owner polling schedules one full-visible-area resident refresh about
@@ -256,3 +256,26 @@ and retained failures. The actual adapter/Runtime cadence fixture verifies one
 zero-payload event after 30 seconds while input polling continues. These checks
 do not establish physical contrast, power consumption, or recovery from earlier
 panel experiments; those observations remain a hardware qualification step.
+
+
+## Plane-coherent idle and bounded fast rendering (0.1.9)
+
+Version 0.1.9 retains the delayed-owner-poll fixes from 0.1.8 and changes the
+rendering lifecycle based on the subsequent panel diagnostics:
+
+- removes the 30-second full-visible no-upload resident DRF;
+- makes DEFAULT a one-frame differential update whenever DTM1 is trustworthy;
+- keeps LOW_LATENCY as a bounded one-frame absolute burst (16 frames or 2 s);
+- ends a stale absolute burst with a two-frame target update and full DTM1 reseed;
+- after 2.3 s without a replacement frame, writes the complete current image to
+  both 800x600 controller planes and issues POF without entering deep sleep;
+- wakes only as part of a queued presentation and replays PSR, timing controls
+  and the external LUT after PON before DRF;
+- invalidates controller-plane state on every uncertain BUSY, SPI, GPIO, reset,
+  or lifecycle failure.
+
+The host completed-image shadow remains authoritative. The idle plane rewrite
+uses white hidden rows and the full visible target, so a later refresh cannot
+replay mixed-generation DTM2 bands. No inversion/counterpulse, voltage, TCON,
+compact geometry, SPI overclock, undocumented PLL, PMIC or battery changes are
+included.
