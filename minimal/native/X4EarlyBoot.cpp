@@ -80,6 +80,16 @@ void report() {
     (unsigned long)previous.operation, (unsigned long)previous.reset, (unsigned long)previous.entryUs,
     (unsigned long)previous.variantUs, (unsigned long)previous.gateUs);
   RiscDiagnostics::line(line);
+  if(previousValid && previous.milestoneCount) {
+    std::snprintf(line,sizeof(line),
+      "X4_BOOT previous-stage boot=%lu kind=%lu count=%lu us=%llu first_display=%u first_display_us=%llu truncated=%u",
+      (unsigned long)previous.boot,(unsigned long)previous.milestoneKind,(unsigned long)previous.milestoneCount,
+      (unsigned long long)previous.milestoneUs,unsigned(previous.displayCompleted),
+      (unsigned long long)previous.firstDisplayUs,unsigned(previous.messageTruncated));
+    RiscDiagnostics::line(line);
+    std::snprintf(line,sizeof(line),"X4_BOOT previous-line %s",previous.milestone);
+    RiscDiagnostics::line(line);
+  }
 }
 }
 
@@ -129,4 +139,11 @@ extern "C" const char* risc_native_startup_error(void) {
     report();
   }
   return startupError;
+}
+
+// Called only by the selected Runtime diagnostic owner, before USB availability
+// can discard a line. No retained field authorizes hardware or boot behavior.
+extern "C" void risc_native_diagnostic_observer(const char* line) {
+  if(!attempted || !variant || X4Boot::classify(retained,line)==X4Boot::None)return;
+  (void)X4Boot::observe(retained,line,uint64_t(esp_timer_get_time()));
 }

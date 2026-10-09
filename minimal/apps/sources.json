@@ -5,7 +5,7 @@
   "productivity": "4921a4306bb11adea646d766eb7539242e0142a7",
   "ble_sensor_driver": "aa5ce0140102bf4d1039e5f208588a6793d06b28",
   "visual_alarm_service": "637e13b0bce62ad49b756bec2468a6271d163fc7",
-  "purpose": "Explicit native UTC/API2 cohort with typed automatic Light, default-off BLE telemetry, retained-demand startup, touch scrolling and product-bound update apps. Local development source; physical qualification pending.",
+  "purpose": "Completed0.1.17 cohort plus Scanner/update list motion and named retained battery-startup diagnostics. No physical battery-boot repair is claimed.",
   "ble_provider_watch_source": "4966acee548e6cc3997289db206e996ed4c15cda",
   "shared_drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
   "rf_system_apps": "ffbac0fdb117de62e6fce19baa4dc090f5f44404",
@@ -27,13 +27,13 @@
     "battery": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "ble_touchpad": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "waterfall": "849581973a48daf07770446712a1c1fd4dfbc77c",
-    "ble_scanner": "849581973a48daf07770446712a1c1fd4dfbc77c",
+    "ble_scanner": "ec4df6438856d69b2f83073a03d03ea57fc80c1b",
     "stopwatch": "849581973a48daf07770446712a1c1fd4dfbc77c",
     "calculator": "849581973a48daf07770446712a1c1fd4dfbc77c",
-    "ota_update": "7b175418e3063d9f4c571acf06c366144831b2af",
-    "app_store": "7b175418e3063d9f4c571acf06c366144831b2af"
+    "ota_update": "68e6a1263858322ca9babc775c14e5a6f8c60d96",
+    "app_store": "68e6a1263858322ca9babc775c14e5a6f8c60d96"
   },
-  "update_system_apps": "7b175418e3063d9f4c571acf06c366144831b2af",
+  "update_system_apps": "68e6a1263858322ca9babc775c14e5a6f8c60d96",
   "features": {
     "ble_telemetry": true,
     "updates": true,

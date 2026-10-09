@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "c77e717571a80bc18009b9c3a98532fee32e6fd2",
-    "version": "0.1.63"
+    "commit": "703ea937c971893bfe660bfd9719ac0c2632fb36",
+    "version": "0.1.64"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Runtime0.1.63 early X4 startup and explicit demand-retained foreground policy; automatic Light, telemetry and selected18-app cohort"
+  "status": "Runtime0.1.64 with optional owner diagnostic observation; X4 named retained startup milestones and completed paper list updates"
 }

@@ -93,6 +93,7 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
     # This contract is also checked in the linked native proof. An older Runtime
     # cannot silently continue past a failed early pin operation.
     require(b'risc_native_startup_error' in files['src/main.cpp'][0], 'Runtime lacks the generic startup-status hook')
+    require(b'risc_native_diagnostic_observer' in files.get('src/ports/esp32s3/SleepDiagnostics.cpp',(b'',0))[0], 'Runtime lacks the optional native diagnostic observer')
     original_config = files['platformio.ini'][0]
     needle = b'pre:scripts/reproducible_build.py'
     require(needle in original_config, 'Pinned Runtime pre-build script entry missing')
@@ -180,7 +181,7 @@ def startup_proof(elf_data, record):
     elf = ELFFile(io.BytesIO(elf_data))
     symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
     names = ('initVariant', '__wrap_app_main', 'app_main', 'risc_x4_boot_record',
-             'risc_native_startup_error', 'risc_x4_native_composition_identity')
+             'risc_native_startup_error', 'risc_native_diagnostic_observer', 'risc_x4_native_composition_identity')
     for name in names:
         symbol = symbols.get(name)
         require(symbol is not None and symbol['st_shndx'] != 'SHN_UNDEF' and
@@ -239,7 +240,7 @@ def startup_proof(elf_data, record):
                 'IDF main_task bypasses X4 startup wrapper')
         rtc = symbols['risc_x4_boot_record']
         section = elf.get_section(rtc['st_shndx'])
-        require(section.name == '.rtc_noinit' and rtc['st_size'] == 60,
+        require(section.name == '.rtc_noinit' and rtc['st_size'] == 256,
                 'X4 reset breadcrumb is not in the retained RTC no-init section')
     return {'schema': 'x4.native-startup-proof', 'schema_version': 1,
             'composition_sha256': record['composition_sha256'], 'elf_sha256': sha(elf_data),
@@ -247,7 +248,7 @@ def startup_proof(elf_data, record):
             'hold': True, 'startup_status': 'risc_native_startup_error',
             'entry_hook': '__wrap_app_main', 'target_call_edges': linked,
             'earliest_scope': 'IDF app_main; after IDF hardware/PSRAM/core initialization',
-            'rtc_record_bytes': 60,
+            'rtc_record_bytes': 256,
             'hardware_qualified': False}
 
 

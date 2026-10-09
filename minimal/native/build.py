@@ -42,5 +42,6 @@ for name, content in [('RiscBuildIdentity.h', identity), ('X4NativeBuildIdentity
     if not path.exists() or path.read_text() != content:
         path.write_text(content)
 env.Append(CPPPATH=[str(build)])
+env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1)])
 env.Append(LINKFLAGS=['-Wl,-u,risc_x4_native_composition_identity', '-Wl,--wrap=app_main'])
 env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp>')

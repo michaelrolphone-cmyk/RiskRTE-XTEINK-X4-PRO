@@ -30,6 +30,8 @@ class CompositionTest(unittest.TestCase):
         self.runtime = self.root / 'runtime'
         (self.runtime / 'src').mkdir(parents=True)
         (self.runtime / 'src/main.cpp').write_text('extern "C" const char* risc_native_startup_error();\n')
+        (self.runtime/'src/ports/esp32s3').mkdir(parents=True)
+        (self.runtime/'src/ports/esp32s3/SleepDiagnostics.cpp').write_text('extern \"C\" void risc_native_diagnostic_observer(const char*);\n')
         (self.runtime / 'platformio.ini').write_text('[riscrte]\nversion = 0.1.57\n'
             '[env:esp32s3-16mb-appdata-iq]\nextra_scripts = pre:scripts/reproducible_build.py\n')
         self.revision = commit(self.runtime)
@@ -123,7 +125,7 @@ class CompositionTest(unittest.TestCase):
         record = self.prepare()
         source = self.root / 'proof.c'
         binary = self.root / 'proof'
-        code = ('void initVariant(void) {}\nvoid __wrap_app_main(void) {}\nvoid app_main(void) {}\nchar risc_x4_boot_record[60];\nconst char* risc_native_startup_error(void) {return 0;}\n'
+        code = ('void initVariant(void) {}\nvoid __wrap_app_main(void) {}\nvoid risc_native_diagnostic_observer(const char* p) {(void)p;}\nvoid app_main(void) {}\nchar risc_x4_boot_record[256];\nconst char* risc_native_startup_error(void) {return 0;}\n'
                 'const char risc_x4_native_composition_identity[] = "X4_NATIVE_COMPOSITION:' +
                 record['composition_sha256'] + '";\nint main(void) {initVariant(); return 0;}\n')
         source.write_text(code)

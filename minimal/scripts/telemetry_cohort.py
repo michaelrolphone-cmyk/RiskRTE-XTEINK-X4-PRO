@@ -2,7 +2,7 @@
 import copy,hashlib,json
 from pathlib import Path
 DRIVERS='4088b6892c2e2654b0342f04a7d191068e4a8e2e'
-VERSIONS={'default': '0.3.12', 'springboard': '1.7.9', 'settings': '1.3.17', 'file_browser': '1.5.12', 'wifi_settings': '1.1.14', 'battery': '1.1.9', 'calculator': '0.1.16', 'stopwatch': '0.1.16', 'countdown': '0.1.15', 'timecard': '0.2.7', 'points_in_time': '0.6.7', 'ble_scanner': '0.2.11', 'ble_touchpad': '0.1.11', 'ble_buttons': '0.1.11', 'waterfall': '0.2.7', 'alarms': '0.2.11', 'ota_update': '1.2.3', 'app_store': '1.2.3'}
+VERSIONS={'default': '0.3.12', 'springboard': '1.7.9', 'settings': '1.3.17', 'file_browser': '1.5.12', 'wifi_settings': '1.1.14', 'battery': '1.1.9', 'calculator': '0.1.16', 'stopwatch': '0.1.16', 'countdown': '0.1.15', 'timecard': '0.2.7', 'points_in_time': '0.6.7', 'ble_scanner': '0.2.12', 'ble_touchpad': '0.1.11', 'ble_buttons': '0.1.11', 'waterfall': '0.2.7', 'alarms': '0.2.11', 'ota_update': '1.2.4', 'app_store': '1.2.4'}
 PROVIDERS={'telemetry-battery':('battery-telem',[('board.battery',1)],'sensor.telemetry'),
  'ble-telemetry':('ble-telem',[('bluetooth.hci',1),('platform.clock',1),('sensor.telemetry',1)],'bluetooth.telemetry'),
  'telemetry-broadcast':('broadcast',[('platform.clock',1),('bluetooth.telemetry',1)],'telemetry.broadcast')}

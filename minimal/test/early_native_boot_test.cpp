@@ -84,6 +84,38 @@ static void freshGlobals() {
 }
 int main(int argc, char** argv) {
   assert(argc>=2);
+  if(!std::strcmp(argv[1],"milestone")) {
+    freshGlobals();retained={};failure=0;held=physicalHigh=true;crash=0;
+    risc_native_diagnostic_observer("RTE_STAGE us=1 boot begin");assert(timeUs==0);
+    app_main();assert(reports==3 && retained.milestoneCount==0);
+    const unsigned oldTime=timeUs;
+    for(unsigned i=0;i<1000;++i){
+      risc_native_diagnostic_observer("APP t_ms=23 stage=touch-picked-up source=software-sample");
+      risc_native_diagnostic_observer("APP t_ms=24 stage=draw-begin ");
+      risc_native_diagnostic_observer("RTE_STAGE us=12 gpio operation");
+    }
+    assert(timeUs==oldTime && retained.milestoneCount==0);
+    risc_native_diagnostic_observer("RTE_STAGE us=900 provider start begin id=x4pro-panel");
+    assert(retained.milestoneKind==X4Boot::Provider && retained.milestoneCount==1);
+    assert(std::strstr(retained.milestone,"id=x4pro-panel"));
+    risc_native_diagnostic_observer("RTE_STAGE us=1000 app init end file=default.elf result=0");
+    assert(retained.milestoneKind==X4Boot::App && retained.milestoneCount==2);
+    risc_native_diagnostic_observer("APP t_ms=101 stage=display-complete result=complete");
+    assert(retained.displayCompleted && retained.firstDisplayUs && retained.milestoneCount==3);
+    const auto firstTime=retained.firstDisplayUs;const auto afterFirst=timeUs;
+    risc_native_diagnostic_observer("APP t_ms=102 stage=display-complete result=complete");
+    assert(retained.firstDisplayUs==firstTime && retained.milestoneCount==3 && timeUs==afterFirst);
+    std::string longFailure="RTE_BOOT error=runtime detail="+std::string(900,'x');
+    risc_native_diagnostic_observer(longFailure.c_str());
+    assert(retained.milestoneKind==X4Boot::Failure && retained.messageTruncated==1 && std::strlen(retained.milestone)==159);
+    assert(X4Boot::valid(retained));
+    freshGlobals();resetReason=3;app_main();
+    assert(previousValid && previous.displayCompleted && previous.milestoneCount==4 && reports==5);
+    assert(lines[3].find("first_display=1")!=std::string::npos);
+    assert(lines[4].find("previous-line RTE_BOOT error=runtime")!=std::string::npos);
+    assert(retained.milestoneCount==0 && !retained.displayCompleted);
+    std::puts("X4 named milestone/cold host/first frame/reset report/bounds/no-touch-work PASS");return 0;
+  }
   if(!std::strcmp(argv[1],"reset")) {
     for(const int cause : {1,3,4,5,6,7,8,9}) {
       freshGlobals();retained={};failure=0;held=physicalHigh=true;crash=1;

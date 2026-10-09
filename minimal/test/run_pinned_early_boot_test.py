@@ -94,4 +94,5 @@ int esp_partition_erase_range(const esp_partition_t*,size_t,size_t);
             for failure in range(8):
                 subprocess.run([str(binary), str(failure), str(held)], check=True)
         subprocess.run([str(binary), 'reset'], check=True)
+        subprocess.run([str(binary), 'milestone'], check=True)
 print('Pinned Arduino app_main/initArduino ordering, hold/failures, and reset breadcrumbs PASS')
