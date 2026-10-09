@@ -126,7 +126,9 @@ def build(args):
     table = (args.native / 'partitions.bin').read_bytes()
     appdata = (args.native / 'appdata.bin').read_bytes()
     require(sha(loader) == '1033730a6df733f53a7a347353c1c5450547f76e98e0746da633079310a563b9', 'DIO bootloader differs')
-    require(table == raw[0x8000:0x8000+len(table)] and len(appdata) == 0x80000, 'Initial layout differs')
+    require(len(table) == 3072 and table == raw[0x8000:0x8c00], 'Initial partition table differs')
+    require(len(appdata) == 0x80000 and sha(appdata) == original['initial_appdata']['sha256'],
+            'Initial app-data image differs')
     parts = [(0, loader), (0x8000, table), (0x10000, firmware), (0x270000, appdata),
              (0x2f0000, filesystem), (0xff0000, banks.initial_otadata()),
              (0xff2000, banks.initial_bank_state(firmware, filesystem, True))]
