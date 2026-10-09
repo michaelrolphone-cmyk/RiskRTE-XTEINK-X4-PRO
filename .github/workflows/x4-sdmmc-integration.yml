@@ -1,0 +1,50 @@
+name: X4 SDMMC integration
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['.github/workflows/x4-sdmmc-integration.yml', 'minimal/integration/sdmmc/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  integration-tools:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: 1113ad2af1974b261addd09cfabc311a95b088ce
+          path: .runtime
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Prepare reproducible native compiler and SDK
+        env:
+          PLATFORMIO_CORE_DIR: ${{ github.workspace }}/.integration/platformio
+        run: |
+          python -m venv .integration/python
+          .integration/python/bin/pip install platformio==6.1.19 pyelftools==0.32
+          cd .runtime
+          ../.integration/python/bin/pio pkg install -e esp32s3-16mb-appdata-iq-stage
+      - name: Export exact integration sources and tools
+        run: |
+          mkdir -p .integration/sources output
+          git -C .runtime archive HEAD | gzip -n > .integration/sources/runtime-sdmmc.tar.gz
+          git -C .runtime archive 686d44be18342c5894b2b01b5a4b14d49e7c4f7c | gzip -n > .integration/sources/runtime-public-base.tar.gz
+          git archive HEAD | gzip -n > .integration/sources/x4-current.tar.gz
+          git rev-parse HEAD > .integration/sources/x4-source.txt
+          printf '%s\n' '1113ad2af1974b261addd09cfabc311a95b088ce' > .integration/sources/runtime-sdmmc-source.txt
+          tar -czf output/x4-native-integration-tools.tar.gz -C .integration .
+          sha256sum output/* > output/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-native-integration-tools-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 7
