@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import importlib.util
+import copy
 import json
 from pathlib import Path
 import shutil
@@ -53,6 +54,7 @@ class CompositionTest(unittest.TestCase):
         self.assertEqual(record, composition.verify_composition(self.output))
         self.assertEqual(record['runtime']['commit'], self.revision)
         self.assertEqual(record['platform']['commit'], self.platform_revision)
+        self.assertEqual(record['build_options'], {'app_policy_rows': 16, 'app_image_cache': False})
         self.assertFalse((self.output / '.git').exists())
         self.assertEqual((self.runtime / 'platformio.ini').read_bytes(), original)
         self.assertEqual((self.output / 'src/main.cpp').read_bytes(), (self.runtime / 'src/main.cpp').read_bytes())
@@ -103,6 +105,35 @@ class CompositionTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Unapproved Runtime overlay'):
             composition.verify_source_custody(self.runtime, record, self.platform)
 
+    def test_explicit_options_recorded_and_bound_to_identity(self):
+        record = self.prepare(app_policy_rows=17, app_image_cache=True)
+        self.assertEqual(record['build_options'], {'app_policy_rows': 17, 'app_image_cache': True})
+        composition.verify_source_custody(self.runtime, record, self.platform)
+        path = self.output / 'x4-native-composition.json'
+        record['build_options']['app_image_cache'] = False
+        path.write_bytes(composition.encoded(record))
+        with self.assertRaisesRegex(ValueError, 'Composition digest mismatch'):
+            composition.verify_composition(self.output)
+
+    def test_invalid_options_fail_before_creating_workspace(self):
+        for options in ({'app_policy_rows': 15}, {'app_policy_rows': 18}, {'app_policy_rows': '17'},
+                        {'app_policy_rows': True}, {'app_policy_rows': 17.0},
+                        {'app_image_cache': 1}, {'app_image_cache': 'yes'}, {'app_image_cache': None}):
+            with self.subTest(options=options), self.assertRaisesRegex(ValueError, 'policy rows|image cache'):
+                self.prepare(**options)
+            self.assertFalse(self.output.exists())
+
+    def test_rehashed_invalid_selection_is_rejected(self):
+        record = self.prepare()
+        record['build_options']['app_policy_rows'] = 18
+        del record['composition_sha256']
+        record['composition_sha256'] = composition.sha(composition.encoded(record))
+        (self.output / 'x4-native-composition.json').write_bytes(composition.encoded(record))
+        with self.assertRaisesRegex(ValueError, 'App policy rows'):
+            composition.verify_composition(self.output)
+        with self.assertRaisesRegex(ValueError, 'App policy rows'):
+            composition.verify_source_custody(self.runtime, record, self.platform)
+
     def test_native_build_script_uses_only_selected_environment(self):
         record = self.prepare()
         class Environment(dict):
@@ -115,10 +146,85 @@ class CompositionTest(unittest.TestCase):
         exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
         self.assertTrue(sys.dont_write_bytecode)
         self.assertEqual(env['sources'][2], '+<X4EarlyBoot.cpp>')
+        defines = [value for append in env['appended'] for value in append.get('CPPDEFINES', [])]
+        self.assertIn(('RISC_APP_POLICY_ROWS', 16), defines)
+        self.assertIn(('RISC_APP_IMAGE_CACHE', 0), defines)
         self.assertIn(record['composition_sha256'], (self.root / 'objects/X4NativeBuildIdentity.h').read_text())
         env['environment'] = 'esp32s3'
         with self.assertRaisesRegex(ValueError, 'recorded X4 environment'):
             exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
+
+    def test_build_hook_uses_explicit_record_and_rejects_external_option_flags(self):
+        record = self.prepare(app_policy_rows=17, app_image_cache=True)
+        class Environment(dict):
+            def subst(env, text):
+                return text.replace('$PROJECT_DIR', str(self.output)).replace('$BUILD_DIR', str(self.root / 'objects')).replace('$PIOENV', record['build_environment'])
+            def Append(env, **kwargs): env['appended'].append(kwargs)
+            def BuildSources(env, *args): pass
+        script = self.output / 'x4-native/build.py'
+        def run(extra=None):
+            env = Environment(ENV={}, appended=[], **(extra or {}))
+            exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
+            return env
+        defines = [value for append in run()['appended'] for value in append.get('CPPDEFINES', [])]
+        self.assertIn(('RISC_APP_POLICY_ROWS', 17), defines)
+        self.assertIn(('RISC_APP_IMAGE_CACHE', 1), defines)
+        for key, flags in [('BUILD_FLAGS', '-DRISC_APP_POLICY_ROWS=16'),
+                           ('BUILD_FLAGS', ['-D', 'RISC_APP_IMAGE_CACHE=0']),
+                           ('BUILD_FLAGS', '-URISC_APP_IMAGE_CACHE'),
+                           ('BUILD_UNFLAGS', '-DRISC_APP_POLICY_ROWS=17'),
+                           ('CPPDEFINES', [('RISC_APP_IMAGE_CACHE', 1)]),
+                           ('CCFLAGS', ['-DRISC_APP_IMAGE_CACHE=1'])]:
+            with self.subTest(key=key, flags=flags), self.assertRaisesRegex(ValueError, 'only from the composition record'):
+                run({key: flags})
+
+    @unittest.skipUnless(importlib.util.find_spec('elftools'), 'Requires pinned pyelftools')
+    def test_compiled_runtime_option_proof_and_mismatches(self):
+        record = self.prepare(app_policy_rows=17, app_image_cache=True)
+        source, binary = self.root / 'options.c', self.root / 'options'
+        code = ('const char risc_app_policy_rows[]="RISC_APP_POLICY_ROWS:17";\n'
+                'void* owner __asm__("_ZN12_GLOBAL__N_118imagePressureOwnerE");\n'
+                'void* runtime __asm__("_ZN12_GLOBAL__N_120imagePressureRuntimeE");\n'
+                'void reclaim(void) __asm__("_ZN8RiscBoot7Runtime16reclaimAppImagesEv");\n'
+                'void reclaim(void) {}\n'
+                'int risc_runtime_reclaim_app_images(void) {reclaim();return 1;}\n'
+                'void* esp_dl_image_cache_create(void) {return owner;}\n'
+                'int main(void) {return 0;}\n')
+        def compile_code(value):
+            source.write_text(value)
+            subprocess.run(['cc', str(source), '-o', str(binary)], check=True)
+            return {'firmware.bin': b'RISC_APP_POLICY_ROWS:17\0', 'firmware.elf': binary.read_bytes()}
+        blobs = compile_code(code)
+        proof = composition.runtime_options_proof(blobs, record)
+        self.assertTrue(proof['app_image_cache']['enabled'])
+        self.assertEqual(proof['app_policy']['rows'], 17)
+        self.assertEqual(proof['app_policy']['live_app_grants'], 16)
+        self.assertEqual(proof['app_policy']['manifest_requirements'], 16)
+        mismatch = copy.deepcopy(record)
+        mismatch['build_options']['app_policy_rows'] = 16
+        with self.assertRaisesRegex(ValueError, 'Compiled app policy row mismatch'):
+            composition.runtime_options_proof(blobs, mismatch)
+        for name in ('firmware.bin', 'firmware.elf'):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Compiled app policy row mismatch'):
+                composition.runtime_options_proof(dict(blobs, **{name: blobs[name] + b'RISC_APP_POLICY_ROWS:16\0'}), record)
+        mismatch['build_options'] = {'app_policy_rows': 17, 'app_image_cache': False}
+        with self.assertRaisesRegex(ValueError, 'Unexpected enabled app image cache'):
+            composition.runtime_options_proof(blobs, mismatch)
+        for symbol in ('_ZN12_GLOBAL__N_118imagePressureOwnerE', '_ZN12_GLOBAL__N_120imagePressureRuntimeE',
+                       '_ZN8RiscBoot7Runtime16reclaimAppImagesEv', 'esp_dl_image_cache_create'):
+            with self.subTest(symbol=symbol), self.assertRaisesRegex(ValueError, 'implementation missing'):
+                composition.runtime_options_proof(compile_code(code.replace(symbol, symbol + '_wrong')), record)
+        weak = code.replace('int risc_runtime_reclaim_app_images', '__attribute__((weak)) int risc_runtime_reclaim_app_images')
+        with self.assertRaisesRegex(ValueError, 'Missing strong app image cache'):
+            composition.runtime_options_proof(compile_code(weak), record)
+        default_code = 'const char risc_app_policy_rows[]="RISC_APP_POLICY_ROWS:16";\nint main(void) {return 0;}\n'
+        default = compile_code(default_code)
+        default['firmware.bin'] = b'RISC_APP_POLICY_ROWS:16\0'
+        mismatch['build_options'] = {'app_policy_rows': 16, 'app_image_cache': False}
+        self.assertFalse(composition.runtime_options_proof(default, mismatch)['app_image_cache']['enabled'])
+        mismatch['build_options']['app_image_cache'] = True
+        with self.assertRaisesRegex(ValueError, 'implementation missing'):
+            composition.runtime_options_proof(default, mismatch)
 
     @unittest.skipUnless(importlib.util.find_spec('elftools'), 'Requires pinned pyelftools from requirements-ci.txt')
     def test_linked_proof_requires_strong_hook_and_matching_marker(self):

@@ -69,9 +69,20 @@ def snapshot(root, revision):
     return files
 
 
-def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT):
+def validate_build_options(options):
+    require(isinstance(options, dict) and set(options) == {'app_policy_rows', 'app_image_cache'},
+            'Invalid native build options')
+    require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
+            'App policy rows must be 16 or 17')
+    require(type(options['app_image_cache']) is bool, 'App image cache must be boolean')
+    return options
+
+
+def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
+            app_policy_rows=16, app_image_cache=False):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
+    options = validate_build_options({'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache})
     lock = json.loads((platform_root / 'minimal/sources.lock.json').read_text())['runtime']
     expected = runtime_commit or lock['commit']
     require(re.fullmatch('[a-f0-9]{40}', expected), 'An exact Runtime commit is required')
@@ -111,7 +122,7 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
     composer = 'minimal/scripts/prepare_native_runtime.py'
     sources[composer] = sha((platform_root / composer).read_bytes())
     record = {'schema': SCHEMA, 'schema_version': 1, 'runtime': native, 'platform': platform,
-              'build_environment': environment, 'platform_source_sha256': sources,
+              'build_environment': environment, 'build_options': options, 'platform_source_sha256': sources,
               'upstream_source_sha256': original,
               'composed_source_sha256': {name: sha(data) for name, (data, _) in files.items()}}
     record['composition_sha256'] = sha(encoded(record))
@@ -137,6 +148,7 @@ def verify_composition(workspace):
     payload = {k: v for k, v in record.items() if k != 'composition_sha256'}
     require(sha(encoded(payload)) == record.get('composition_sha256'), 'Composition digest mismatch')
     require(record.get('build_environment') in ENVIRONMENTS, 'Invalid composition environment')
+    validate_build_options(record.get('build_options'))
     observed = set()
     for folder, directories, names in os.walk(workspace):
         if Path(folder) == workspace:
@@ -155,6 +167,7 @@ def verify_composition(workspace):
 
 
 def verify_source_custody(runtime, record, platform_root=ROOT):
+    validate_build_options(record.get('build_options'))
     require(clean_source(runtime, record['runtime']['commit'])['tree'] == record['runtime']['tree'],
             'Runtime tree differs')
     platform = Path(platform_root)
@@ -176,6 +189,106 @@ def verify_source_custody(runtime, record, platform_root=ROOT):
     require(expected == record['composed_source_sha256'], 'Unapproved Runtime overlay')
 
 
+def elf_symbol_bytes(elf, symbol):
+    require(isinstance(symbol['st_shndx'], int), 'ELF symbol lacks a loaded section')
+    section = elf.get_section(symbol['st_shndx'])
+    offset = symbol['st_value'] - section['sh_addr']
+    require(section['sh_type'] != 'SHT_NOBITS' and offset >= 0 and
+            offset + symbol['st_size'] <= section['sh_size'], 'ELF symbol exceeds loaded section')
+    return section.data()[offset:offset + symbol['st_size']]
+
+
+def xtensa_calls(elf, symbols, name):
+    """Inspect pinned CALL8 / adjacent L32R + CALLX8 instructions and literals."""
+    symbol = symbols.get(name)
+    require(symbol is not None and symbol['st_size'], 'Missing startup caller: ' + name)
+    address, data = symbol['st_value'], elf_symbol_bytes(elf, symbol)
+    calls = []
+    for offset in range(len(data) - 2):
+        op = data[offset]
+        if op & 63 == 0x25:
+            immediate = int.from_bytes(data[offset:offset + 3], 'little') >> 6
+            if immediate & (1 << 17):
+                immediate -= 1 << 18
+            target = ((address + offset) & ~3) + 4 + immediate * 4
+            calls.append({'instruction': address + offset, 'target': target})
+            continue
+        reg = op >> 4
+        if op & 15 != 1 or data[offset + 3:offset + 6] != bytes((0xe0, reg, 0)):
+            continue
+        immediate = int.from_bytes(data[offset + 1:offset + 3], 'little', signed=True)
+        literal = ((address + offset + 3) & ~3) + immediate * 4
+        for section in elf.iter_sections():
+            if section['sh_type'] != 'SHT_NOBITS' and section['sh_addr'] <= literal and \
+                    literal + 4 <= section['sh_addr'] + section['sh_size']:
+                start = literal - section['sh_addr']
+                target = int.from_bytes(section.data()[start:start + 4], 'little')
+                calls.append({'instruction': address + offset, 'literal': literal, 'target': target})
+                break
+        else:
+            raise ValueError('X4 startup instruction/literal is outside a loaded section')
+    return calls
+
+
+def runtime_options_proof(blobs, record):
+    """Prove the compiled selection, not only flags or an echoed build request."""
+    from elftools.elf.elffile import ELFFile
+    options = validate_build_options(record.get('build_options'))
+    rows = options['app_policy_rows']
+    marker = ('RISC_APP_POLICY_ROWS:' + str(rows)).encode() + b'\0'
+    other = ('RISC_APP_POLICY_ROWS:' + str(33 - rows)).encode() + b'\0'
+    for name in ('firmware.bin', 'firmware.elf'):
+        require(marker in blobs[name] and other not in blobs[name], 'Compiled app policy row mismatch: ' + name)
+    elf = ELFFile(io.BytesIO(blobs['firmware.elf']))
+    symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
+    policy = symbols.get('risc_app_policy_rows')
+    require(policy is not None and policy['st_info']['bind'] == 'STB_GLOBAL' and
+            elf_symbol_bytes(elf, policy) == marker, 'Missing compiled policy-row symbol')
+    # These owner/Runtime atomics and creation call exist only in the enabled
+    # Runtime implementation. The loader's cached-open API exists even when off
+    # and is therefore insufficient evidence by itself.
+    state = ('_ZN12_GLOBAL__N_120imagePressureRuntimeE', '_ZN12_GLOBAL__N_118imagePressureOwnerE')
+    functions = ('risc_runtime_reclaim_app_images', '_ZN8RiscBoot7Runtime16reclaimAppImagesEv',
+                 'esp_dl_image_cache_create')
+    cache = {'enabled': options['app_image_cache'], 'implementation_symbols': {}, 'target_call_edges': {}}
+    if options['app_image_cache']:
+        for name in state + functions:
+            symbol = symbols.get(name)
+            require(symbol is not None and isinstance(symbol['st_shndx'], int) and symbol['st_size'] > 0,
+                    'Enabled app image cache implementation missing: ' + name)
+            section = elf.get_section(symbol['st_shndx'])
+            if name in state:
+                require(symbol['st_size'] == elf.elfclass // 8 and section['sh_flags'] & 2,
+                        'Invalid app image cache owner state: ' + name)
+            else:
+                require(symbol['st_info']['bind'] == 'STB_GLOBAL' and section['sh_flags'] & 4,
+                        'Missing strong app image cache function: ' + name)
+            cache['implementation_symbols'][name] = {'bytes': symbol['st_size'], 'section': section.name}
+            if name in functions:
+                cache['implementation_symbols'][name]['sha256'] = sha(elf_symbol_bytes(elf, symbol))
+        if elf['e_machine'] == 'EM_XTENSA':
+            edges = (('_ZN8RiscBoot7Runtime3runEv', 'esp_dl_image_cache_create'),
+                     ('risc_runtime_reclaim_app_images', '_ZN8RiscBoot7Runtime16reclaimAppImagesEv'),
+                     ('_ZN8RiscBoot7Runtime16reclaimAppImagesEv', 'esp_dl_image_cache_reclaim'))
+            for caller, callee in edges:
+                target = symbols.get(callee)
+                require(target is not None, 'Missing app image cache callee: ' + callee)
+                matches = [call for call in xtensa_calls(elf, symbols, caller) if call['target'] == target['st_value']]
+                require(len(matches) == 1, 'Unproven app image cache call: ' + caller + ' -> ' + callee)
+                cache['target_call_edges'][caller + ' -> ' + callee] = matches[0]
+    else:
+        absent = state + ('esp_dl_image_cache_create', '_ZN8RiscBoot7Runtime16reclaimAppImagesEv')
+        require(not any(name in symbols and symbols[name]['st_shndx'] != 'SHN_UNDEF' for name in absent),
+                'Unexpected enabled app image cache implementation')
+        cache['absent_enabled_symbols'] = list(absent)
+    return {'schema': 'x4.runtime-options-proof', 'schema_version': 1,
+            'composition_sha256': record['composition_sha256'], 'build_options': options,
+            'elf_sha256': sha(blobs['firmware.elf']), 'firmware_sha256': sha(blobs['firmware.bin']),
+            'app_policy': {'rows': rows, 'live_app_grants': 16, 'manifest_requirements': 16,
+                           'marker': marker[:-1].decode(), 'symbol': 'risc_app_policy_rows'},
+            'app_image_cache': cache, 'hardware_qualified': False}
+
+
 def startup_proof(elf_data, record):
     from elftools.elf.elffile import ELFFile
     elf = ELFFile(io.BytesIO(elf_data))
@@ -192,52 +305,16 @@ def startup_proof(elf_data, record):
     if elf['e_machine'] == 'EM_XTENSA':
         # The pinned compiler uses CALL8 and literal-loaded CALLX8 long calls.
         # Check the actual entry edges, not merely the existence of a wrapper.
-        def bytes_at(address, size):
-            for section in elf.iter_sections():
-                if section['sh_type'] != 'SHT_NOBITS' and section['sh_addr'] <= address and \
-                        address + size <= section['sh_addr'] + section['sh_size']:
-                    start = address - section['sh_addr']
-                    return section.data()[start:start + size]
-            raise ValueError('X4 startup instruction/literal is outside a loaded section')
-
-        def literal_calls(name):
-            symbol = symbols.get(name)
-            require(symbol is not None and symbol['st_size'], 'Missing startup caller: ' + name)
-            address, size = symbol['st_value'], symbol['st_size']
-            data = bytes_at(address, size)
-            calls = []
-            # CALL8's signed 18-bit word offset is based on aligned PC+4.
-            # L32R's signed word offset is based on aligned PC+3. Recognize
-            # only adjacent L32R aN; CALLX8 aN for the indirect case. A native
-            # objdump disassembly is also retained for independent audit.
-            for offset in range(len(data) - 2):
-                op = data[offset]
-                if op & 63 == 0x25:
-                    immediate = int.from_bytes(data[offset:offset + 3], 'little') >> 6
-                    if immediate & (1 << 17):
-                        immediate -= 1 << 18
-                    target = ((address + offset) & ~3) + 4 + immediate * 4
-                    calls.append({'instruction': address + offset, 'target': target})
-                    continue
-                reg = op >> 4
-                if op & 15 != 1 or data[offset + 3:offset + 6] != bytes((0xe0, reg, 0)):
-                    continue
-                immediate = int.from_bytes(data[offset + 1:offset + 3], 'little', signed=True)
-                literal = ((address + offset + 3) & ~3) + immediate * 4
-                target = int.from_bytes(bytes_at(literal, 4), 'little')
-                calls.append({'instruction': address + offset, 'literal': literal, 'target': target})
-            return calls
-
         edges = [('main_task', '__wrap_app_main'), ('__wrap_app_main', 'app_main'),
                  ('app_main', 'initArduino'),
                  ('_ZN15RiscDiagnostics4lineEPKc','risc_native_diagnostic_observer')]
         for caller, callee in edges:
             target = symbols.get(callee)
             require(target is not None, 'Missing startup callee: ' + callee)
-            matches = [edge for edge in literal_calls(caller) if edge['target'] == target['st_value']]
+            matches = [edge for edge in xtensa_calls(elf, symbols, caller) if edge['target'] == target['st_value']]
             require(len(matches) == 1, 'Unproven X4 startup call: ' + caller + ' -> ' + callee)
             linked[caller + ' -> ' + callee] = matches[0]
-        require(not any(edge['target'] == symbols['app_main']['st_value'] for edge in literal_calls('main_task')),
+        require(not any(edge['target'] == symbols['app_main']['st_value'] for edge in xtensa_calls(elf, symbols, 'main_task')),
                 'IDF main_task bypasses X4 startup wrapper')
         rtc = symbols['risc_x4_boot_record']
         section = elf.get_section(rtc['st_shndx'])
@@ -312,14 +389,16 @@ def stage(runtime, workspace, output, appdata):
         require('_ZN8RiscPerf4dataE' not in symbols, 'Unexpected enabled performance recorder')
         proof['stage_logs']={'enabled':True,'automatic':True,'recorder':False,'symbol':sink.name}
     x4_proof = startup_proof(blobs['firmware.elf'], record)
+    options_proof = runtime_options_proof(blobs, record)
     blobs['radio-iq-proof.json'] = encoded(proof['radio_iq'])
     blobs['x4-native-proof.json'] = encoded(x4_proof)
     blobs['x4-native-composition.json'] = encoded(record)
+    blobs['x4-runtime-options-proof.json'] = encoded(options_proof)
     for name in ('platformio.ini', 'partitions-paired-appdata.csv', 'requirements-ci.txt'):
         blobs[name] = (workspace / name).read_bytes()
     for name in ('appdata.bin', 'appdata-image.json'):
         blobs[name] = (Path(appdata) / name).read_bytes()
-    candidate = {'schema': 1, 'target': target, 'build_environment': environment,
+    candidate = {'schema': 1, 'target': target, 'build_environment': environment, 'build_options': record['build_options'],
                  'performance_trace': performance, 'stage_logs':plain_stages,'source_sha': native['commit'],
                  'firmware_version': native['version'], 'layout': 'riscrte-paired-appdata-v2',
                  'store_abi': 2, 'flash_bytes': 0x1000000, 'partitions': shared.APP_DATA_EXPECTED,
@@ -327,6 +406,8 @@ def stage(runtime, workspace, output, appdata):
                  'x4_native_composition': {'composition_sha256': record['composition_sha256'],
                                            'runtime': native, 'platform': record['platform'],
                                            'platform_source_sha256': record['platform_source_sha256'],
+                                           'build_options': record['build_options'],
+                                           'runtime_options_proof': options_proof,
                                            'startup_proof': x4_proof},
                  'assets': {name: {'bytes': len(data), 'sha256': sha(data)} for name, data in blobs.items()},
                  'scope': 'X4 platform-owned early boot linked over immutable Runtime source. Empty app-data is only for explicit new installation. No device action or hardware qualification.'}
@@ -350,6 +431,10 @@ def main():
     prepare.add_argument('--output', type=Path, required=True)
     prepare.add_argument('--runtime-commit')
     prepare.add_argument('--environment', choices=ENVIRONMENTS, default=ENVIRONMENTS[0])
+    prepare.add_argument('--app-policy-rows', type=int, choices=(16, 17), default=16,
+                         help='Immutable app policy rows; live grants and manifest requirements remain 16')
+    prepare.add_argument('--app-image-cache', action='store_true',
+                         help='Explicitly enable the Runtime app image cache and qualified pressure retry paths')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)

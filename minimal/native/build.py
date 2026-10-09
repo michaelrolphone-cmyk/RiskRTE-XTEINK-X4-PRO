@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -15,6 +16,19 @@ if record.get('schema') != 'x4.native-composition' or record.get('schema_version
     raise ValueError('Invalid X4 composition identity')
 if env.subst('$PIOENV') != record['build_environment']:
     raise ValueError('This composed workspace only builds its recorded X4 environment')
+options = record.get('build_options')
+if not isinstance(options, dict) or set(options) != {'app_policy_rows', 'app_image_cache'}:
+    raise ValueError('Invalid native build options')
+if type(options['app_policy_rows']) is not int or options['app_policy_rows'] not in (16, 17):
+    raise ValueError('App policy rows must be 16 or 17')
+if type(options['app_image_cache']) is not bool:
+    raise ValueError('App image cache must be boolean')
+# SCons processes BUILD_FLAGS after this pre-build hook. Refuse preexisting
+# definitions and undefines, including command-line/environment overrides,
+# instead of allowing flag order to replace the recorded selection.
+for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
+    if re.search(r'(?:\b|-[DU])RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)\b', str(env.get(key, ''))):
+        raise ValueError('Native option flags must come only from the composition record: ' + key)
 observed = set()
 for folder, directories, names in os.walk(root):
     if Path(folder) == root:
@@ -42,6 +56,8 @@ for name, content in [('RiscBuildIdentity.h', identity), ('X4NativeBuildIdentity
     if not path.exists() or path.read_text() != content:
         path.write_text(content)
 env.Append(CPPPATH=[str(build)])
-env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1)])
+env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1),
+                      ('RISC_APP_POLICY_ROWS', options['app_policy_rows']),
+                      ('RISC_APP_IMAGE_CACHE', int(options['app_image_cache']))])
 env.Append(LINKFLAGS=['-Wl,-u,risc_x4_native_composition_identity', '-Wl,--wrap=app_main'])
 env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp>')
