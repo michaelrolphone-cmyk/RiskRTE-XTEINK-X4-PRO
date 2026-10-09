@@ -13,13 +13,21 @@ enum Phase : uint32_t { AppMain = 1, RailReady, Variant, SetupGate };
 struct Record {
   uint32_t magic, checksum, boot, phase, operation, reset, raw0, raw1, wake;
   uint32_t gpioBefore, holdBefore, brownout, entryUs, variantUs, gateUs;
-  uint32_t reserved;
+  uint32_t gpioHighBefore, strapBefore, reserved;
   uint64_t milestoneUs, firstDisplayUs;
   uint32_t milestoneKind, milestoneCount, displayCompleted;
   char milestone[160];
   uint32_t messageTruncated;
 };
-static_assert(sizeof(Record) == 256, "X4 boot breadcrumb size changed");
+static_assert(sizeof(Record) == 264, "X4 boot breadcrumb size changed");
+inline const char* phaseName(uint32_t phase) {
+  switch(phase){case AppMain:return "app-main";case RailReady:return "rail-ready";
+    case Variant:return "arduino-variant";case SetupGate:return "setup-gate";default:return "unavailable";}
+}
+inline const char* milestoneName(uint32_t kind) {
+  switch(kind){case Boot:return "boot";case Provider:return "provider";case App:return "app";
+    case Display:return "first-display";case Failure:return "failure";default:return "none";}
+}
 inline uint32_t checksum(const Record& record) {
   const auto* bytes = reinterpret_cast<const unsigned char*>(&record);
   uint32_t hash = 2166136261u;

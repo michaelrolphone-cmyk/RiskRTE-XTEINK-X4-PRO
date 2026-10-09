@@ -229,7 +229,8 @@ def startup_proof(elf_data, record):
             return calls
 
         edges = [('main_task', '__wrap_app_main'), ('__wrap_app_main', 'app_main'),
-                 ('app_main', 'initArduino')]
+                 ('app_main', 'initArduino'),
+                 ('_ZN15RiscDiagnostics4lineEPKc','risc_native_diagnostic_observer')]
         for caller, callee in edges:
             target = symbols.get(callee)
             require(target is not None, 'Missing startup callee: ' + callee)
@@ -240,7 +241,7 @@ def startup_proof(elf_data, record):
                 'IDF main_task bypasses X4 startup wrapper')
         rtc = symbols['risc_x4_boot_record']
         section = elf.get_section(rtc['st_shndx'])
-        require(section.name == '.rtc_noinit' and rtc['st_size'] == 256,
+        require(section.name == '.rtc_noinit' and rtc['st_size'] == 264,
                 'X4 reset breadcrumb is not in the retained RTC no-init section')
     return {'schema': 'x4.native-startup-proof', 'schema_version': 1,
             'composition_sha256': record['composition_sha256'], 'elf_sha256': sha(elf_data),
@@ -248,7 +249,7 @@ def startup_proof(elf_data, record):
             'hold': True, 'startup_status': 'risc_native_startup_error',
             'entry_hook': '__wrap_app_main', 'target_call_edges': linked,
             'earliest_scope': 'IDF app_main; after IDF hardware/PSRAM/core initialization',
-            'rtc_record_bytes': 256,
+            'rtc_record_bytes': 264,
             'hardware_qualified': False}
 
 

@@ -55,7 +55,7 @@ int esp_reset_reason(){return resetReason;}
 int rtc_get_reset_reason(int core){return 10 + core;}
 int esp_sleep_get_wakeup_cause(){return resetReason == 8 ? 4 : 0;}
 int64_t esp_timer_get_time(){return timeUs += 100;}
-uint32_t x4_test_reg_read(int reg){return reg == 1 ? (physicalHigh ? 2 : 0) : reg == 2 ? (held ? 2 : 0) : 0x12345678;}
+uint32_t x4_test_reg_read(int reg){return reg == 1 ? (physicalHigh ? 2 : 0) : reg == 2 ? (held ? 2 : 0) : reg == 4 ? 0xabcdef01 : reg == 5 ? 0x654321 : 0x12345678;}
 namespace RiscDiagnostics {void line(const char* line){assert(arduinoStarted);++reports;lines.emplace_back(line);}}
 SerialFake Serial;UsbFake USB;void (*serialEventRun)()=nullptr;
 static void arduino(const char* name) {
@@ -152,6 +152,7 @@ int main(int argc, char** argv) {
   assert(X4Boot::valid(retained) && retained.operation==uint32_t(failure) && retained.phase==X4Boot::SetupGate);
   assert(retained.entryUs<retained.variantUs && retained.variantUs<retained.gateUs);
   assert(retained.brownout==0x12345678 && retained.holdBefore==uint32_t(initialHeld?2:0));
+  assert(retained.gpioHighBefore==0xabcdef01 && retained.strapBefore==0x654321);
   assert(reports==3 && !previousValid);
   const std::vector<std::string> expectedCalls={
 #if !ARDUINO_USB_MODE

@@ -69,7 +69,7 @@ int esp_partition_erase_range(const esp_partition_t*,size_t,size_t);
         'esp_sleep.h': '#pragma once\nint esp_sleep_get_wakeup_cause();\n',
         'esp_timer.h': '#pragma once\n#include <cstdint>\nint64_t esp_timer_get_time();\n',
         'rom/rtc.h': '#pragma once\nint rtc_get_reset_reason(int);\n',
-        'soc/gpio_reg.h': '#define GPIO_IN_REG 1\n',
+        'soc/gpio_reg.h': '#define GPIO_IN_REG 1\n#define GPIO_IN1_REG 4\n#define GPIO_STRAP_REG 5\n',
         'soc/rtc_cntl_reg.h': '#define RTC_CNTL_PAD_HOLD_REG 2\n#define RTC_CNTL_BROWN_OUT_REG 3\n',
         'soc/soc.h': '#pragma once\n#include <cstdint>\nuint32_t x4_test_reg_read(int);\n#define REG_READ(reg) x4_test_reg_read(reg)\n',
         'X4NativeBuildIdentity.h': '#define X4_NATIVE_COMPOSITION_IDENTITY "X4_NATIVE_COMPOSITION:host-fixture"\n',

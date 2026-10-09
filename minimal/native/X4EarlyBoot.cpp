@@ -70,20 +70,21 @@ void report() {
     (unsigned long)retained.variantUs, (unsigned long)retained.gateUs, startupError ? startupError : "none");
   RiscDiagnostics::line(line);
   std::snprintf(line, sizeof(line),
-    "X4_BOOT pads gpio_in_before=0x%08lx hold_before=0x%08lx brownout=0x%08lx gpio1_now=%d",
-    (unsigned long)retained.gpioBefore, (unsigned long)retained.holdBefore,
+    "X4_BOOT pads gpio_in_before=0x%08lx gpio_in1_before=0x%08lx strap=0x%08lx hold_before=0x%08lx brownout=0x%08lx gpio1_now=%d",
+    (unsigned long)retained.gpioBefore, (unsigned long)retained.gpioHighBefore,
+    (unsigned long)retained.strapBefore, (unsigned long)retained.holdBefore,
     (unsigned long)retained.brownout, gpio_get_level(peripheralRail));
   RiscDiagnostics::line(line);
   std::snprintf(line, sizeof(line),
-    "X4_BOOT previous checksum_valid=%u boot=%lu phase=%lu operation=%lu reset=%lu entry_us=%lu variant_us=%lu gate_us=%lu",
-    unsigned(previousValid), (unsigned long)previous.boot, (unsigned long)previous.phase,
+    "X4_BOOT previous checksum_valid=%u boot=%lu phase=%s operation=%lu reset=%lu entry_us=%lu variant_us=%lu gate_us=%lu",
+    unsigned(previousValid), (unsigned long)previous.boot, X4Boot::phaseName(previous.phase),
     (unsigned long)previous.operation, (unsigned long)previous.reset, (unsigned long)previous.entryUs,
     (unsigned long)previous.variantUs, (unsigned long)previous.gateUs);
   RiscDiagnostics::line(line);
   if(previousValid && previous.milestoneCount) {
     std::snprintf(line,sizeof(line),
-      "X4_BOOT previous-stage boot=%lu kind=%lu count=%lu us=%llu first_display=%u first_display_us=%llu truncated=%u",
-      (unsigned long)previous.boot,(unsigned long)previous.milestoneKind,(unsigned long)previous.milestoneCount,
+      "X4_BOOT previous-stage boot=%lu kind=%s count=%lu us=%llu first_display=%u first_display_us=%llu truncated=%u",
+      (unsigned long)previous.boot,X4Boot::milestoneName(previous.milestoneKind),(unsigned long)previous.milestoneCount,
       (unsigned long long)previous.milestoneUs,unsigned(previous.displayCompleted),
       (unsigned long long)previous.firstDisplayUs,unsigned(previous.messageTruncated));
     RiscDiagnostics::line(line);
@@ -108,6 +109,8 @@ extern "C" void __wrap_app_main(void) {
     retained.raw1 = uint32_t(rtc_get_reset_reason(1));
     retained.wake = uint32_t(esp_sleep_get_wakeup_cause());
     retained.gpioBefore = REG_READ(GPIO_IN_REG);
+    retained.gpioHighBefore = REG_READ(GPIO_IN1_REG);
+    retained.strapBefore = REG_READ(GPIO_STRAP_REG);
     retained.holdBefore = REG_READ(RTC_CNTL_PAD_HOLD_REG);
     retained.brownout = REG_READ(RTC_CNTL_BROWN_OUT_REG);
     retained.entryUs = uint32_t(esp_timer_get_time());

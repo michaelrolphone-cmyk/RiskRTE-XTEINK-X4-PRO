@@ -40,6 +40,17 @@ except ValueError as error:
     assert 'Unproven X4 startup call: main_task -> __wrap_app_main' in str(error)
 else:
     raise AssertionError('Startup bypass mutation was admitted')
-proof['verification'] = {'actual_target': True, 'bypass_mutation_rejected': True}
+observer = proof['target_call_edges']['_ZN15RiscDiagnostics4lineEPKc -> risc_native_diagnostic_observer']
+address=observer['instruction']
+for section in elf.iter_sections():
+    if section['sh_addr']<=address and address+3<=section['sh_addr']+section['sh_size']:
+        offset=section['sh_offset']+address-section['sh_addr'];break
+else:raise AssertionError('Missing observer call instruction')
+mutated=bytearray(data);mutated[offset:offset+3]=bytes(3)
+try: c.startup_proof(bytes(mutated),record)
+except ValueError as error:
+    assert 'Unproven X4 startup call: _ZN15RiscDiagnostics4lineEPKc -> risc_native_diagnostic_observer' in str(error)
+else:raise AssertionError('Observer bypass mutation was admitted')
+proof['verification'] = {'actual_target': True, 'bypass_mutation_rejected': True, 'observer_call_mutation_rejected': True}
 a.output.write_text(json.dumps(proof, indent=2) + '\n')
 print('X4 actual Xtensa entry/RTC proof and bypass rejection PASS')
