@@ -40,4 +40,28 @@ class Updates(unittest.TestCase):
    with self.assertRaises(ValueError):app_grants('settings',needs,True,True,True,True)
    needs[0]['capability']='software.update.apps' if name=='ota_update' else 'software.update.firmware'
    with self.assertRaises(ValueError):app_grants(name,needs,True,True,True,True)
+ def provider(self,kind='firmware',routes=False):
+  identity,cap=u.SERVICES[kind];blob=b'provider-fixture';version='0.1.5' if routes else '0.1.4'
+  manifest={'type':'driver','driver_abi':2,'id':identity,'version':version,'file_name':'driver.elf',
+   'architecture':'xtensa-esp32s3','provides':[{'capability':cap,'api':1}],
+   'requires':[{'capability':c,'api':1} for c in ('platform.http-client','platform.bank-store','platform.clock')]}
+  record={'repository_commit':'a'*40,'working_tree_dirty':False,'version':version,
+   'sha256':u.sha(blob),'size_bytes':len(blob),
+   'update_policy':{'product':u.PRODUCT,'repository':u.REPOSITORY,'catalog_url':'','feed_configured':False,'runtime_only':False},
+   'build_defines':['-DUPDATE_PRODUCT_X4','-DUPDATE_FIRMWARE='+str(int(kind=='firmware'))]+(['-DUPDATE_SOURCE_ROUTES=1'] if routes else [])}
+  return manifest,blob,record
+ def test_legacy_and_explicit_source_routes(self):
+  for kind,routes in [('firmware',False),('apps',False),('firmware',True)]:
+   m,b,r=self.provider(kind,routes)
+   self.assertEqual(u.validate_provider(kind,m,b,r,'a'*40,routes)['manifest'],m)
+ def test_source_routes_need_exact_identity_and_selection(self):
+  m,b,r=self.provider('firmware',True)
+  with self.assertRaises(ValueError):u.validate_provider('firmware',m,b,r,'a'*40)
+  with self.assertRaises(ValueError):u.validate_provider('firmware',m,b,r,'b'*40,True)
+  with self.assertRaises(ValueError):u.validate_provider('firmware',m,b,r,'a'*40,1)
+  for flags in [[],['-DUPDATE_SOURCE_ROUTES=0'],['-DUPDATE_SOURCE_ROUTES=2'],['-DUPDATE_SOURCE_ROUTES=1','-DUPDATE_SOURCE_ROUTES=0']]:
+   changed=copy.deepcopy(r);changed['build_defines']=r['build_defines'][:2]+flags
+   with self.subTest(flags=flags),self.assertRaises(ValueError):u.validate_provider('firmware',m,b,changed,'a'*40,True)
+  m,b,r=self.provider('apps',True)
+  with self.assertRaises(ValueError):u.validate_provider('apps',m,b,r,'a'*40,True)
 if __name__=='__main__':unittest.main()

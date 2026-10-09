@@ -292,7 +292,7 @@ def build(a):
     if sparse:keys=native_time_cohort.ALARM_KEYS
     boot['drivers'].append({'manifest':'alarm/manifest.json','key_value':[{'key':k,'namespace':n,'access':v} for k,n,v in keys]})
     if not sparse:raise ValueError('X4 update applications require the complete native-time cohort')
-    custody['update_providers'],update_selections=update_artifacts.stage_providers(store,out,inputs,app_sources['update_system_apps'])
+    custody['update_providers'],update_selections=update_artifacts.stage_providers(store,out,inputs,app_sources['update_system_apps'],app_sources.get('update_firmware_routes_source'))
     boot['drivers'].extend(update_selections)
     policies=[];manifests={};licenses=out/'licenses';licenses.mkdir(exist_ok=True)
     for name in selected_apps:

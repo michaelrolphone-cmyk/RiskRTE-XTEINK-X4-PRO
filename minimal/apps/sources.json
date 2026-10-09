@@ -41,5 +41,6 @@
     "idle_policy": true,
     "retained_provider_demand": true,
     "contexts_rf_only": true
-  }
+  },
+  "update_firmware_routes_source": "c5cda9f9a303fffdd0dd48d779e272fed9f6d246"
 }

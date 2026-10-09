@@ -14,10 +14,12 @@ def sha(data):return hashlib.sha256(data).hexdigest()
 def encoded(value):return (json.dumps(value,sort_keys=True,indent=2)+'\n').encode()
 def require(condition,reason):
  if not condition:raise ValueError(reason)
-def validate_provider(kind,manifest,blob,record,source):
+def validate_provider(kind,manifest,blob,record,source,source_routes=False):
+ require(type(source_routes) is bool and (not source_routes or kind=='firmware'), 'Source routes require the explicit firmware provider')
+ version='0.1.5' if source_routes else '0.1.4'
  identity,cap=SERVICES[kind]
  require(manifest.get('type')=='driver' and manifest.get('driver_abi')==2 and
-  manifest.get('id')==identity and manifest.get('version')=='0.1.4' and
+  manifest.get('id')==identity and manifest.get('version')==version and record.get('version')==version and
   manifest.get('file_name')=='driver.elf' and manifest.get('architecture')=='xtensa-esp32s3',
   'Update provider identity mismatch')
  require(manifest.get('provides')==[{'capability':cap,'api':1}], 'Update action mismatch')
@@ -29,6 +31,8 @@ def validate_provider(kind,manifest,blob,record,source):
   'catalog_url':'','feed_configured':False,'runtime_only':False}, 'X4 feed policy differs from selected product')
  require('-DUPDATE_PRODUCT_X4' in record.get('build_defines',[]) and
   '-DUPDATE_FIRMWARE='+str(int(kind=='firmware')) in record['build_defines'], 'Update provider build selection mismatch')
+ routes={flag for flag in record['build_defines'] if flag.startswith('-DUPDATE_SOURCE_ROUTES')}
+ require(routes==({'-DUPDATE_SOURCE_ROUTES=1'} if source_routes else set()), 'Update route selection mismatch')
  return {'manifest':manifest,'build_record':record}
 def validate_app(name,manifest,blob,record,source):
  cap='software.update.firmware' if name=='ota_update' else 'software.update.apps'
@@ -41,12 +45,16 @@ def validate_app(name,manifest,blob,record,source):
  flags=record.get('build_defines',[])
  require(all(flag in flags for flag in ('-DPORTABLE_UPDATE_FEED_DISABLED','-DPORTABLE_NATIVE_TIME_TOOLBAR','-DALARM_SERVICE_TAGGED_V2','-DPORTABLE_WIFI_INSTANCE=15','-DPORTABLE_DISPLAY_ROTATION=90')), 'Update app deployment defines mismatch')
  return dict(record)
-def stage_providers(store,output,inputs,source):
+def stage_providers(store,output,inputs,source,firmware_routes_source=None):
+ require(firmware_routes_source is None or isinstance(firmware_routes_source,str) and
+  re.fullmatch('[0-9a-f]{40}',firmware_routes_source), 'Exact source-routes provider revision required')
  custody={}
  for kind in SERVICES:
   src=Path(inputs['update_'+kind]);folder='upd-fw' if kind=='firmware' else 'upd-app'
   manifest=json.loads((src/'manifest.json').read_text());blob=(src/'driver.elf').read_bytes()
-  record=json.loads((src/'build-record.json').read_text());custody[kind]=validate_provider(kind,manifest,blob,record,source)
+  record=json.loads((src/'build-record.json').read_text())
+  routes=kind=='firmware' and firmware_routes_source is not None
+  custody[kind]=validate_provider(kind,manifest,blob,record,firmware_routes_source if routes else source,routes)
   dest=store/folder;dest.mkdir();(dest/'manifest.json').write_bytes(encoded(manifest));(dest/'driver.elf').write_bytes(blob)
   evidence=output/'build-records/providers'/manifest['id'];evidence.mkdir(parents=True)
   (evidence/'build-record.json').write_bytes(encoded(record))

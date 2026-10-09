@@ -10,7 +10,7 @@
     "utilities": "1e751d83c93dd5b4be5db9079bcf137a6efa4388",
     "system-apps": "45215c6c57ca8e48a424efd7e37e827205696a18",
     "drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
-    "runtime": "858ec7160212e0e0f3e891c0b70dfe61272cb2bf"
+    "runtime": "317b74e363877cb6e5a90198211f897744e4a6d3"
   },
   "context_capability_owners": [
     "default",
