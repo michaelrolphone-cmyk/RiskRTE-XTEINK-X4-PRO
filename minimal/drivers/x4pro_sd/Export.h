@@ -38,13 +38,13 @@ static int32_t export_begin(void *context, risc_storage_export_token_t *token,
     bootlog_mount_pending=false;
     if(!bootlog_trace_source()) {
         unsigned snapshots=RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS;
-        while(snapshots-- && bootlog_step()) {}
+        while(snapshots-- && bootlog_step(true)) {}
     }
     if(bootlog_trace_source() && !bootlog_disabled) {
         // The source is bounded to prior+current boot text. Use one shared
         // owner operation deadline for the entire export preparation.
         unsigned chunks=128;
-        while(chunks-- && bootlog_step()) {}
+        while(chunks-- && bootlog_step(true)) {}
         if(!bootlog_disabled) {
             char probe[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];uint32_t count=0;uint64_t next=0;
             const risc_diagnostic_source_api_v1_trace *trace=bootlog_trace_source();

@@ -132,6 +132,11 @@ void* traceAllocation=nullptr;
 size_t traceCapacity=EarlyBytes,traceBytes=0,recoveryBytes=0,persistedBytes=0;
 uint32_t eventSequence=0;
 bool traceClosed=false,traceOverflow=false,recoveryReady=false,frameComplete=false;
+bool storageProbeReady=false,renderBusy=false,forceFlush=false;
+uint64_t lastFileCommitUs=0,lastNvsCommitUs=0;
+uint32_t lastFailureFlushedCount=0;
+constexpr size_t PersistBatchBytes=4096;
+constexpr uint64_t PersistIntervalUs=2000000;
 unsigned terminalDetails=0;
 struct EarlyEvent { uint64_t us; const char* operation; int result; };
 EarlyEvent earlyEvents[10]{};unsigned earlyCount=0;
@@ -167,7 +172,7 @@ void textLine(const char* line,uint64_t nowUs,bool essential=false) {
   if(n<=0 || size_t(n)>=sizeof(row))return;
   const size_t limit=essential?traceCapacity:traceCapacity-TailReserve;
   if(traceBytes+size_t(n)>limit) {
-    if(!traceOverflow){traceOverflow=true;textLine("capture overflow result=truncated capacity-exhausted",nowUs,true);}
+    if(!traceOverflow){traceOverflow=true;forceFlush=true;textLine("capture overflow result=truncated capacity-exhausted",nowUs,true);}
     return;
   }
   std::memcpy(traceText+traceBytes,row,size_t(n));traceBytes+=size_t(n);++eventSequence;
@@ -188,8 +193,13 @@ void start(const X4Boot::Record& record) {
   textLine(line,uint64_t(esp_timer_get_time()));
 }
 void trace(const char* line,uint64_t nowUs,const X4Boot::Record& record) {
+  if(std::strstr(line,"boot app-data end "))storageProbeReady=true;
+  const bool appLine=X4Boot::prefix(line,"APP t_ms=");
+  if(appLine && (std::strstr(line,"stage=draw-begin") || std::strstr(line,"stage=display-submit-begin")))renderBusy=true;
+  if(appLine && (std::strstr(line,"stage=display-complete") || std::strstr(line,"stage=display-failed") || std::strstr(line,"stage=display-skip")))renderBusy=false;
   const bool failure=X4Boot::classify(record,line)==X4Boot::Failure;
   const bool detail=std::strstr(line," provider detail ")!=nullptr;
+  if(failure || X4Boot::classify(record,line)==X4Boot::Display)forceFlush=true;
   if(traceClosed && !(terminalDetails<8 && (failure||detail)))return;
   if(traceClosed)++terminalDetails;
   if(X4Boot::prefix(line,"RTE_STAGE ") && std::strstr(line," app entry begin "))frameComplete=false;
@@ -252,14 +262,28 @@ bool append() {
 }
 void drain(const X4Boot::Record& record) {
   if(insideDrain)return;
+  // Capture is cheap even in display/input code. Filesystem and ordinary NVS
+  // work wait until the frame is complete; a terminal failure remains durable.
+  const bool fatal=record.milestoneKind==X4Boot::Failure && record.milestoneCount!=lastFailureFlushedCount;
+  if(renderBusy && !fatal)return;
+  const uint64_t nowUs=uint64_t(esp_timer_get_time());
+  const bool critical=(record.displayCompleted && !current.checkpoint.displayCompleted) ||
+                      (fatal && !current.firstFailure[0]);
+  const bool batchDue=traceBytes-persistedBytes>=PersistBatchBytes;
+  const bool timeDue=nowUs-lastFileCommitUs>=PersistIntervalUs;
+  if(!forceFlush && !critical && !fatal && !batchDue && !timeDue)return;
   insideDrain=true;
-  if(pending) {
+  if(pending && (critical || nowUs-lastNvsCommitUs>=PersistIntervalUs)) {
     pending=false;
-    if(advance(current,record))(void)store();
+    if(advance(current,record)){
+      (void)store();lastNvsCommitUs=uint64_t(esp_timer_get_time());
+    }
   }
-  if(!fileReady)fileReady=directory(X4_BOOTLOG_INTERNAL_ROOT);
+  if(!fileReady && storageProbeReady)fileReady=directory(X4_BOOTLOG_INTERNAL_ROOT);
   if(!recoveryReady && fileReady)recoverFile();
-  (void)append();
+  if(append())lastFileCommitUs=uint64_t(esp_timer_get_time());
+  if(fatal)lastFailureFlushedCount=record.milestoneCount;
+  forceFlush=false;
   insideDrain=false;
 }
 

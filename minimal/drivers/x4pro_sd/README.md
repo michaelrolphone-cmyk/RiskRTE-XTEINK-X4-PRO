@@ -158,3 +158,9 @@ hot unplug, power-loss or filesystem consistency after an unsafe host removal.
 owner service for bounded synchronous file writes. It preserves 0.2.8 raw-export
 custody and pauses during host ownership. Actual text, reset/event/time identity,
 limits, recovery and tests are described in [BOOT_LOGGING.md](../../docs/BOOT_LOGGING.md).
+
+0.2.10 combines copied statements into bounded 4 KiB batches instead of an
+append/seek/close on every acquisition. Partial batches flush after two seconds
+at an available safe boundary; explicit USB export forces the remaining text.
+Runtime 0.1.81 removes synchronous service from display/input app yields. The
+existing mutex, checked close, failure retention and USB custody remain in force.

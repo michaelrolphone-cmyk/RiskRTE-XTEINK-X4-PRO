@@ -11,7 +11,10 @@ static uint32_t fixture_cycles(void);
 #define f_write fixture_f_write
 #define f_close fixture_f_close
 #define f_mount fixture_f_mount
-#include "../drivers/x4pro_sd/driver.c"
+#ifndef X4_SD_DRIVER_SOURCE
+#define X4_SD_DRIVER_SOURCE "../drivers/x4pro_sd/driver.c"
+#endif
+#include X4_SD_DRIVER_SOURCE
 #undef f_open
 #undef f_write
 #undef f_close
@@ -121,8 +124,15 @@ static bool sync_take(void *ctx,uint64_t token){(void)ctx;++locks;assert(token==
 static bool sync_unlock(void *ctx,uint64_t token){(void)ctx;++unlocks;assert(token==fixture_lock);if(!owner || !locked || fail_unlock)return false;locked=false;return true;}
 static bool sync_destroy(void *ctx,uint64_t token){(void)ctx;++destroys;assert(owner && !locked && token==fixture_lock);if(fail_destroy)return false;fixture_lock=0;return true;}
 static bool power_is_ready(void *ctx){(void)ctx;return power_ready;}
-static bool budget_jump;
-static uint64_t monotonic(void *ctx){(void)ctx;if(budget_jump && bootlog_servicing)now_ms+=250;return now_ms;}
+static bool budget_jump,realistic_latency;
+static unsigned timed_reads,timed_writes;
+static uint64_t modeled_sd_ms;
+static uint64_t monotonic(void *ctx){
+ (void)ctx;
+ if(realistic_latency){const uint64_t cost=(card_reads-timed_reads)*8u+(card_writes-timed_writes)*20u;now_ms+=cost;modeled_sd_ms+=cost;timed_reads=card_reads;timed_writes=card_writes;}
+ if(budget_jump && bootlog_servicing)now_ms+=250;
+ return now_ms;
+}
 static void rejected_calls(void) {
     const unsigned before=calls;char text[80]="untouched",byte=0;uint64_t size=0,position=0;bool directory=false;risc_storage_dirent_v1 entry;
     assert(!refresh(NULL) && !ready(NULL) && !label(NULL,text,sizeof(text)));
@@ -471,8 +481,9 @@ static void trace_cases(const char *scenario) {
   assert(export_end(NULL,token)==RISC_STORAGE_EXPORT_READY);
  }
  while(bootlog_cursor<source_trace_available && !bootlog_disabled){
-  const unsigned sectors=card_writes+card_reads,writes=log_writes;
+  const unsigned sectors=card_writes+card_reads,writes=log_writes;const uint64_t cursor=bootlog_cursor;
   bootlog_service(1000);assert(++iterations<512);
+  if(bootlog_cursor==cursor)now_ms+=2001;
   assert(log_writes-writes<=1);
   assert(card_writes+card_reads-sectors<=64);
  }
@@ -495,6 +506,34 @@ static void trace_cases(const char *scenario) {
  printf("Full trace SD bytes=%zu events>200 chunks=%u physical_reads=%u physical_writes=%u; exact persisted text/order/reset/results PASS\n",count,iterations,card_reads,card_writes);
  verify_cleanup();
 }
+static void batching_latency_case(void) {
+ const char* fixture=getenv("X4_TRACE_FIXTURE");assert(fixture);
+ FILE *input=fopen(fixture,"rb");assert(input);
+ source_trace_size=fread(source_trace,1,sizeof(source_trace)-1,input);assert(!ferror(input) && feof(input));fclose(input);
+ deps[5].api=&fixture_trace.base;source_trace_available=0;assert(START());
+ realistic_latency=true;timed_reads=card_reads;timed_writes=card_writes;
+ unsigned lines=0;
+ // Production boot statement cadence: each acquisition boundary receives the
+ // preceding four lines, rather than an already-complete artificial transcript.
+ for(size_t i=0;i<source_trace_size;++i)if(source_trace[i]=='\n') {
+  source_trace_available=i+1;++lines;now_ms+=2;
+  if(lines%4==0)bootlog_service(1000);
+  assert(!bootlog_disabled);
+ }
+ for(unsigned tries=0;bootlog_cursor<source_trace_size;++tries){assert(tries<128);now_ms+=2001;bootlog_service(1000);assert(!bootlog_disabled);}
+ const uint64_t cost=modeled_sd_ms;const unsigned r=card_reads-timed_reads,w=card_writes-timed_writes;
+ (void)r;(void)w;
+ const unsigned persisted=log_closes;
+ char actual[262144];assert(read_log(actual,sizeof(actual))==source_trace_size && !memcmp(actual,source_trace,source_trace_size));
+ const unsigned before=card_reads+card_writes;
+ for(unsigned i=0;i<1000;++i)bootlog_service(1000);
+ assert(before==card_reads+card_writes);
+#ifdef X4_EXPECT_BATCHING
+ assert(persisted<=source_trace_size/3000+3);
+#endif
+ printf("Boot cadence bytes=%zu lines=%u append_close_pairs=%u modeled_sd_ms=%llu zero_work_calls=1000 PASS\n",source_trace_size,lines,persisted,(unsigned long long)cost);
+ verify_cleanup();
+}
 #include "sd_export_test.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
@@ -502,6 +541,7 @@ int main(int argc,char **argv){
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver.poll.streams.driver && !t5_driver_get(1));
     if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
+    if(!strcmp(scenario,"log-batching-latency")){batching_latency_case();return 0;}
     if(!strcmp(scenario,"log-full-trace") || !strncmp(scenario,"log-trace-",10)){trace_cases(scenario);return 0;}
     if(!strncmp(scenario,"log-",4)){bootlog_cases(scenario);goto done;}
     if(!strcmp(scenario,"validation")){

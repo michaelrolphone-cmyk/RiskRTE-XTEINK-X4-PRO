@@ -64,6 +64,7 @@ void resetRam(bool eraseFlash=false){
  traceCapacity=EarlyBytes;traceBytes=recoveryBytes=persistedBytes=0;
  eventSequence=earlyCount=terminalDetails=0;
  traceClosed=traceOverflow=recoveryReady=frameComplete=false;
+ storageProbeReady=renderBusy=forceFlush=false;lastFileCommitUs=lastNvsCommitUs=0;lastFailureFlushedCount=0;
  if(eraseFlash){flash.clear();}
  staged.clear();commits=reads=realMainCalls=0;emitted.clear();
  initResult=readResult=commitResult=0;now=1000;level=0;
@@ -78,7 +79,7 @@ void resetRam(bool eraseFlash=false){
 void noFiles(){fs::remove_all(X4_BOOTLOG_INTERNAL_ROOT);}
 void boot(){__wrap_app_main();assert(realMainCalls==1);assert(!risc_native_startup_error());}
 void emit(const char* line){RiscDiagnostics::line(line);}
-void mounted(){fs::create_directories(X4_BOOTLOG_INTERNAL_ROOT);emit("RTE_STAGE us=700 boot app-data end result=ok");}
+void mounted(){fs::create_directories(X4_BOOTLOG_INTERNAL_ROOT);now+=2000001;emit("RTE_STAGE us=700 boot app-data end result=ok");}
 void check(bool condition,const char* description){if(!condition){std::cerr<<"FAIL "<<description<<"\n";std::abort();}std::cout<<"PASS "<<description<<"\n";}
 std::string sourceText(){
  std::string text;uint64_t cursor=0,next=0;uint32_t written=0;char out[1536];
@@ -159,8 +160,9 @@ int main(){
  check(risc_native_diagnostic_read_after(0,out,2,&written,&next)==-1 && !out[0],"insufficient capacity cannot split a line");
  resetRam();noFiles();boot();mounted();
  emit("RTE_STAGE us=4 provider wifi password=do-not-log-this");
+ now+=2000001;risc_native_diagnostic_drain();
  check(readFile(Internal).find("do-not-log-this")==std::string::npos && readFile(Internal).find("redacted credential-bearing")!=std::string::npos,"credential-bearing diagnostics are explicitly redacted");
- failSync=true;emit("RTE_STAGE us=5 provider start begin id=panel");
+ failSync=true;now+=2000001;emit("RTE_STAGE us=5 provider start begin id=panel");
  check(fileUncertain && fileError,"uncertain internal write is never retried");
  attempts=fileAttempts;for(unsigned i=0;i<20;++i)emit("RTE_STAGE us=6 provider start end result=ok");
  check(fileAttempts==attempts,"subsequent lines stay buffered after uncertain internal close");
@@ -168,6 +170,7 @@ int main(){
  check(flash==preserved && current.sequence==0 && readFile(Internal).find("session_identity=unassigned")!=std::string::npos,"NVS failure does not erase settings and labels fallback session identity");
  resetRam();noFiles();boot();mounted();
  for(unsigned i=0;i<2000;++i)emit("RTE_STAGE us=100 provider reference id=x4pro-panel stage=hardware-start-begin result=begin");
+ now+=2000001;risc_native_diagnostic_drain();
  check(traceOverflow && traceBytes<=TraceBytes && readFile(Internal).find("capture overflow result=truncated")!=std::string::npos,"finite capture capacity emits explicit overflow instead of silent last-checkpoint loss");
  emit("RTE_BOOT error=late-terminal-failure");
  check(current.firstFailure[0] && readFile(Internal).find("late-terminal-failure")!=std::string::npos,"failure special record and text use reserved tail after trace overflow");

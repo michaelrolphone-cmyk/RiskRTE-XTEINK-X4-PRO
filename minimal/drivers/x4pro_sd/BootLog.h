@@ -18,7 +18,12 @@ static const risc_diagnostic_source_api_v1_trace *bootlog_trace_source(void) {
 static bool bootlog_disabled, bootlog_reporting, bootlog_retained;
 static bool bootlog_custody_safe(void) { return !bootlog_retained || bootlog_reporting; }
 static const char *bootlog_error;
-static char bootlog_text[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];
+#define X4_BOOTLOG_BATCH_BYTES 4096u
+#define X4_BOOTLOG_BATCH_INTERVAL_MS 2000u
+static char bootlog_text[X4_BOOTLOG_BATCH_BYTES];
+static uint32_t bootlog_batch_bytes;
+static bool bootlog_batch_ready;
+static uint64_t bootlog_batch_next,bootlog_batch_since;
 
 static void bootlog_failed(const char *reason) {
     if (!bootlog_error) bootlog_error = reason;
@@ -31,7 +36,37 @@ static bool bootlog_result(FRESULT result, const char *reason) {
     bootlog_failed(reason);
     return false;
 }
-static bool bootlog_step(void) {
+static bool bootlog_prepare_trace(bool force) {
+    const risc_diagnostic_source_api_v1_trace *trace=bootlog_trace_source();
+    if(!trace)return false;
+    if(bootlog_batch_ready)return true;
+    bool full=false;
+    // At most four copied-source calls; no I/O, allocation or acknowledgment.
+    for(unsigned i=0;i<4;++i) {
+        uint32_t capacity=sizeof(bootlog_text)-bootlog_batch_bytes;
+        if(capacity<2){full=true;break;}
+        if(capacity>RISC_DIAGNOSTIC_SOURCE_TEXT_MAX)capacity=RISC_DIAGNOSTIC_SOURCE_TEXT_MAX;
+        uint32_t count=0;uint64_t next=0;
+        const uint64_t after=bootlog_cursor+bootlog_batch_bytes;
+        char *out=bootlog_text+bootlog_batch_bytes;
+        const int32_t result=trace->read_after(diagnostic_source->context,after,out,capacity,&count,&next);
+        // A complete source row may not fit the batch remainder. It is copied
+        // with the full capacity on the next batch, never split or dropped.
+        if(result<0 && bootlog_batch_bytes && capacity<RISC_DIAGNOSTIC_SOURCE_TEXT_MAX){full=true;break;}
+        if(result<0 || result>1 || (result==1 && (!count || count>=capacity ||
+           next<=after || next-after!=count || out[count] || out[count-1]!='\n'))) {
+            bootlog_failed("trace source invalid; export disabled");return false;
+        }
+        if(!result)break;
+        if(!bootlog_batch_bytes)bootlog_batch_since=clock_api->monotonic_ms(clock_api->context);
+        bootlog_batch_bytes+=count;bootlog_batch_next=next;
+    }
+    if(!bootlog_batch_bytes)return false;
+    bootlog_batch_ready=force || full || bootlog_batch_bytes>=3072u ||
+        clock_api->monotonic_ms(clock_api->context)-bootlog_batch_since>=X4_BOOTLOG_BATCH_INTERVAL_MS;
+    return bootlog_batch_ready;
+}
+static bool bootlog_step(bool force) {
     if (bootlog_paused || bootlog_disabled || bootlog_reporting || !diagnostic_source || !started ||
         !mounted || !card_ready || io_failed || gpio_fault || gpio_retained ||
         mutex_poisoned || quiescing || power_down_prepared || power_down_committed ||
@@ -41,21 +76,15 @@ static bool bootlog_step(void) {
     const risc_diagnostic_source_api_v1_trace *trace=bootlog_trace_source();
     uint64_t next=0;
     if(trace) {
-        const int32_t result=trace->read_after(diagnostic_source->context,bootlog_cursor,
-            bootlog_text,sizeof(bootlog_text),&count,&next);
-        if(result<0 || (result>0 && (!count || count>=sizeof(bootlog_text) ||
-           next<=bootlog_cursor || next-bootlog_cursor!=count || bootlog_text[count] ||
-           bootlog_text[count-1]!='\n'))) {
-            bootlog_failed("trace source invalid; export disabled");return false;
-        }
-        if(result==0)return false;
+        if(!bootlog_prepare_trace(force))return false;
+        count=bootlog_batch_bytes;next=bootlog_batch_next;
     } else
     /* Recover current and flash history in round-robin order. At most nine bounded RAM-only reads, one write. */
     for (unsigned attempt = 0; attempt < RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS; ++attempt) {
         slot = (bootlog_next + attempt) % RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS;
         const int32_t result = diagnostic_source->read(diagnostic_source->context, slot,
-            bootlog_text, sizeof(bootlog_text), &count, &sequence, &revision);
-        if (result < 0 || (result > 0 && (!count || count >= sizeof(bootlog_text) ||
+            bootlog_text, RISC_DIAGNOSTIC_SOURCE_TEXT_MAX, &count, &sequence, &revision);
+        if (result < 0 || (result > 0 && (!count || count >= RISC_DIAGNOSTIC_SOURCE_TEXT_MAX ||
                 !revision || bootlog_text[count] != 0))) {
             bootlog_failed("source invalid; export disabled"); return false;
         }
@@ -114,7 +143,7 @@ static bool bootlog_step(void) {
         file->handle = 0;
         if (complete) {
             exported = true;
-            if(trace)bootlog_cursor=next;
+            if(trace){bootlog_cursor=next;bootlog_batch_bytes=0;bootlog_batch_ready=false;}
             else {
                 bootlog_seen[slot].sequence = sequence; bootlog_seen[slot].revision = revision;
                 bootlog_next = (slot + 1u) % RISC_DIAGNOSTIC_SOURCE_MAX_SLOTS;
@@ -140,7 +169,7 @@ static void bootlog_drain(void) {
      * An in-flight bounded sector may complete after the checked deadline. */
     operation_start = clock_api->monotonic_ms(clock_api->context);
     operation_steps = operation_sectors = 0;
-    while (limit-- && bootlog_step()) {}
+    while (limit-- && bootlog_step(false)) {}
 }
 static void bootlog_copy(char *out, size_t capacity, size_t *used, const char *text) {
     if (!text) return;
@@ -170,23 +199,18 @@ static bool bootlog_last_error(void *context, char *out, size_t capacity) {
 
 /* Explicit synchronous owner service. This is not an 8-ms poll callback.
  * Source probing is RAM-only. No pending bytes means no mutex or storage I/O.
- * Each service appends/closes at most one complete <=1535-byte chunk, with one
+ * Each service appends/closes at most one complete <=4095-byte batch, with one
  * shared deadline/64-sector budget and the existing uncertain-close custody. */
 static void bootlog_service(uint32_t budget_ms) {
     if(!budget_ms || budget_ms>RISC_DRIVER_SERVICE_MAX_MS || !valid_task() ||
        !bootlog_trace_source() || bootlog_disabled || bootlog_paused || bootlog_servicing ||
        !started || !mounted || !card_ready || io_failed || quiescing ||
        power_down_prepared || power_down_committed || sleep_state!=SLEEP_ACTIVE || has_handles())return;
-    char probe[RISC_DIAGNOSTIC_SOURCE_TEXT_MAX];uint32_t count=0;uint64_t next=0;
-    const risc_diagnostic_source_api_v1_trace *trace=bootlog_trace_source();
-    const int32_t status=trace->read_after(diagnostic_source->context,bootlog_cursor,
-        probe,sizeof(probe),&count,&next);
-    if(status==0)return;
-    if(status<0){bootlog_failed("trace service source invalid; export disabled");return;}
+    if(!bootlog_prepare_trace(false))return;
     if(!enter_lifecycle())return;
     bootlog_servicing=true;
     bootlog_budget_ms=budget_ms;bootlog_sector_limit=64;
-    (void)bootlog_step();
+    (void)bootlog_step(false);
     bootlog_budget_ms=15000;bootlog_sector_limit=2048;
     (void)leave();bootlog_servicing=false;
 }

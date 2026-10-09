@@ -374,7 +374,7 @@ def build(a):
     custody['idle_policy']=idle
     custody['contexts_rf_only']=dict(contexts_cohort.PROFILE) if contexts else False
     custody['provider_activation']=boot.get('provider_activation','eager')
-    custody['boot_logging']={'enabled':bootlog,'sd_path':'/x4-boot.log','boot_start':'cold' if bootlog else None,'capture':'ordered-text','current_ram_bytes':65536,'previous_ram_bytes':65536,'early_internal_ram_bytes':8192,'service_max_text_bytes':1535,'service_deadline_ms':1000,'service_max_sectors':64,'deep_wake_activation':False}
+    custody['boot_logging']={'enabled':bootlog,'sd_path':'/x4-boot.log','boot_start':'cold' if bootlog else None,'capture':'ordered-text','current_ram_bytes':65536,'previous_ram_bytes':65536,'early_internal_ram_bytes':8192,'service_max_text_bytes':4095,'source_copy_max_bytes':1535,'partial_batch_interval_ms':2000,'app_yield_service':False,'initial_app_main_nvs_checkpoint':'immediate','unflushed_ram_suffix_survives_reset':False,'unflushed_ram_suffix_survives_power_loss':False,'usb_export_drains_quiet_partial_batch':True,'service_deadline_ms':1000,'service_max_sectors':64,'deep_wake_activation':False}
     boot['app_capabilities']=policies
     if broadcast:
         pins=json.loads((ROOT/'minimal/apps/telemetry-sources.json').read_text())
