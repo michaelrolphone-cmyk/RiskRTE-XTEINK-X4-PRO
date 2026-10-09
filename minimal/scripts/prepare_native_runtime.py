@@ -75,25 +75,32 @@ def snapshot(root, revision):
 
 
 def validate_build_options(options):
-    require(isinstance(options, dict) and set(options) in
-            ({'app_policy_rows', 'app_image_cache'}, {'app_policy_rows', 'app_image_cache', 'usb_phy'}),
+    required = {'app_policy_rows', 'app_image_cache'}
+    require(isinstance(options, dict) and required <= set(options) and
+            set(options) <= required | {'usb_phy', 'retained_wake_bytes'},
             'Invalid native build options')
     require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
             'App policy rows must be 16 or 17')
     require(type(options['app_image_cache']) is bool, 'App image cache must be boolean')
     require('usb_phy' not in options or options['usb_phy'] is True,
             'USB PHY must be an explicit true opt-in')
+    require('retained_wake_bytes' not in options or
+            (type(options['retained_wake_bytes']) is int and options['retained_wake_bytes'] == 512),
+            'Extended retained wake must be an explicit 512-byte opt-in')
     return options
 
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
-            app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False):
+            app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False,
+            retained_wake_bytes=None):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
     require(type(usb_phy) is bool, 'USB PHY selection must be boolean')
     options = {'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache}
     if usb_phy:
         options['usb_phy'] = True
+    if retained_wake_bytes is not None:
+        options['retained_wake_bytes'] = retained_wake_bytes
     validate_build_options(options)
     require(type(boot_flash_dio) is bool, 'DIO selection must be boolean')
     flash_selection = {'boot_flash_experiment': flash_profile.DIO} if boot_flash_dio else {}
@@ -328,6 +335,47 @@ def xtensa_calls(elf, symbols, name):
     return calls
 
 
+def retained_wake_proof(elf, symbols, options):
+    """Bind the selected payload to the actual RTC object and linked memory use."""
+    marker = symbols.get('risc_retained_wake_payload_max')
+    selected = options.get('retained_wake_bytes')
+    if selected is None:
+        require(marker is None or marker['st_shndx'] == 'SHN_UNDEF',
+                'Unexpected extended retained wake implementation')
+        return None
+    require(marker is not None and marker['st_info']['bind'] == 'STB_GLOBAL' and
+            marker['st_size'] == 4 and elf_symbol_bytes(elf, marker) == selected.to_bytes(4, 'little'),
+            'Missing compiled retained wake payload marker')
+    require(elf['e_machine'] == 'EM_XTENSA', 'Retained wake proof requires the actual Xtensa target')
+    section = elf.get_section(marker['st_shndx'])
+    require(section.name == '.flash.rodata' and
+            0x3c000000 <= marker['st_value'] < marker['st_value'] + 4 <= 0x3e000000,
+            'Retained wake marker is not in flash DROM')
+    image = symbols.get('_ZN7RiscCpu18NativeRetainedWake12_GLOBAL__N_15imageE')
+    require(image is not None and isinstance(image['st_shndx'], int) and image['st_size'] == 700 + selected,
+            'Retained wake RTC object size differs from the selected payload')
+    noinit = elf.get_section(image['st_shndx'])
+    require(noinit.name == '.rtc_noinit' and noinit['sh_type'] == 'SHT_NOBITS' and
+            noinit['sh_addr'] <= image['st_value'] and
+            image['st_value'] + image['st_size'] <= noinit['sh_addr'] + noinit['sh_size'],
+            'Retained wake object is outside RTC no-init memory')
+    banks = {'slow': (0x50000000, 8192), 'fast': (0x600fe000, 8192)}
+    usage = {name: {'capacity_bytes': size, 'used_span_bytes': 0, 'sections': []}
+             for name, (_, size) in banks.items()}
+    for part in elf.iter_sections():
+        if not part['sh_size'] or not part['sh_flags'] & 2:
+            continue
+        address, end = part['sh_addr'], part['sh_addr'] + part['sh_size']
+        for name, (base, capacity) in banks.items():
+            if base <= address < base + capacity:
+                require(end <= base + capacity, 'Compiled RTC ' + name + ' memory exceeds its bank')
+                usage[name]['used_span_bytes'] = max(usage[name]['used_span_bytes'], end - base)
+                usage[name]['sections'].append({'name': part.name, 'address': address, 'bytes': part['sh_size']})
+    require(usage['slow']['used_span_bytes'] >= image['st_size'], 'Missing compiled RTC slow-memory use')
+    return {'payload_bytes': selected, 'marker': marker.name, 'rtc_object_bytes': image['st_size'],
+            'rtc_object_address': image['st_value'], 'memory': usage}
+
+
 def runtime_options_proof(blobs, record):
     """Prove the compiled selection, not only flags or an echoed build request."""
     from elftools.elf.elffile import ELFFile
@@ -406,6 +454,9 @@ def runtime_options_proof(blobs, record):
             'app_image_cache': cache, 'hardware_qualified': False}
     if usb is not None:
         result['usb_phy'] = usb
+    retained = retained_wake_proof(elf, symbols, options)
+    if retained is not None:
+        result['retained_wake'] = retained
     return result
 
 
@@ -591,6 +642,8 @@ def main():
                          help='Explicit .29 diagnostic DIO/80MHz flash with octal PSRAM; default QIO unchanged')
     prepare.add_argument('--usb-phy', action='store_true',
                          help='Explicitly enable the native USB PHY ownership lease for the SD export provider')
+    prepare.add_argument('--retained-wake-bytes', type=int, choices=(512,),
+                         help='Explicitly enable the bounded extended retained payload; default remains 128 bytes')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)
