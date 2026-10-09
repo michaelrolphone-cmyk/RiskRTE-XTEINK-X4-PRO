@@ -20,7 +20,7 @@ This is a diagnostic increment, not a confirmed battery-only/RST boot repair. Th
 - Runtime retains immutable installed ELF input bytes for up to four images/1 MiB in PSRAM within the prepared store session. A repeated launch avoids its full-file read and whole-image structural parse; every invocation still receives a fresh relocated mapping, globals, init and fini. A new session/update restart discards the cache. The X4 build explicitly enables the cache; shared Runtime defaults it off. Covered app/provider allocation failures disable and free it before one retry. Native SDK allocations outside those wrappers are not covered; non-PSRAM builds remain uncached. No file-change/hash probe is added.
 - Cold ELF reads still use at most 4 KiB per storage call and check deadlines per call. They yield after 32 KiB or 2 ms of work instead of forcing one tick after every chunk. A five-launch host sequence using earlier X4 default/Springboard bytes reduces 314 reads to 120, 1,276,812 bytes to 487,520 and instantaneous-read delay requests from 314 to 14. All five relocations remain. These are deterministic operation counts, not device timing.
 
-- Explicit Runtime 0.1.69 `demand-retained` policy. Sparse boot activates only needed dependencies. Foreground promotion retains active providers and arms retention on later first use; it does not load unused providers. Used mappings survive app returns. Installation/update admission remains; no boot/launch checksum gate is added.
+- Explicit Runtime 0.1.72 `demand-retained` policy. Sparse boot activates only needed dependencies. Foreground promotion retains active providers and arms retention on later first use; it does not load unused providers. Used mappings survive app returns. Installation/update admission remains; no boot/launch checksum gate is added.
 - Default-off BLE telemetry from the shared capability chain. Foreground BLE/IQ users and storage custody pause advertising. Timer-only sparse wakes do not activate telemetry.
 - Reversible automatic Light sleep across the 19 selected apps. The foreground call stack and drafts survive a clean wake. Default idle timeout is 60 seconds; the persisted below-10% battery action selects 20 seconds, 15% brightness while preserving OFF, and disabled radio intent. The unused deep-after preference is not advertised as automatic Deep/Hybrid support. Explicit Home desk locking keeps its separate deep/sparse lifecycle.
 - Actual active RF capture inhibits automatic idle. Clean wake restores saved background radio intent; it does not restart foreground capture.
@@ -31,13 +31,13 @@ This is a diagnostic increment, not a confirmed battery-only/RST boot repair. Th
 
 ## Apps
 
-Clock, Springboard, File Browser, Bluetooth Scanner, Points in Time, Settings, Calculator, Stopwatch, Countdown, Timecard, Battery, Alarms, Wi-Fi, Bluetooth Touchpad, Bluetooth Buttons, RF Spectrogram, OTA Update and App Store.
+Clock, Springboard, File Browser, Bluetooth Scanner, Points in Time, Settings, Calculator, Stopwatch, Countdown, Timecard, Battery, Alarms, Wi-Fi, Bluetooth Touchpad, Bluetooth Buttons, RF Spectrogram, OTA Update, App Store and Contexts.
 
-Serial Monitor's tested paper client is preserved separately. It is not bundled until a real minimal Runtime USB/UART transport and board power contract are implemented. No audio or LoRa hardware availability is invented. The next Contexts feature is not part of this cohort.
+Serial Monitor's tested paper client is preserved separately. It is not bundled until a real minimal Runtime USB/UART transport and board power contract are implemented. No audio or LoRa hardware availability is invented.
 
 ## Build and provenance
 
-Use the exact source lock, native app receipts and manifest versions. Select `--sleep --desk-clock --sparse-clock --ble-telemetry --idle-policy --retain-promoted-providers --panel uc8279 --panel-driver uc8279-fast` when composing. Native compilation includes the platform's early startup source; the generic Runtime BIN is not interchangeable.
+Use the exact source lock, native app receipts and manifest versions. Select `--sleep --desk-clock --sparse-clock --ble-telemetry --idle-policy --retain-promoted-providers --contexts-rf-only --static-spiffs --panel uc8279 --panel-driver uc8279-fast` when composing. Native compilation includes the platform's early startup source; the generic Runtime BIN is not interchangeable.
 
 `stage_clock_admission.py` derives Clock's native receipt from its clean source, compiled SDK, helper and existing build evidence. The composer admits the complete app/provider graph and rejects a mixed SDK, helper, source, version, authority or partial profile. SDK hash verification is offline packaging work, not a device touch/boot/launch operation. The shared HID provider retains its source/version and loaded semantics while non-loaded debug/local-symbol metadata moves to a sidecar, recovering 107,412 bytes of store space. Allocated segments, required symbols and relocations are verified unchanged before full Runtime store admission.
 
@@ -49,4 +49,8 @@ The paper Contexts editor uses genuine FontAwesome icons, reader orientation, sh
 
 Only the RF-only service profile is installed. Default Clock and Waterfall declare at most 16 distinct requirements and 17 policy rows; Runtime still permits only16 simultaneously live app grants. Actual Clock/controller tests measured8 foreground,12 deep preparation and6 timer. Those are software measurements; physical RF inference and sleep timing remain unqualified.
 
-The next native build uses the source-bound Runtime0.1.69 stream/cache/policy union. The generic stream bridge is present but no Serial transport or Serial application is installed. The existing automatic timestamped stage logging remains enabled; no perf command is required.
+The next native build uses the source-bound Runtime0.1.72 stream/cache/policy union. The generic stream bridge is present but no Serial transport or Serial application is installed. The existing automatic timestamped stage logging remains enabled; no perf command is required.
+
+The native source is the canonical public Runtime commit `0517db42c1df40cc88d8f9385435d44972e7e5d9` (PR49). Its compact provisioning and retained-owner scheduler fixes preserve the existing app authority limits. The explicit X4 seed-extension callback recomputes startup, native options and stage-log proofs while the shared composer retains rollback, TLS, IQ and policy checks. All three original composition JSON receipts survive seed and private composition.
+
+The static SPIFFS producer emits the unchanged 85-file store directly in sorted ASCII order, avoiding offline deleted-page churn. Independent decoding confirms every file; production SPIFFS mounting and streamed schema2 installation are separately tested. This changes packaging only, with no extra device boot/launch verification.
