@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "148ad226b55db00e1dc451f21f11696f2b77f0a5",
-    "version": "0.1.93"
+    "commit": "ae83a7c14f83313101c0d491a19101f420d28dc9",
+    "version": "0.1.96"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
-  "status": "Held native failure-evidence candidate over frozen X4 0.1.44. Only Home 0.3.19 and the native Runtime are replaced. Runtime 0.1.94 host/resource work and stopped USB 0.1.87 are excluded. No publication or hardware qualification."
+  "status": "Native resident object-export repair over delivered X4 0.1.45. All application/provider ELFs and policies are preserved; hardware boot validation pending."
 }
