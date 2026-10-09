@@ -1,4 +1,4 @@
-# X4 Minimal 0.1.24 RF-only Contexts integration
+# X4 Minimal 0.1.24 Wi-Fi policy and setup diagnostics
 
 This cohort adds the RF-only Contexts editor, model service and Clock/Waterfall rendezvous over the frozen 0.1.20 input/display baseline. It retains UC8279 fast provider 0.1.6, accepted pixel polarity, 2300 ms resident-image settling, 30-second awake maintenance, clean desk-clock waveform, both landscape directions and early battery-boot diagnostics. Battery-only/RST startup still needs device confirmation; a host build does not establish an electrical repair.
 
@@ -47,17 +47,17 @@ The full 16 MiB USB image is flashed at 0x0 and overwrites NVS/appdata. Preserve
 
 The paper Contexts editor uses genuine FontAwesome icons, reader orientation, shared touch scrolling, Quick Controls and draft-safe Light resume. It displays RF model readiness and monitoring status, saved presets and explicit reload. Audio is unavailable on this hardware profile. Monitoring defaults OFF when no preference is saved. Enabling or reloading requests the existing RF owner to export its private canonical models and return to the same default Clock. Sparse minute wake never starts Contexts.
 
-Only the RF-only service profile is installed. Default Clock and Waterfall declare at most 16 distinct requirements and 17 policy rows; Runtime still permits only16 simultaneously live app grants. Actual Clock/controller tests measured8 foreground,12 deep preparation and6 timer. Those are software measurements; physical RF inference and sleep timing remain unqualified.
+Only the RF-only service profile is installed. Default Clock and Waterfall declare at most 16 distinct requirements and 17 policy rows; Runtime still permits only 16 simultaneously live app grants. Actual Clock/controller tests measured 8 foreground, 12 deep preparation and 6 timer. Those are software measurements; physical RF inference and sleep timing remain unqualified.
 
 This native build uses the source-bound Runtime 0.1.74 stream/cache/policy union. The generic stream bridge is present but no Serial transport or Serial application is installed. The existing automatic timestamped stage logging remains enabled; no perf command is required.
 
-The native source is the canonical public Runtime commit `858ec7160212e0e0f3e891c0b70dfe61272cb2bf` (PR49). Its compact provisioning and retained-owner scheduler fixes preserve the existing app authority limits. The explicit X4 seed-extension callback recomputes startup, native options and stage-log proofs while the shared composer retains rollback, TLS, IQ and policy checks. All three original composition JSON receipts survive seed and private composition.
+The native source is the canonical public Runtime commit `858ec7160212e0e0f3e891c0b70dfe61272cb2bf` (PR50). Its compact provisioning and retained-owner scheduler fixes preserve the existing app authority limits. The explicit X4 seed-extension callback recomputes startup, native options and stage-log proofs while the shared composer retains rollback, TLS, IQ and policy checks. All three original composition JSON receipts survive seed and private composition.
 
 The static SPIFFS producer emits the unchanged 85-file store directly in sorted ASCII order, avoiding offline deleted-page churn. Independent decoding confirms every file; production SPIFFS mounting and streamed schema2 installation are separately tested. This changes packaging only, with no extra device boot/launch verification.
 
 ## Bluetooth and battery comparison
 
-Runtime 0.1.74 replaces four fixed HCI receive slots with a bounded byte queue inside the same memory budget. The actual selected BLE/scanner providers preserve 640 reports over 20 startup/close cycles. Maximum ACL packets, real overflow, malformed input and failed-close retention remain covered. This is a software-qualified Bluetooth repair; the separate Wi-Fi investigation remains open.
+The retained Runtime 0.1.73 repair replaces four fixed HCI receive slots with a bounded byte queue inside the same memory budget. The actual selected BLE/scanner providers preserve 640 reports over 20 startup/close cycles. Maximum ACL packets, real overflow, malformed input and failed-close retention remain covered. This is a software-qualified Bluetooth repair; the separate Wi-Fi investigation remains open.
 
 This ordinary QIO/80 MHz cohort adds Wi-Fi diagnosis to the frozen 0.1.23 control/provisioning source. The separate 0.1.22 DIO battery-boot experiment remains unchanged. It preserves the qualified QIO bootloader contract. It does not claim to repair battery-only startup. The DIO diagnostic has a distinct full-image recipe and is not an ordinary OTA/provisioning payload.
 
