@@ -27,6 +27,7 @@ build_flags =
   ${env:esp32s3-16mb-appdata-iq-stage.build_flags}
   -DRISC_APP_POLICY_ROWS=17
   -DRISC_APP_IMAGE_CACHE=1
+  -DRISC_NATIVE_DIAGNOSTIC_OBSERVER=1
   -Wl,--wrap=app_main
   -Wl,-u,risc_x4_native_composition_identity
 '''
@@ -102,7 +103,7 @@ def main():
         'baseline_full_sha256': 'b06d0679e2be7b0c8450aaef46fd1ad942415cf213586ee90f974fff18079205',
         'native_source_sha256': NATIVE_HASHES, 'strong_symbols': verified,
         'flash_mode': 'dio', 'flash_bytes': 16777216, 'psram': 'opi',
-        'app_policy_rows': 17, 'app_image_cache': True,
+        'app_policy_rows': 17, 'app_image_cache': True, 'native_diagnostic_observer': True,
         'scope': 'New native firmware. Full product assembly must retain and re-admit the 0.1.29 app/provider store.',
         'hardware_tested': False,
         'artifacts': {x.name: {'bytes': x.stat().st_size, 'sha256': digest(x)}
