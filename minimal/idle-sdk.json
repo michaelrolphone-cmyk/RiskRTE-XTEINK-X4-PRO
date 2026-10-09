@@ -22,8 +22,8 @@
   },
   "runtime_header_compatibility": {
     "compiled_sha256": "99a7266f31f88fd6e6e5b96858d97c4ebac822c9b01f93d7fa755917eccc6b2f",
-    "runtime_sha256": "00670239b488258ca0bb0afd0a21ef806482b8acb73856e95e1a364461a00e71",
+    "runtime_sha256": "77242d8b3fe0faf524380febba4be693b9e56271dd79d04696a534c2695c4e3e",
     "runtime_source": "0517db42c1df40cc88d8f9385435d44972e7e5d9",
-    "change": "Append-only invocation-bound stream client at Xtensa offset44; all prior members preserve offsets and sizes. Earlier SDK apps do not request streams."
+    "change": "Append-only invocation-bound stream client at Xtensa offset44; all prior members preserve offsets and sizes. Earlier SDK apps do not request streams. Runtime0.1.71 additionally documents scheduler-only retained-owner yield; all declarations remain identical to0.1.69."
   }
 }
