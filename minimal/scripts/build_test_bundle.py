@@ -336,7 +336,7 @@ def build(a):
     notes=ROOT/'minimal/docs'/('REPAIR_'+cohort['version'].replace('.','')+'.md')
     if notes.is_file():
         readme=out/'README.txt';readme.write_text(readme.read_text()+'\n'+notes.read_text())
-    if native_time and sparse:
+    if sparse:
         readme=out/'README.txt';text=readme.read_text()
         text=text.replace('requests the selected Light or Deep Desk Clock mode from Clock; Light is the default and GPIO3 wakes either mode.', 'locks the landscape Deep Desk Clock after key release; a later GPIO3 press wakes to Home.')
         readme.write_text(text)
