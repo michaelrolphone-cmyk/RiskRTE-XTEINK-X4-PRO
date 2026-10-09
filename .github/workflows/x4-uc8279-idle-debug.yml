@@ -16,8 +16,34 @@ jobs:
       - name: Remove duplicate DTM1 command and diagnostic workflow
         shell: bash
         run: |
-          printf '%s' 'H4sIAEZ6yWoC/+1WTW/bMAy9+1cwPhR22yVtMWArghyKLDu1SdF2h50E2aITYfrwJLlJMOy/j3KzovlYAmzDLqsOhkVRj48Un63Kbs0lq6NoGxw0w4Z8i0b5Vm2fPDsH5AF4pKixnFGiZg1+nf8F2WtZzCRzbMv2mD3b9oIueofeaZM4NjhBx/wlJKJa3AkGS5qBbQ2chchZBZPsv8/gFslnM+V8PxP3uY3gVg6gPKE8g7pUdoMRAmuz9+Z4XU6XWBljQ/ZCVJL8kw7eOLy/Dl9nJTWt2XlKQVa3G5VvxT0MYFkVaElj0ws5K9FMgRbSe16yEhKykRKQfsCzc75yZj4zk9Yts+2S4kGZJMUhBWrRXT9hgRYqyWmufpBdzYfYsnAfZ9wn8uUS93vNjbkIFjbtgiHBvPHnA4b1U/2gFQrH5cbrVM4Lvd5sx6myCMKjU3iHbVr58Sxx/8P7N7s66o6Q8uXQsF4mUbihG5oF4r+MJ74RG09a1B/s8Sdv47zt5jCyL6X3BGoegMQHHg8nD7u+ZNL+6mzXtfnqcMzp7M41KFWbvv/SKoVo9QaVGj3kYLWsNBwyfwk7lY1+7TWyTkP7s1lUlfpVhqCuWYzV5QX1i7RZduVGqsxZwlGmnqqoc6X0bbmqQJ7qc3He2EOPxENLeaQGLFsxDm9kpsfLYRveVuVjlSvbXr1RlhWxFeHu6Bw+zn+SDbBbrABqDEI+jVz6KqkBtp2/XQ8ezgjuifhUzxgsCy1hWzHpfxllx/wAcZ2AeaEQAA' | base64 -d | gzip -d > /tmp/fix_uc8279_sync.py
-          python3 /tmp/fix_uc8279_sync.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('minimal/drivers/x4pro_uc8279_fast/driver.c')
+          text = path.read_text()
+          before = '''                sync_full = settle_update;
+                if (!begin_plane(0x10)) goto failed;
+                async_stage = UC_ASYNC_SYNC;
+            }
+            /* Full-stride OLD sync must run outside the partial RAM window. */
+            if (quality_partial) command(0x92);
+            if (!begin_plane(0x10)) goto failed;
+            async_stage = UC_ASYNC_SYNC;
+'''
+          after = '''                sync_full = settle_update;
+                if (!begin_plane(0x10)) goto failed;
+                async_stage = UC_ASYNC_SYNC;
+            } else {
+                /* Full-stride OLD sync must run outside the partial RAM window. */
+                if (quality_partial) command(0x92);
+                if (!begin_plane(0x10)) goto failed;
+                async_stage = UC_ASYNC_SYNC;
+            }
+'''
+          if text.count(before) != 1:
+              raise SystemExit('expected UC8279 sync fallthrough block not found exactly once')
+          path.write_text(text.replace(before, after))
+          PY
           rm .github/workflows/x4-uc8279-idle-debug.yml
           git diff --check
           git config user.name 'github-actions[bot]'
