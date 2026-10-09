@@ -89,7 +89,7 @@ def build(a):
     original = dict(files)
     candidate = json.loads((a.native / 'candidate.json').read_text())
     native_proof = resident_native.validate(a.native, candidate, a.runtime, native_source_root=a.native_platform)
-    roots = {'system': a.system_target, 'utilities': a.utilities_target,
+    roots = {'host': a.host_target, 'system': a.system_target, 'utilities': a.utilities_target,
              'productivity': a.productivity_target, 'contexts': a.contexts_target}
     a.output.mkdir(parents=True)
     sources = {}; memory = {}; receipts = {}
@@ -203,7 +203,7 @@ def build(a):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for key in ('baseline', 'runtime', 'native', 'native-platform', 'system-target', 'utilities-target',
+    for key in ('baseline', 'runtime', 'native', 'native-platform', 'host-target', 'system-target', 'utilities-target',
                 'productivity-target', 'contexts-target', 'points-service', 'gameboy', 'watch', 'compiler', 'output'):
         parser.add_argument('--' + key, type=Path, required=True)
     build(parser.parse_args())
