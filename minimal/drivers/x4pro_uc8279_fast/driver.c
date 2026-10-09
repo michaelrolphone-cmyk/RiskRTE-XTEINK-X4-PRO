@@ -583,7 +583,7 @@ static void poll_present_locked(uint32_t budget_ms) {
         } else if (async_stage == UC_ASYNC_SETUP) {
             /* Exactly one bounded control transaction per step. Poll time is
              * sampled after every register/LUT, not just after the whole set. */
-            const unsigned finish = fast_update ? 14u : (quality_partial ? 5u : 3u);
+            const unsigned finish = fast_update ? 14u : (quality_partial ? 6u : 4u);
             if (fast_update) {
                 switch (setup_step) {
                 case 0: reg1(0x30, 0x0F); break;
@@ -598,11 +598,14 @@ static void poll_present_locked(uint32_t budget_ms) {
                 default: if (setup_step < finish) absolute_lut_table(setup_step - 9u); break;
                 }
             } else {
-                if (setup_step == 0u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
-                else if (setup_step == 1u) reg1(0xE0, 0x02);
-                else if (setup_step == 2u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
-                else if (quality_partial && setup_step == 3u) reg1(0x03, 0x20);
-                else if (quality_partial && setup_step == 4u) reg1(0xE1, 0x02);
+                /* PON may restore MTP defaults. Replay every clean/quality
+                 * register that the following OTP DRF depends on. */
+                if (setup_step == 0u) reg1(0x30, 0x0E);
+                else if (setup_step == 1u) reg1(0x50, quality_partial ? 0xD7 : 0x97);
+                else if (setup_step == 2u) reg1(0xE0, 0x02);
+                else if (setup_step == 3u) reg1(0xE5, quality_partial ? 0x5A : 0x1E);
+                else if (quality_partial && setup_step == 4u) reg1(0x03, 0x20);
+                else if (quality_partial && setup_step == 5u) reg1(0xE1, 0x02);
             }
             if (setup_step++ == finish) {
                 if (!screen_powered) {
