@@ -6,8 +6,8 @@ import usb_transfer_app as app
 class UsbTransferAdmission(unittest.TestCase):
  def setUp(self):
   self.blob=b'fixture';self.header=b'canonical';self.source='a'*40
-  self.manifest={'id':'usb_sd_transfer','version':'0.1.1','file_name':'usb_sd_transfer.elf','requires':[{'capability':c,'api':v} for c,v in app.REQUIREMENTS]}
-  self.record={'version':'0.1.1','repository_commit':self.source,'working_tree_dirty':False,'sha256':hashlib.sha256(self.blob).hexdigest(),'size_bytes':len(self.blob),'defines':list(app.FLAGS),'sdk_sha256':{'RiscUsbDeviceMscV1.h':hashlib.sha256(self.header).hexdigest()},'capability':{'name':'usb.device.msc','api':1,'instance_id':0}}
+  self.manifest={'id':'usb_sd_transfer','version':app.PROFILE['version'],'file_name':'usb_sd_transfer.elf','requires':[{'capability':c,'api':v} for c,v in app.REQUIREMENTS]}
+  self.record={'version':app.PROFILE['version'],'repository_commit':self.source,'working_tree_dirty':False,'sha256':hashlib.sha256(self.blob).hexdigest(),'size_bytes':len(self.blob),'defines':list(app.FLAGS),'sdk_sha256':{'RiscUsbDeviceMscV1.h':hashlib.sha256(self.header).hexdigest()},'capability':{'name':'usb.device.msc','api':1,'instance_id':0}}
   self.record['sd_preparation']=copy.deepcopy(app.PROFILE['sd_preparation'])
   self.record.update({k:app.PROFILE[k] for k in ('usb_role','poll_interval_ms','sleep','navigation_requires_release','configured_stop_requires_cable_confirmation')})
  def validate(self):return app.validate(self.manifest,self.blob,self.record,self.source,self.header)
