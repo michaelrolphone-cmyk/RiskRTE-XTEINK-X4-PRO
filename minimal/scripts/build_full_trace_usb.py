@@ -32,8 +32,9 @@ def build(a):
     require(digest_inventory(files)==original['store_files'] and len(files)==85, 'Frozen .30 store differs')
     frozen = dict(files)
     revision, system, reader = clean(ROOT), clean(a.system), clean(a.reader)
+    springboard_system = clean(a.springboard_system)
     product = json.loads((ROOT/'minimal/product.json').read_text())
-    require(product['version']=='0.1.35', 'Wrong product version')
+    require(product['version']=='0.1.37', 'Wrong product version')
     sys.path.insert(0,str(a.watch/'scripts'))
     from check_runtime_store_admission import admit_cohort
     from current_bootfs import build as pack_store
@@ -61,17 +62,17 @@ def build(a):
     sb_receipt=json.loads((a.springboard/'x4-native-app.json').read_text())
     sb_build=json.loads((a.springboard/'springboard-build-record.json').read_text())
     require(sb['version']=='1.7.17' and sb['file_name']=='springboard.elf', 'Wrong Springboard')
-    require(sb_receipt['source_revision']==system and sb_receipt['system_source_revision']==system and
+    require(sb_receipt['source_revision']==springboard_system and sb_receipt['system_source_revision']==springboard_system and
             sb_receipt['working_tree_dirty'] is False, 'Springboard source differs')
     require(sha(sb_blob)==sb_receipt['elf_sha256'] and len(sb_blob)==sb_receipt['elf_bytes'], 'Springboard bytes differ')
     require(sb_receipt['version']==sb['version'] and sb_receipt['requires']==sb['requires'], 'Springboard receipt differs')
     catalog=json.loads((ROOT/'minimal/apps/catalog.json').read_text())
     require(sb_build['catalog']['count']==18 and sb_build['catalog']['apps']==catalog['apps'], 'Springboard catalog differs')
-    require(sb_build['repository_commit']==system and sb_build['working_tree_dirty'] is False and
+    require(sb_build['repository_commit']==springboard_system and sb_build['working_tree_dirty'] is False and
             sb_build['sha256']==sha(sb_blob) and sb_build['size_bytes']==len(sb_blob) and
             '-DPORTABLE_QUICK_USB_TRANSFER' in sb_build['build_defines'] and sb_build['quick_usb_transfer'] is True,
             'Springboard USB entry/build differs')
-    check_sources(a.system,sb_build['source_sha256'])
+    check_sources(a.springboard_system,sb_build['source_sha256'])
     require(sb['requires']==json.loads(files['springboard.json'])['requires'], 'Springboard authority changed')
     install_app('springboard',a.springboard,sb,sb_blob,sb_receipt)
     manifest=json.loads((a.transfer/'usb_sd_transfer.json').read_text())
@@ -122,7 +123,7 @@ def build(a):
     for offset,data in parts:
         require(offset+len(data)<=len(image) and all(offset+len(data)<=x or offset>=y for x,y in occupied),'Partition overlap/overflow')
         image[offset:offset+len(data)]=data;occupied.append((offset,offset+len(data)))
-    name='xteink-x4-pro-0.1.35-gpio-high-before-mux-first-install.bin'
+    name='xteink-x4-pro-0.1.37-usb-protocol-repair-first-install.bin'
     (a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(filesystem)
     for path,data in files.items():
         dest=a.output/'store'/path;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(data)
@@ -131,7 +132,7 @@ def build(a):
     shutil.copy(a.reader/'Drivers/usb_device_msc_esp32s3/LICENSE.TinyUSB',a.output/'licenses/LICENSE.TinyUSB')
     result={'schema':'x4.full-trace-usb-diagnostic','schema_version':1,'source_revision':revision,
             'product':product,'baseline_image_sha256':BASELINE_SHA,'frozen_source_records':original,
-            'system_source':system,'reader_source':reader,'cohort':cohort,'native_proof':native_proof,
+            'system_source':system,'springboard_system_source':springboard_system,'reader_source':reader,'cohort':cohort,'native_proof':native_proof,
             'inputs':inputs,'changed_store_paths':sorted(changed),'admission':admission,'store_generator':fs_proof,
             'store_files':digest_inventory(files),'partitions':[{'offset':o,'bytes':len(b),'sha256':sha(b)} for o,b in parts],
             'image':{'name':name,'bytes':len(image),'sha256':sha(image)},'hardware_tested':False}
@@ -140,6 +141,6 @@ def build(a):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
-    for name in ('baseline','springboard','transfer','system','sd','reader','usb','native','native-product','runtime','watch','compiler','output'):
+    for name in ('baseline','springboard','springboard-system','transfer','system','sd','reader','usb','native','native-product','runtime','watch','compiler','output'):
         p.add_argument('--'+name,type=Path,required=True)
     build(p.parse_args())

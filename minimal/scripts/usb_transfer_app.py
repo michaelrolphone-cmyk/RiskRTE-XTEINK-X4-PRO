@@ -26,6 +26,9 @@ def validate(manifest,blob,record,source,msc_header):
     for name in ('usb_role','poll_interval_ms','sleep','navigation_requires_release','configured_stop_requires_cable_confirmation'):
         if type(record.get(name)) is not type(PROFILE[name]) or record[name]!=PROFILE[name]:
             raise ValueError('USB transfer ownership policy differs: '+name)
+    prep=record.get('sd_preparation')
+    if not isinstance(prep,dict) or set(prep)!=set(PROFILE['sd_preparation']) or any(type(prep[k]) is not type(v) or prep[k]!=v for k,v in PROFILE['sd_preparation'].items()):
+        raise ValueError('USB transfer requires explicit preparation after its screen settles')
     if record.get('capability')!={'name':'usb.device.msc','api':1,'instance_id':0}:
         raise ValueError('USB transfer must select the unique MSC provider')
     return [dict(g) for g in PROFILE['grants']]

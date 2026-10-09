@@ -22,7 +22,7 @@ for scenario in validation absent lifetime mbr files-paths stale-handles reentry
  sleep-resume-unhold sleep-resume-unhold-retained sleep-resume-rail-off sleep-resume-rail-on sleep-resume-cmd-claim sleep-resume-dat-claim sleep-resume-unlock sleep-resume-crc sleep-unformatted sleep-removed \
  export-basic export-handles export-close-retained export-owner export-sleep export-bounds export-stale export-generation export-csd export-absent export-unformatted export-bad-csd \
  export-begin-sync export-unmount export-begin-unlock export-read-crc export-write-fail export-sync export-end-sync export-end-crc export-end-unlock export-end-unformatted export-end-removed export-log export-log-close export-log-retained \
- log-history log-absent log-unformatted log-readonly log-full log-partial log-close log-write-fail log-ownership log-sleep log-repeated log-rotation log-full-trace log-trace-close log-trace-invalid log-trace-timeout log-trace-export log-trace-early-reset log-batching-latency; do
+ log-history log-absent log-unformatted log-readonly log-full log-partial log-close log-write-fail log-ownership log-sleep log-repeated log-rotation log-full-trace log-trace-close log-trace-invalid log-trace-timeout log-trace-export log-trace-early-reset log-batching-latency log-preparation-flow log-preparation-capacity; do
  if [[ -n "${X4_SD_ONLY_SCENARIO:-}" && "$scenario" != "$X4_SD_ONLY_SCENARIO" ]];then continue;fi
  ASAN_OPTIONS=detect_leaks=0 UBSAN_OPTIONS=halt_on_error=1 timeout 120s "$build/test" "$scenario"
 done

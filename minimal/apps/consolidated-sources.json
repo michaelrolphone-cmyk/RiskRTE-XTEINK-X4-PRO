@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "status": "GameBoy diagnostic repair and three-by-four grid candidate",
+  "baseline": {
+    "version": "0.1.37",
+    "source": "d00eaee1a67826d61cfc04603e35f9696b84cd29",
+    "image_sha256": "23375b19bcd9f5d6a58104beed53ffd20fc758242591b0357a0171795815b292"
+  },
+  "ready": {
+    "gameboy": {
+      "source": "c7cc18b32f671bcdde27722cbbf61b0bcbef2679",
+      "version": "1.3.16",
+      "elf_sha256": "8cc2174ccbcc21efc03d8355f41c5b18afa3654efa2e4b7267d8b09d0b778d4f",
+      "grants": {
+        "display.output": 3,
+        "input.navigation": 6,
+        "storage.volume": 9,
+        "file.open": 0
+      }
+    },
+    "hid_apps": {
+      "source": "59cb050e8b6ea750a69e50463996bcbb818ec608",
+      "version": "0.1.14"
+    },
+    "hid_provider": {
+      "source": "aa0b9cc08b9a3d8a7a8a9410d1507467cbd980f9",
+      "version": "0.1.4",
+      "elf_sha256": "5db0e3dd59a12cfd33f0934777d8ed32e6a24768ca6bb667212aa3649aeb59f7"
+    },
+    "touch": {
+      "source": "b87bcf9cc4c35f273e67eb10aca588ab821da1d1",
+      "version": "0.1.9",
+      "elf_sha256": "d35def1c97411fae9e976ab7d1bd18d8289d99d343f2d39bdf93e74c8e0a9ee0"
+    },
+    "springboard": {
+      "source": "5e33fec83c08a3e6692d198bd229002daa1dc1e7",
+      "version": "1.7.19",
+      "elf_sha256": "4ef603cfd5854cc8a6d3aba84e47c82fe27900033753bd7abfc21e603a65bc0b"
+    }
+  },
+  "pending": [
+    "USB Windows sector-stall and mode-exit restoration diagnosis",
+    "Runtime.82 and System single resident default shell",
+    "Desk/Home requested typography, default face, wake lighting",
+    "Shared filesystem Points catalog/editor and Runtime.83"
+  ],
+  "gameboy_multitouch": "Qualified 1.3.15 remains separate; contract fixes are being reconciled before later adoption",
+  "hardware_unverified": [
+    "New GT911 simultaneous contacts",
+    "BLE host descriptor update",
+    "USB Windows drive access and cleanup"
+  ],
+  "power": "Preserve accepted .35 startup; no further power changes"
+}

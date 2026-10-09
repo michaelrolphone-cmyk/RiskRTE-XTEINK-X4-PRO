@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: michaelrolphone-cmyk/T5S3-Reader
-          ref: 3f59913963840cb5ee8e2a65baa921f8d6af0b4d
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
           path: .shared/reader
       - uses: actions/checkout@v4
         with:

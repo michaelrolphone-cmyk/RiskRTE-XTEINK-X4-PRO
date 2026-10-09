@@ -7,7 +7,7 @@
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "3f59913963840cb5ee8e2a65baa921f8d6af0b4d",
+    "commit": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
     "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
   },
   "status": "Runtime 0.1.81 removes synchronous provider service from app yields; X4 batches complete boot diagnostics and exports prior early NVS summaries. Hardware qualification pending."

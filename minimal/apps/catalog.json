@@ -89,6 +89,11 @@
       "display_name": "USB Transfer",
       "file_name": "usb_sd_transfer.elf",
       "icon": "solid:f0ec"
+    },
+    {
+      "display_name": "GameBoy",
+      "file_name": "gameboy.elf",
+      "icon": "solid:f11b"
     }
   ]
 }
