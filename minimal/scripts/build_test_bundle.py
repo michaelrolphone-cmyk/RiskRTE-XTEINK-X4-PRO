@@ -4,6 +4,7 @@ import argparse, hashlib, importlib.util, json, re, shutil, subprocess, sys, zip
 from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 import native_time_cohort
+import file_browser_admission
 import prepare_native_runtime as native_composition
 ROOT=Path(__file__).resolve().parents[2]
 APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
@@ -274,6 +275,10 @@ def build(a):
             if normalized not in requirements:requirements.append(normalized)
         m['requires']=requirements
         grants=app_grants(name,m['requires'],getattr(a,'sleep',False),desk,sparse,sparse)
+        if name=='file_browser' and sparse:
+            custody['file_browser_storage']=file_browser_admission.validate(
+                m,blob,json.loads((src/'file_browser-build-record.json').read_text()),
+                custody['native_apps'][name],grants,app_sources['native_cohort'][name])
         policies.append({'manifest':name+'.json','grants':grants});(store/(name+'.elf')).write_bytes(blob);(store/(name+'.json')).write_bytes(encoded(m))
         if sparse:
             custody['elf_compaction'][name]=compact_tool.compact(store/(name+'.elf'),str(a.app_compiler),debug_path=out/'debug-originals'/(name+'.elf'))
