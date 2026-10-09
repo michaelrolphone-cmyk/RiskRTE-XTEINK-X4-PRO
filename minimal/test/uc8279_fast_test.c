@@ -6,7 +6,7 @@
 #include "../drivers/x4pro_uc8279_fast/driver.c"
 
 static bool owner=true, locked, lock_exists, fail_unlock, fail_destroy;
-static bool fail_claim, fail_gpio, fail_spi_begin, fail_spi_exchange, fail_spi_end, fail_spi_release;
+static bool fail_claim, fail_gpio_read, fail_gpio, fail_spi_begin, fail_spi_exchange, fail_spi_end, fail_spi_release;
 static bool fail_hold, fail_unhold, fail_retire, fail_release, no_busy, stuck_busy, stuck_power, fail_clock, reverse_clock;
 static bool ambiguous, zero_probe, unstable;static uint8_t lut_id=0x68;
 static uint64_t tick=100, busy_from, busy_until, bus_deadline, gpio_serial=10, model_bus_token, last_refresh_at;
@@ -34,7 +34,7 @@ static bool gpio_claim(void*c,uint8_t p,bool out,bool level,bool pull,uint64_t*t
  if(fail_claim)return false;assert(!pins[p].token);pins[p].token=++gpio_serial;pins[p].output=out;pins[p].level=level;pins[p].held=false;*t=pins[p].token;return true;
 }
 static bool gpio_write(void*c,uint64_t t,bool level){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&pins[p].output&&!pins[p].held);++gpio_writes;if(fail_gpio)return false;pins[p].level=level;if(p==14&&!level){++reset_assertions;phase=0;busy_until=0;}return true;}
-static bool gpio_read(void*c,uint64_t t,bool*v){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&p==6);if(tick>=busy_until&&!stuck_busy&&!stuck_power)phase=0;*v=!((phase==1&&stuck_busy)||(phase==2&&stuck_power)||(tick>=busy_from&&tick<busy_until));return true;}
+static bool gpio_read(void*c,uint64_t t,bool*v){(void)c;unsigned p=pin_for(t);assert(owner&&locked&&p==6);if(fail_gpio_read)return false;if(tick>=busy_until&&!stuck_busy&&!stuck_power)phase=0;*v=!((phase==1&&stuck_busy)||(phase==2&&stuck_power)||(tick>=busy_from&&tick<busy_until));return true;}
 static bool gpio_release(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);if(fail_release||pins[p].held)return false;pins[p].token=0;return true;}
 static int32_t gpio_hold(void*c,uint64_t t,bool on){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].level);if(fail_unhold&&!on)return RISC_DEEP_SLEEP_RETAINED;if(fail_hold)return RISC_DEEP_SLEEP_PLATFORM;pins[p].held=on;return 0;}
 static bool gpio_retire(void*c,uint64_t t){(void)c;unsigned p=pin_for(t);assert(p==14&&pins[p].held);if(fail_retire)return false;pins[p].token=0;return true;}
@@ -369,6 +369,34 @@ static void test_settle(const char *scenario) {
  assert(until-busy_done_ms==2300u);
  const unsigned bytes=payload,dtm1=commands[0x10],dtm2=commands[0x13],r=refreshes;
  const risc_display_present_metrics_v1 original=snapshot();
+ if(!strncmp(scenario,"settle-delayed-",15)){
+  const bool stuck=!strcmp(scenario,"settle-delayed-stuck");
+  const bool unseen=!strcmp(scenario,"settle-delayed-unseen");
+  const bool read_error=!strcmp(scenario,"settle-delayed-read-error");
+  if(unseen)refresh_assert_delay=5;
+  if(stuck)stuck_busy=true;
+  owner_poll(8);assert(settle_stage==(unseen?SETTLE_ASSERT:SETTLE_DONE));
+  /* A synchronous foreground SD operation can defer the next owner poll.
+   * The modeled panel completes its already-observed BUSY pulse meanwhile. */
+  tick+=4500u;assert(tick>busy_until&&tick>settle_phase_deadline);
+  if(read_error)fail_gpio_read=true;
+  owner_poll(8);
+  if(stuck||unseen||read_error){
+   assert(presentation_fault&&!completed_history&&!settle_stage);
+   risc_display_surface_v1 refused={0};assert(!output->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&refused));
+   if(stuck)assert(!strcmp(reason,"settle busy completion timeout"));
+   if(unseen)assert(!strcmp(reason,"settle busy never asserted"));
+   assert(payload==bytes&&refreshes==r+1);return;
+  }
+  if(presentation_fault)fprintf(stderr,"delayed completed pulse rejected: %s\n",reason);
+  assert(!presentation_fault&&completed_history&&!settle_stage);
+  assert(settle_completed==1&&refreshes==r+1&&payload==bytes);
+  risc_display_surface_v1 next=acquire_frame();memset(next.pixels,0x69,FRAME_BYTES);
+  uint64_t replacement=submit_frame(next,NULL,0,false);complete_frame(replacement);
+  assert(completed_history&&!presentation_fault&&visible[0]==(uint8_t)~0x69u);
+  assert(d->quiesce());return;
+ }
+
  if(!strcmp(scenario,"settle-repeat")||!strcmp(scenario,"settle-short")||!strcmp(scenario,"settle-expiry")){
   if(!strcmp(scenario,"settle-short"))refresh_pulse_ms=1;
   if(!strcmp(scenario,"settle-expiry"))tick=until;

@@ -60,6 +60,8 @@ def stage(args):
             'size_bytes','sha256','source_revision')
     install('touch/driver',args.touch,'target-proof.json',spec['ready']['touch'],
             'elf_bytes','elf_sha256','source_revision')
+    install('panel/driver',args.panel,'target-proof.json',spec['ready']['panel'],
+            'elf_bytes','elf_sha256','source_revision')
     gb=read_json(args.gameboy/'build.json'); expected=spec['ready']['gameboy']
     blob=(args.gameboy/'gameboy.elf').read_bytes(); manifest=read_json(args.gameboy/'gameboy.json')
     require(gb['source']==expected['source'] and gb['dirty'] is False, 'GameBoy source differs')
@@ -77,13 +79,13 @@ def stage(args):
     receipts['gameboy']={'receipt':gb,'elf_sha256':sha(blob),'bytes':len(blob)}
     expected_changes={'springboard.elf','springboard.json','ble_buttons.elf','ble_buttons.json','ble_touchpad.elf','ble_touchpad.json',
         'hid/driver.elf','hid/manifest.json','touch/driver.elf','touch/manifest.json',
-        'gameboy.elf','gameboy.json','boot.json'}
+        'gameboy.elf','gameboy.json','boot.json','panel/driver.elf','panel/manifest.json'}
     changed={name for name in files if files[name]!=original.get(name)}
     require(changed==expected_changes and len(files)==91, 'Unexpected store change')
     args.output.mkdir(parents=True)
     for name, blob in files.items():
         path=args.output/'store'/name; path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(blob)
-    for name,folder in [('springboard',args.springboard),('gameboy',args.gameboy),('hid-apps',args.hid_apps),('hid-provider',args.hid_provider),('touch',args.touch)]:
+    for name,folder in [('springboard',args.springboard),('gameboy',args.gameboy),('hid-apps',args.hid_apps),('hid-provider',args.hid_provider),('touch',args.touch),('panel',args.panel)]:
         dest=args.output/'inputs'/name; dest.mkdir(parents=True)
         for path in folder.rglob('*'):
             if path.is_file() and (path.suffix in ('.json','.elf') or 'licenses' in path.parts):
@@ -101,6 +103,6 @@ def stage(args):
 
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__)
-    for key in ('baseline','springboard','hid-apps','hid-provider','touch','gameboy','runtime','native','watch','output'):
+    for key in ('baseline','springboard','hid-apps','hid-provider','touch','panel','gameboy','runtime','native','watch','output'):
         p.add_argument('--'+key,type=Path,required=True)
     stage(p.parse_args())

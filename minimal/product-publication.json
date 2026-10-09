@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "product_version": "0.1.39",
-  "frozen_product_commit": "bd92056058b85e339c1af42d430d6dbe15f96491",
-  "frozen_product_tree": "ab1362c1ae844e45daca153963f815d3f8d68eaf",
+  "product_version": "0.1.40",
+  "frozen_product_commit": "99b27b6de77e8edde500e018f4c4b486646cd744",
+  "frozen_product_tree": "c73344e4414759d2778d279f9d5e8b9be2e12b71",
   "source_history": [
     {
       "original": "8af62904ed2da05ec98e17d9571e42308236590a",
@@ -76,17 +76,40 @@
       "parents": [
         "9279c7e74db93c1efc1788849ab7570049683623"
       ]
+    },
+    {
+      "original": "5f3eb45ad4650b60b96c2602a12cbd95f48d81c9",
+      "public": "082a23e2a0986f3290bf31674c0685575235fb9f",
+      "tree": "3508e8db21034e2ec74fec2dd4243b8ccdbf5d9e",
+      "parents": [
+        "07bd7d813a1499bcba6f89f03879f6e91d444dab"
+      ]
+    },
+    {
+      "original": "99b27b6de77e8edde500e018f4c4b486646cd744",
+      "public": "c690b8710864e1d10b85ee26411bbc2a2ad36adc",
+      "tree": "c73344e4414759d2778d279f9d5e8b9be2e12b71",
+      "parents": [
+        "082a23e2a0986f3290bf31674c0685575235fb9f"
+      ]
     }
   ],
   "ci_metadata": {
     "scope": "Typed minimal-driver tests only; this checkout pair is not a relabeling of the selected app/provider artifacts recorded in consolidated-sources.json.",
     "preserved_successors": [
       "04d0848794c862c783908660c5fe653333b2cb53",
-      "4af0904dda965b71b1217394581685feba84e4e7"
+      "4af0904dda965b71b1217394581685feba84e4e7",
+      "f945bacb01e3c045d0a6e4f048cf97699fd125c7"
     ],
     "selected_pair_from": "4af0904dda965b71b1217394581685feba84e4e7",
     "historical_pair_record": "minimal/source-publication.json"
   },
   "artifact_identity": "Frozen BIN, ELF hashes, embedded source pins and delivered receipts remain original. Public source identities are mapped separately.",
-  "source_history_validation": "Exact root trees and ordered public parents verified using GitHub Git objects."
+  "source_history_validation": "Exact root trees and ordered public parents verified using GitHub Git objects.",
+  "frozen_image": {
+    "file_name": "xteink-x4-pro-0.1.40-gameboy-display-repair-first-install.bin",
+    "sha256": "5d71f28397f9bf1e3d293b6bcf255b5c67e78ac655a2f0790bd5a5c108ae73ce",
+    "bytes": 16777216,
+    "hardware_tested": false
+  }
 }

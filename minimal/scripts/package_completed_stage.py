@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the GameBoy diagnostic and 3x4 app stage on the unchanged qualified .37 native."""
+"""Package the delayed panel-poll repair and multitouch GameBoy stage on the unchanged qualified .37 native."""
 import argparse,json,shutil,subprocess,sys
 from pathlib import Path
 from build_recovered_diagnostic import require,sha,encoded,inventory,digest_inventory,load
@@ -8,7 +8,7 @@ def build(a):
     require(not a.output.exists(),'Output exists')
     require(not subprocess.check_output(['git','-C',str(ROOT),'status','--porcelain'],text=True).strip(),'Clean source required')
     revision=subprocess.check_output(['git','-C',str(ROOT),'rev-parse','HEAD'],text=True).strip()
-    product=json.loads((ROOT/'minimal/product.json').read_text());require(product['version']=='0.1.39','Wrong product')
+    product=json.loads((ROOT/'minimal/product.json').read_text());require(product['version']=='0.1.40','Wrong product')
     stage=json.loads((a.stage/'integration.json').read_text()); files=inventory(a.stage/'store')
     require(stage['admission']['cohort_validated'] and stage['admission']['elf_count']==44 and len(files)==91,'Stage not admitted')
     require(digest_inventory(files)==stage['store_files'],'Stage files changed')
@@ -42,7 +42,7 @@ def build(a):
     for offset,data in parts:
         require(offset+len(data)<=len(image) and all(offset+len(data)<=x or offset>=y for x,y in occupied),'Partition overlap')
         image[offset:offset+len(data)]=data;occupied.append((offset,offset+len(data)))
-    name='xteink-x4-pro-0.1.39-gameboy-diagnostics-3x4-first-install.bin'
+    name='xteink-x4-pro-0.1.40-gameboy-display-repair-first-install.bin'
     (a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(bootfs)
     for path,data in files.items():
         p=a.output/'store'/path;p.parent.mkdir(parents=True,exist_ok=True);p.write_bytes(data)
