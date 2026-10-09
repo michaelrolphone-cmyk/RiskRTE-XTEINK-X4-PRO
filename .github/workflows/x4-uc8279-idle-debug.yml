@@ -13,37 +13,10 @@ jobs:
         with:
           ref: integrate/x4-resident-loader-repair-046
           fetch-depth: 0
-      - name: Remove duplicate DTM1 command and diagnostic workflow
+      - name: Remove duplicate DTM1 command
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('minimal/drivers/x4pro_uc8279_fast/driver.c')
-          text = path.read_text()
-          before = '''                sync_full = settle_update;
-                if (!begin_plane(0x10)) goto failed;
-                async_stage = UC_ASYNC_SYNC;
-            }
-            /* Full-stride OLD sync must run outside the partial RAM window. */
-            if (quality_partial) command(0x92);
-            if (!begin_plane(0x10)) goto failed;
-            async_stage = UC_ASYNC_SYNC;
-'''
-          after = '''                sync_full = settle_update;
-                if (!begin_plane(0x10)) goto failed;
-                async_stage = UC_ASYNC_SYNC;
-            } else {
-                /* Full-stride OLD sync must run outside the partial RAM window. */
-                if (quality_partial) command(0x92);
-                if (!begin_plane(0x10)) goto failed;
-                async_stage = UC_ASYNC_SYNC;
-            }
-'''
-          if text.count(before) != 1:
-              raise SystemExit('expected UC8279 sync fallthrough block not found exactly once')
-          path.write_text(text.replace(before, after))
-          PY
+          python3 -c 'from pathlib import Path; p=Path("minimal/drivers/x4pro_uc8279_fast/driver.c"); t=p.read_text(); a="                sync_full = settle_update;\n                if (!begin_plane(0x10)) goto failed;\n                async_stage = UC_ASYNC_SYNC;\n            }\n            /* Full-stride OLD sync must run outside the partial RAM window. */\n            if (quality_partial) command(0x92);\n            if (!begin_plane(0x10)) goto failed;\n            async_stage = UC_ASYNC_SYNC;\n"; b="                sync_full = settle_update;\n                if (!begin_plane(0x10)) goto failed;\n                async_stage = UC_ASYNC_SYNC;\n            } else {\n                /* Full-stride OLD sync must run outside the partial RAM window. */\n                if (quality_partial) command(0x92);\n                if (!begin_plane(0x10)) goto failed;\n                async_stage = UC_ASYNC_SYNC;\n            }\n"; assert t.count(a)==1; p.write_text(t.replace(a,b))'
           rm .github/workflows/x4-uc8279-idle-debug.yml
           git diff --check
           git config user.name 'github-actions[bot]'
