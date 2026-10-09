@@ -22,7 +22,7 @@ static const risc_provider_sync_api_v1 *sync_api;
 static const risc_diagnostic_source_api_v1 *diagnostic_source;
 static void bootlog_drain(void);
 static bool bootlog_mount_pending, bootlog_paused;
-enum { EXPORT_LOCAL, EXPORT_HOST, EXPORT_RETAINED };
+enum { EXPORT_LOCAL, EXPORT_PREPARING, EXPORT_HOST, EXPORT_RETAINED };
 static unsigned export_state;
 static risc_storage_export_token_t export_generation, export_token;
 static uint64_t card_block_count;
@@ -93,6 +93,8 @@ static bool guard_leave(void) {
 }
 static bool started, high_capacity;
 static char error[80];
+static bool bootlog_capture_error;
+static char bootlog_media_error[sizeof(error)];
 static bool mounted, card_ready, io_failed;
 static uint32_t card_rca;
 static bool mount_filesystem(void);
@@ -121,6 +123,7 @@ static void fail(const char *text) {
     size_t i = 0;
     while (text[i] && i + 1u < sizeof(error)) { error[i] = text[i]; ++i; }
     error[i] = 0;
+    if(bootlog_capture_error && !bootlog_media_error[0])memcpy(bootlog_media_error,error,sizeof(error));
 }
 /* ESP32-S3 TRM 7.2.4.1 caps CPU_CLK at 240 MHz. After the GPIO input
  * read-back observes each output level, 24 CPU cycles hold that phase for at
@@ -476,17 +479,21 @@ RISC_DRIVER_SERVICE_VERSION_V1, bootlog_service};
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
-    if (!logging_api.sleep.terminal.power.volume.base.api_version) {
-        logging_api.sleep = api;
-        logging_api.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
-        logging_api.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
-        logging_api.export_tag = RISC_STORAGE_EXPORT_TAG;
-        logging_api.export_version = 1u;
-        logging_api.export_begin = export_begin;
-        logging_api.export_read = export_read;
-        logging_api.export_write = export_write;
-        logging_api.export_sync = export_sync;
-        logging_api.export_end = export_end;
+    if (!logging_api.base.sleep.terminal.power.volume.base.api_version) {
+        logging_api.base.sleep = api;
+        logging_api.base.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
+        logging_api.base.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
+        logging_api.base.export_tag = RISC_STORAGE_EXPORT_TAG;
+        logging_api.base.export_version = 1u;
+        logging_api.base.export_begin = export_begin;
+        logging_api.base.export_read = export_read;
+        logging_api.base.export_write = export_write;
+        logging_api.base.export_sync = export_sync;
+        logging_api.base.export_end = export_end;
+        logging_api.prepare_tag = RISC_STORAGE_EXPORT_PREPARE_TAG;
+        logging_api.prepare_version = 1u;
+        logging_api.begin_prepare = export_begin_prepare;
+        logging_api.prepare_step = export_prepare_step;
     }
     return &driver.poll.streams.driver;
 }
