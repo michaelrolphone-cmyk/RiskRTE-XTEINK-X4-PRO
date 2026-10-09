@@ -32,6 +32,7 @@ comes from `minimal/sources.lock.json`; `--runtime-commit` accepts an explicit
 python3 minimal/scripts/prepare_native_runtime.py prepare \
   --runtime /path/to/pinned-riscrte --output /path/to/new-x4-native
 pio run --project-dir /path/to/new-x4-native -e esp32s3-16mb-appdata-iq -j 1
+export X4_XTENSA_OBJDUMP=/path/to/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-objdump
 python3 minimal/scripts/prepare_native_runtime.py stage \
   --runtime /path/to/pinned-riscrte --workspace /path/to/new-x4-native \
   --appdata /path/to/verified-initial-appdata --output /path/to/new-native-candidate
@@ -63,6 +64,15 @@ Runtime identity and a separate forced-linked `X4_NATIVE_COMPOSITION` marker.
 The product stager reuses the pinned Runtime's ESP image, partition, rollback,
 TLS-root, initial-appdata and IQ proofs, then checks strong X4 hook symbols, RTC no-init placement and the actual linked
 IDF main_task → wrapper → original app_main → initArduino call edges.
+Instruction boundaries come from the pinned `esp-2021r2-patch5` objdump, with
+complete symbol-byte coverage and every decoded byte checked against the ELF.
+This preserves embedded padding and rejects opcode-looking bytes inside another
+instruction. L32R literal offsets use the full negative 18-bit displacement,
+including literals more than 128 KiB behind the instruction. Real unresolved
+literals still fail closed. `X4_XTENSA_OBJDUMP` selects the executable explicitly;
+otherwise the proof checks `NATIVE_DRIVER_CC`, PATH, and the PlatformIO package
+directory (`PLATFORMIO_CORE_DIR` or `~/.platformio`). An unreviewed objdump version
+is rejected.
 The resulting `candidate.json` explicitly records `x4_native_composition`, and
 hashes every frozen asset including the composition inventory and X4 ELF proof.
 It must be consumed together with the matching product store and custody record.
@@ -88,6 +98,7 @@ Changing only a product store cannot install or retrofit this native hook.
 X4_ARDUINO_FRAMEWORK=/path/to/framework-arduinoespressif32 \
   bash minimal/test/run_early_native_boot_test.sh
 python3 minimal/test/native_composition_test.py
+python3 minimal/test/native_xtensa_calls_test.py
 ```
 
 Host tests compile the actual boot source, the SHA-256-pinned Arduino main.cpp
@@ -100,3 +111,11 @@ clean/exact source inputs, unchanged upstream bytes, source/receipt mutation and
 rejection of a different build environment. They also exercise default and
 explicit options, invalid types and bounds, external flag overrides, compiled
 policy mismatches, and cache implementation mismatches. They are not hardware qualification.
+
+The exact stage-build regression may be rerun with
+`X4_XTENSA_REGRESSION_WORKSPACE=/path/to/frozen-native-runtime-021`. It requires
+the original ELF SHA-256
+`99e6411f7a51b1881eb5e37f141333a3f8ed0f164a6b7f40efab8367e3a10746`,
+checks the real long-range literal and cache edges, and rejects mutations of all
+three cache calls plus a real unmapped literal. `verify_early_boot_target.py`
+separately retains the wrapper-bypass and observer-call mutation checks.

@@ -6,6 +6,7 @@ explicitly a two-repository composition and never impersonates a Runtime commit.
 """
 import argparse
 import configparser
+from functools import lru_cache
 import hashlib
 import importlib.util
 import io
@@ -17,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 ENVIRONMENTS = ('esp32s3-16mb-appdata-iq', 'esp32s3-16mb-appdata-iq-perf', 'esp32s3-16mb-appdata-iq-stage')
@@ -198,32 +200,111 @@ def elf_symbol_bytes(elf, symbol):
     return section.data()[offset:offset + symbol['st_size']]
 
 
+@lru_cache(maxsize=4)
+def verified_xtensa_objdump(path):
+    version = subprocess.check_output([path, '--version'], text=True).splitlines()[0]
+    require(version == 'GNU objdump (crosstool-NG esp-2021r2-patch5) 2.35.1.20201223',
+            'X4 proof requires the pinned esp-2021r2-patch5 Xtensa objdump')
+    return path
+
+
+def xtensa_objdump():
+    explicit = os.environ.get('X4_XTENSA_OBJDUMP')
+    if explicit:
+        return verified_xtensa_objdump(explicit)
+    compiler = os.environ.get('NATIVE_DRIVER_CC', '')
+    candidates = [compiler[:-3] + 'objdump'] if compiler.endswith('gcc') else []
+    command = 'xtensa-esp32s3-elf-objdump'
+    if shutil.which(command):
+        candidates.append(shutil.which(command))
+    core = Path(os.environ.get('PLATFORMIO_CORE_DIR', Path.home() / '.platformio'))
+    candidates.append(str(core / 'packages/toolchain-xtensa-esp32s3/bin' / command))
+    for candidate in candidates:
+        if Path(candidate).is_file():
+            return verified_xtensa_objdump(candidate)
+    raise ValueError('Pinned Xtensa objdump unavailable; set X4_XTENSA_OBJDUMP or NATIVE_DRIVER_CC')
+
+
+def xtensa_instructions(elf, symbol):
+    """Use assembler metadata to distinguish instructions from embedded padding."""
+    address, data = symbol['st_value'], elf_symbol_bytes(elf, symbol)
+    cache = getattr(elf, '_x4_instruction_cache', None)
+    if cache is None:
+        cache = elf._x4_instruction_cache = {}
+    key = (address, len(data))
+    if key in cache:
+        return cache[key]
+    position = elf.stream.tell()
+    try:
+        elf.stream.seek(0)
+        with tempfile.TemporaryDirectory(prefix='x4-elf-proof-') as directory:
+            path = Path(directory) / 'firmware.elf'
+            path.write_bytes(elf.stream.read())
+            output = subprocess.check_output([xtensa_objdump(), '-d', '-z',
+                '--start-address=' + hex(address), '--stop-address=' + hex(address + len(data)),
+                str(path)], text=True)
+    finally:
+        elf.stream.seek(position)
+    require('file format elf32-xtensa-le' in output, 'Unexpected Xtensa disassembly format')
+    instructions, consumed = [], 0
+    for line in output.splitlines():
+        match = re.match(r'^\s*([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)$', line)
+        if not match:
+            continue
+        pc = int(match[1], 16)
+        raw = bytes.fromhex(match[2])[::-1]
+        require(pc == address + consumed and raw and data[consumed:consumed + len(raw)] == raw,
+                'Xtensa disassembly differs from ELF instruction bytes')
+        operation = match[3].split(None, 1)
+        instructions.append((pc, raw, operation[0], operation[1] if len(operation) > 1 else ''))
+        consumed += len(raw)
+    require(consumed == len(data), 'Xtensa disassembly does not cover the complete caller')
+    cache[key] = instructions
+    return instructions
+
+
 def xtensa_calls(elf, symbols, name):
-    """Inspect pinned CALL8 / adjacent L32R + CALLX8 instructions and literals."""
+    """Inspect pinned CALL8 / adjacent L32R + CALLX8 at verified boundaries."""
     symbol = symbols.get(name)
     require(symbol is not None and symbol['st_size'], 'Missing startup caller: ' + name)
-    address, data = symbol['st_value'], elf_symbol_bytes(elf, symbol)
+    instructions = xtensa_instructions(elf, symbol)
     calls = []
-    for offset in range(len(data) - 2):
-        op = data[offset]
-        if op & 63 == 0x25:
-            immediate = int.from_bytes(data[offset:offset + 3], 'little') >> 6
+    for index, (pc, raw, mnemonic, operands) in enumerate(instructions):
+        if mnemonic == 'call8':
+            require(len(raw) == 3 and raw[0] & 63 == 0x25, 'Invalid decoded Xtensa CALL8')
+            immediate = int.from_bytes(raw, 'little') >> 6
             if immediate & (1 << 17):
                 immediate -= 1 << 18
-            target = ((address + offset) & ~3) + 4 + immediate * 4
-            calls.append({'instruction': address + offset, 'target': target})
+            target = (pc & ~3) + 4 + immediate * 4
+            require(target == int(operands.split()[0], 16), 'Xtensa CALL8 target mismatch')
+            calls.append({'instruction': pc, 'target': target})
             continue
-        reg = op >> 4
-        if op & 15 != 1 or data[offset + 3:offset + 6] != bytes((0xe0, reg, 0)):
+        if mnemonic != 'l32r' or index + 1 == len(instructions):
             continue
-        immediate = int.from_bytes(data[offset + 1:offset + 3], 'little', signed=True)
-        literal = ((address + offset + 3) & ~3) + immediate * 4
+        require(len(raw) == 3 and raw[0] & 15 == 1, 'Invalid decoded Xtensa L32R')
+        reg = raw[0] >> 4
+        next_pc, next_raw, next_mnemonic, next_operands = instructions[index + 1]
+        if next_mnemonic != 'callx8':
+            continue
+        decoded_reg = re.fullmatch(r'a(\d+)', next_operands)
+        require(next_pc == pc + 3 and decoded_reg and int(decoded_reg[1]) < 16 and
+                next_raw == bytes((0xe0, int(decoded_reg[1]), 0)), 'Invalid decoded Xtensa CALLX8')
+        if int(decoded_reg[1]) != reg:
+            continue  # The adjacent literal loads an argument, not the call target.
+        # L32R always uses a negative 18-bit word displacement. Its high two
+        # bits are implicit ones, including when encoded imm16 has bit15 clear.
+        # Treating imm16 as signed16 fails for literals more than 128 KiB back.
+        immediate = int.from_bytes(raw[1:], 'little') - 65536
+        literal = ((pc + 3) & ~3) + immediate * 4
+        decoded = re.match(r'a(\d+),\s*([0-9a-f]+)(?:\s|$)', operands)
+        require(decoded and int(decoded[1]) == reg and int(decoded[2], 16) == literal,
+                'Xtensa L32R literal address mismatch')
         for section in elf.iter_sections():
             if section['sh_type'] != 'SHT_NOBITS' and section['sh_addr'] <= literal and \
                     literal + 4 <= section['sh_addr'] + section['sh_size']:
                 start = literal - section['sh_addr']
                 target = int.from_bytes(section.data()[start:start + 4], 'little')
-                calls.append({'instruction': address + offset, 'literal': literal, 'target': target})
+                calls.append({'instruction': pc, 'literal': literal, 'target': target})
                 break
         else:
             raise ValueError('X4 startup instruction/literal is outside a loaded section')
