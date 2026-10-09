@@ -16,6 +16,8 @@ def require(ok, detail):
 
 def validate_app(manifest, blob, receipt, helper, headers):
     profile = PROFILE
+    require(all(type(r.get('api')) is int for r in manifest.get('requires',[])),
+            'Contexts capability versions must be integers')
     expected = {'schema':1, 'profile':'x4-native-paper-contexts',
                 'version':profile['app_version'], 'source_revision':profile['app_source'],
                 'source_dirty':False, 'system_revision':profile['app_system'], 'system_dirty':False,
@@ -45,6 +47,8 @@ def validate_app(manifest, blob, receipt, helper, headers):
 
 def validate_provider(manifest, blob, record):
     expected_deps = [{'capability':'platform.clock','api':1},{'capability':'radio.iq','api':1}]
+    require(all(type(r.get('api')) is int for r in manifest.get('requires',[])+manifest.get('provides',[])),
+            'Contexts provider capability versions must be integers')
     require(manifest.get('id')=='contexts-service' and manifest.get('version')==PROFILE['service_version']
         and manifest.get('driver_abi')==2 and manifest.get('architecture')=='xtensa-esp32s3'
         and manifest.get('file_name')=='driver.elf' and manifest.get('requires')==expected_deps

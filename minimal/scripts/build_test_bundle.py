@@ -22,7 +22,7 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
     grants=[]
     for req in requirements:
         cap=req['capability']
-        if cap=='contexts.service' and (not contexts or name not in contexts_cohort.PROFILE['context_capability_owners'] or req['api']!=1):
+        if cap=='contexts.service' and (not contexts or name not in contexts_cohort.PROFILE['context_capability_owners'] or type(req['api']) is not int or req['api']!=1):
             raise ValueError('Contexts authority requires the selected RF-only owner profile')
         if cap=='telemetry.broadcast':raise ValueError('Telemetry authority requires explicit cohort composition')
         if cap.startswith('software.update.') and (name not in ('ota_update','app_store') or cap!=('software.update.firmware' if name=='ota_update' else 'software.update.apps') or req['api']!=1):
