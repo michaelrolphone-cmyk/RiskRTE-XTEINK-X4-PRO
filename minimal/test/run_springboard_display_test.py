@@ -43,7 +43,9 @@ def main():
     run([*appcc,'-DPANEL_ADAPTER_FIXTURE="'+str(s/'test/native_apps/portable_native_toolbar_test.c')+'"','-c',f/'adapter_bridge.c','-o',out/'adapter.o'])
     run([*appcc,'-Dapp_main=springboard_controller_main','-c',s/'Apps/springboard.c','-o',out/'controller.o'])
     run([*appcc,'-c',out/'catalog.c','-o',out/'catalog.o'])
-    cpp=['c++','-std=c++17','-O1','-g','-Wall','-Wextra','-Werror','-Wno-missing-field-initializers',*san,*includes,'-I'+str(r/'src'),'-I'+str(r/'lib/ArduinoJson/src'),'-I'+str(r/'test/drivers/stubs'),'-rdynamic']
+    # Match the existing Runtime sanitizer fixtures: unoptimized host C++ avoids
+    # GCC's sanitizer/inlining false positive inside vendored ArduinoJson.
+    cpp=['c++','-std=c++17','-O0' if a.sanitize else '-O1','-g','-Wall','-Wextra','-Werror','-Wno-missing-field-initializers',*san,*includes,'-I'+str(r/'src'),'-I'+str(r/'lib/ArduinoJson/src'),'-I'+str(r/'test/drivers/stubs'),'-rdynamic']
     src=[r/x for x in ('src/bootstrap/Json.cpp','src/bootstrap/Board.cpp','src/bootstrap/Runtime.cpp','src/runtime/streams/AppStreamSessions.cpp','src/runtime/streams/ProviderQueueHost.cpp','src/runtime/drivers/ProviderGraphV2.cpp','src/runtime/drivers/ProviderModuleV2.cpp')]
     binary=out/'test'
     run([*cpp,*src,f/'runtime_bridge.cpp',*[out/(x+'.o') for x in ('panel','adapter','controller','catalog')],'-ldl','-o',binary])
