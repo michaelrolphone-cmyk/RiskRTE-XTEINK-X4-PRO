@@ -329,7 +329,7 @@ static void present_failed(void) {
     settle_coverage_valid = false;
 }
 static bool arm_settle(void) {
-    if (busy_done_ms > UINT64_MAX - 1600u) { set_reason("settle clock overflow"); return false; }
+    if (busy_done_ms > UINT64_MAX - 2300u) { set_reason("settle clock overflow"); return false; }
     uint32_t top = (uint32_t)update_area.y, bottom = top + update_area.height;
     if (settle_coverage_valid) {
         if ((uint32_t)settle_area.y < top) top = (uint32_t)settle_area.y;
@@ -337,7 +337,7 @@ static bool arm_settle(void) {
         if (old_bottom > bottom) bottom = old_bottom;
     }
     settle_area = tested_window(top, bottom); settle_coverage_valid = true;
-    settle_until = busy_done_ms + 1600u;
+    settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
     settle_stage = SETTLE_READY;
     return true;
@@ -1125,7 +1125,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.3 cause=");
+    append(destination, capacity, &used, "v=0.1.4 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

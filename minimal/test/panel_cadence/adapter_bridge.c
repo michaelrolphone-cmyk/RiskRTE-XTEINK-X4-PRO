@@ -78,7 +78,7 @@ void panel_adapter_cadence(void) {
 #ifdef PANEL_RESIDENT_SETTLE
     panel_cadence_settle_begin();panel_runtime_reset_metrics();
     last_input_at=last_touch_at=panel_cadence_clock();input_polls=max_input_gap=touch_samples=max_touch_gap=0;
-    for(unsigned n=0;panel_cadence_settle_active()&&n<2000;++n){
+    for(unsigned n=0;panel_cadence_settle_active()&&n<3000;++n){
         assert(!paper_token);t5_app_input_t input={0};assert(poll_input(&input,interval));++input_polls;
         const uint32_t now=panel_cadence_clock();
         if(now-last_input_at>max_input_gap)max_input_gap=now-last_input_at;

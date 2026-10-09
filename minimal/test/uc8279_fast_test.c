@@ -199,6 +199,7 @@ static void test_settle(const char *scenario) {
  assert(!settle_stage);assert_idle();
  fast_band(440,40);assert(settle_stage==SETTLE_READY);
  const uint64_t token=pending_token,until=settle_until;
+ assert(until-busy_done_ms==2300u);
  const unsigned bytes=payload,dtm1=commands[0x10],dtm2=commands[0x13],r=refreshes;
  const risc_display_present_metrics_v1 original=snapshot();
  if(!strcmp(scenario,"settle-repeat")||!strcmp(scenario,"settle-short")||!strcmp(scenario,"settle-expiry")){
@@ -234,7 +235,7 @@ static void test_settle(const char *scenario) {
   assert(visible[302]==0x99&&previous_frame[302]==0x66);
   if(!strcmp(scenario,"settle-replace-clean"))assert(!settle_stage&&payload-bytes==180000);
   else {
-   assert(settle_until>until&&payload-bytes==4000&&visible[44002]==0x55);
+   assert(settle_until>until&&settle_until-busy_done_ms==2300u&&payload-bytes==4000&&visible[44002]==0x55);
    /* Old bottom-band target plus new top-band target must both settle using
     * the resident RAM, while the replacement upload remains only40 rows. */
    assert(settle_area.y==0&&settle_area.height==480);drain_settle();

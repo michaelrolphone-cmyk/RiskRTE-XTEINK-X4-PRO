@@ -81,7 +81,7 @@ def main():
                     idle=data['idle']
                     assert idle['bytes']==0 and idle['max_slice_bytes']==0
                     assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
-                    assert 1600<=idle['elapsed_ms']<=1600+2*interval+20
+                    assert 2300<=idle['elapsed_ms']<=2300+2*interval+20
                     assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
                     assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
                     assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8
