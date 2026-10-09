@@ -1,0 +1,43 @@
+name: UC8279 idle differential diagnostic
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['.github/workflows/x4-uc8279-idle-debug.yml']
+permissions:
+  contents: read
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integrate/x4-resident-loader-repair-046
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+      - name: Run focused diagnostic
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        shell: bash
+        run: |
+          build="$(mktemp -d)"
+          python3 minimal/scripts/prepare_sdk.py --runtime "$RISCRTE_RUNTIME_ROOT" --reader "$RISCRTE_READER_ROOT" --output "$build/sdk"
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('minimal/test/uc8279_fast_test.c')
+          t=p.read_text()
+          old='  assert(commands[0x10]==old1+1&&commands[0x13]==old2+1&&settle_stage==SETTLE_WAIT);\n'
+          new='  fprintf(stderr,"idle-default counters old10=%u new10=%u old13=%u new13=%u stage=%u fast=%u absolute=%u settle=%u synced=%u powered=%u bytes=%u\\n",old1,commands[0x10],old2,commands[0x13],settle_stage,fast_update,absolute_update,settle_update,dtm1_synced,screen_powered,bytes_sent);\n  assert(commands[0x10]==old1+1&&commands[0x13]==old2+1&&settle_stage==SETTLE_WAIT);\n'
+          assert t.count(old)==1
+          p.write_text(t.replace(old,new))
+          PY
+          cc -std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -pedantic -I"$build/sdk" minimal/test/uc8279_fast_test.c -o "$build/test"
+          "$build/test" idle-default-differential
