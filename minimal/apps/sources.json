@@ -29,6 +29,9 @@
     "waterfall": "7e551ba2f9e1975ceb12386dbfee4e8a946cbf65",
     "ble_scanner": "7e551ba2f9e1975ceb12386dbfee4e8a946cbf65",
     "stopwatch": "7e551ba2f9e1975ceb12386dbfee4e8a946cbf65",
-    "calculator": "7e551ba2f9e1975ceb12386dbfee4e8a946cbf65"
-  }
+    "calculator": "7e551ba2f9e1975ceb12386dbfee4e8a946cbf65",
+    "ota_update": "0b3a7b82357bb2d5913ca3eed65accebe7243784",
+    "app_store": "0b3a7b82357bb2d5913ca3eed65accebe7243784"
+  },
+  "update_system_apps": "0b3a7b82357bb2d5913ca3eed65accebe7243784"
 }

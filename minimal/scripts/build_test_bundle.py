@@ -5,11 +5,12 @@ from pathlib import Path
 from generate_profile import IDS, PATHS, stage, selections
 import native_time_cohort
 import file_browser_admission
+import update_artifacts
 import prepare_native_runtime as native_composition
 ROOT=Path(__file__).resolve().parents[2]
-APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall')
-CAPS={'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
-KV_NAMESPACES={'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
+APPS=('default','springboard','file_browser','ble_scanner','points_in_time','settings','calculator','stopwatch','countdown','timecard','battery','alarms','wifi_settings','ble_touchpad','ble_buttons','waterfall','ota_update','app_store')
+CAPS={'software.update.firmware':0,'software.update.apps':0,'runtime.realtime':0,'runtime.retained-wake':0,'runtime.realtime-control':0,'runtime.provider-promotion':0,'x4.power':17,'display.output':3,'input.touch.raw':4,'input.navigation':6,'board.battery':7,'rtc.clock':8,'storage.volume':9,'bluetooth.hci':16,'alarm.service':0,'file.open':0,'storage.installed-files':0,'bluetooth.sensors':0,'storage.app-data':1,'net.wifi':15,'bluetooth.hid':0,'radio.iq':0}
+KV_NAMESPACES={'ota_update':(6,1),'app_store':(6,1),'points_in_time':(5,1),'stopwatch':(2,1),'countdown':(3,1),'alarms':(3,1),'wifi_settings':(6,1),'ble_buttons':(11,1)}
 APPDATA_NAMESPACES={'timecard':1,'waterfall':3}
 def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=False, native_time=False):
     if desk_clock and not sleep:raise ValueError('Desk clock requires the explicit sleep graph')
@@ -17,6 +18,8 @@ def app_grants(name, requirements, sleep=False, desk_clock=False, sparse_clock=F
     grants=[]
     for req in requirements:
         cap=req['capability']
+        if cap.startswith('software.update.') and (name not in ('ota_update','app_store') or cap!=('software.update.firmware' if name=='ota_update' else 'software.update.apps') or req['api']!=1):
+            raise ValueError('Update authority requires the exact action-specific app')
         if cap=='runtime.realtime' and (not native_time or name in ('default','settings') or type(req['api']) is not int or req['api']!=1):
             raise ValueError('Readonly native time restricted to explicit native foreground apps')
         if cap=='runtime.provider-promotion' and (name!='default' or not sparse_clock or type(req['api']) is not int or req['api']!=1):
@@ -250,12 +253,16 @@ def build(a):
     keys=[('alarm_cfg',3,'read'),('timer_cfg',3,'read'),('alarm_occ',4,'read-write'),('timer_occ',4,'read-write'),('alert_mode',1,'read'),('points_cfg',5,'read'),('points_occ',4,'read-write'),('alert_dnd',1,'read')]
     if sparse:keys=native_time_cohort.ALARM_KEYS
     boot['drivers'].append({'manifest':'alarm/manifest.json','key_value':[{'key':k,'namespace':n,'access':v} for k,n,v in keys]})
+    if not sparse:raise ValueError('X4 update applications require the complete native-time cohort')
+    custody['update_providers'],update_selections=update_artifacts.stage_providers(store,out,inputs,app_sources['update_system_apps'])
+    boot['drivers'].extend(update_selections)
     policies=[];licenses=out/'licenses';licenses.mkdir(exist_ok=True)
     for name in APPS:
         src=Path(inputs['apps'][name]);blob=(src/(name+'.elf')).read_bytes();m=json.loads((src/(name+'.json')).read_text())
         if m['file_name']!=name+'.elf' or m['type']!='application':raise ValueError('App identity mismatch: '+name)
         if sparse:
             custody['native_apps'][name]=native_time_cohort.validate_app(name,m,blob,json.loads((src/'x4-native-app.json').read_text()),app_sources['native_cohort'][name])
+        if name in ('ota_update','app_store'):update_artifacts.validate_app(name,m,blob,json.loads((src/'build-record.json').read_text()),app_sources['update_system_apps'])
         if name=='settings' and not sparse:custody['settings_power_ui']=validate_settings_profile(m,blob,json.loads((src/'settings-build-record.json').read_text()),desk,app_sources['settings_system_apps'])
         if name=='settings' and sparse:custody['settings_power_ui']={'manual_light_sleep':False,'sleep_mode_selector':False,'deep_desk_clock':True,'hybrid':False,'home_key_mode':'locked-deep-desk-clock','native_time_editing':True}
         if name=='default' and desk:
@@ -333,6 +340,10 @@ def build(a):
     if not a.skip_extended_checks:
         readme=out/'README.txt'
         readme.write_text(readme.read_text().replace('Extra checks/CI wait were skipped for this requested accelerated test artifact.', 'The complete packaged store passed the production Runtime policy and ELF-admission preflight. Hardware operation remains unverified.'))
+    if not a.skip_extended_checks:
+        custody['update_artifacts']=update_artifacts.create(out,cohort,fw,filesystem,files,full)
+        (out/'build-custody.json').write_bytes(encoded(custody))
+        readme=out/'README.txt';readme.write_text(readme.read_text().replace('OTA/App Store are omitted because their service still selects the Watch feed.', 'OTA Update and App Store use explicit X4 native UTC/API2 providers. No X4 release feed is configured, so they truthfully report no available update. Local updates/ contains source-bound candidate artifacts only; no release or tag was created.'))
     notes=ROOT/'minimal/docs'/('REPAIR_'+cohort['version'].replace('.','')+'.md')
     if notes.is_file():
         readme=out/'README.txt';readme.write_text(readme.read_text()+'\n'+notes.read_text())

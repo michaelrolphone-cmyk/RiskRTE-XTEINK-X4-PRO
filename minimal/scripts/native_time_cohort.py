@@ -25,7 +25,7 @@ VERSIONS = {'default':'0.3.10','springboard':'1.7.6','file_browser':'1.5.8',
  'ble_scanner':'0.2.8','points_in_time':'0.6.3','settings':'1.3.14',
  'calculator':'0.1.13','stopwatch':'0.1.13','countdown':'0.1.12','timecard':'0.2.3',
  'battery':'1.1.6','alarms':'0.2.8','wifi_settings':'1.1.11',
- 'ble_touchpad':'0.1.8','ble_buttons':'0.1.8','waterfall':'0.2.4'}
+ 'ota_update':'1.2.0','app_store':'1.2.0','ble_touchpad':'0.1.8','ble_buttons':'0.1.8','waterfall':'0.2.4'}
 ALARM_KEYS = [('alarm_utc_cfg',3,'read'),('timer_utc_cfg',3,'read'),
  ('alarm_utc_occ',4,'read-write'),('timer_utc_occ',4,'read-write'),
  ('alert_mode',1,'read'),('points_utc_cfg',5,'read'),
