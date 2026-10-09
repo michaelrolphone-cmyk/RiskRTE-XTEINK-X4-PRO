@@ -18,17 +18,20 @@ if record.get('schema') != 'x4.native-composition' or record.get('schema_version
 if env.subst('$PIOENV') != record['build_environment']:
     raise ValueError('This composed workspace only builds its recorded X4 environment')
 options = record.get('build_options')
-if not isinstance(options, dict) or set(options) != {'app_policy_rows', 'app_image_cache'}:
+if not isinstance(options, dict) or set(options) not in ({'app_policy_rows', 'app_image_cache'},
+                                                       {'app_policy_rows', 'app_image_cache', 'usb_phy'}):
     raise ValueError('Invalid native build options')
 if type(options['app_policy_rows']) is not int or options['app_policy_rows'] not in (16, 17):
     raise ValueError('App policy rows must be 16 or 17')
 if type(options['app_image_cache']) is not bool:
     raise ValueError('App image cache must be boolean')
+if 'usb_phy' in options and options['usb_phy'] is not True:
+    raise ValueError('USB PHY must be an explicit true opt-in')
 # SCons processes BUILD_FLAGS after this pre-build hook. Refuse preexisting
 # definitions and undefines, including command-line/environment overrides,
 # instead of allowing flag order to replace the recorded selection.
 for key in ('BUILD_FLAGS', 'BUILD_UNFLAGS', 'CCFLAGS', 'CFLAGS', 'CXXFLAGS', 'CPPDEFINES'):
-    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
+    if re.search(r'(?:\b|-[DU])(?:RISC_APP_(?:POLICY_ROWS|IMAGE_CACHE)|RISC_ENABLE_USB_PHY|CONFIG_(?:ESPTOOLPY_FLASH\w*|SPIRAM_(?:MODE|SPEED)_\w*))\b', str(env.get(key, ''))):
         raise ValueError('Native option flags must come only from the composition record: ' + key)
 observed = set()
 for folder, directories, names in os.walk(root):
@@ -64,5 +67,7 @@ env.Append(CPPPATH=[str(build)])
 env.Append(CPPDEFINES=[('RISC_NATIVE_DIAGNOSTIC_OBSERVER',1),
                       ('RISC_APP_POLICY_ROWS', options['app_policy_rows']),
                       ('RISC_APP_IMAGE_CACHE', int(options['app_image_cache']))])
+if options.get('usb_phy'):
+    env.Append(CPPDEFINES=[('RISC_ENABLE_USB_PHY', 1)])
 env.Append(LINKFLAGS=['-Wl,-u,risc_x4_native_composition_identity', '-Wl,--wrap=app_main'])
 env.BuildSources('$BUILD_DIR/x4-native', str(root / 'x4-native'), '+<X4EarlyBoot.cpp>')

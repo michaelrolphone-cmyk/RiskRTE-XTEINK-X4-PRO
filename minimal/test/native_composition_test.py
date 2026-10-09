@@ -181,7 +181,7 @@ class CompositionTest(unittest.TestCase):
             exec(compile(script.read_text(), str(script), 'exec'), {'env': env, 'Import': lambda _: None})
 
     def test_build_hook_uses_explicit_record_and_rejects_external_option_flags(self):
-        record = self.prepare(app_policy_rows=17, app_image_cache=True)
+        record = self.prepare(app_policy_rows=17, app_image_cache=True, usb_phy=True)
         class Environment(dict):
             def subst(env, text):
                 return text.replace('$PROJECT_DIR', str(self.output)).replace('$BUILD_DIR', str(self.root / 'objects')).replace('$PIOENV', record['build_environment'])
@@ -195,16 +195,28 @@ class CompositionTest(unittest.TestCase):
         defines = [value for append in run()['appended'] for value in append.get('CPPDEFINES', [])]
         self.assertIn(('RISC_APP_POLICY_ROWS', 17), defines)
         self.assertIn(('RISC_APP_IMAGE_CACHE', 1), defines)
+        self.assertIn(('RISC_ENABLE_USB_PHY', 1), defines)
+        self.assertIs(record['build_options']['usb_phy'], True)
         for key, flags in [('BUILD_FLAGS', '-DRISC_APP_POLICY_ROWS=16'),
                            ('BUILD_FLAGS', ['-D', 'RISC_APP_IMAGE_CACHE=0']),
                            ('BUILD_FLAGS', '-URISC_APP_IMAGE_CACHE'),
                            ('BUILD_UNFLAGS', '-DRISC_APP_POLICY_ROWS=17'),
                            ('CPPDEFINES', [('RISC_APP_IMAGE_CACHE', 1)]),
                            ('CCFLAGS', ['-DRISC_APP_IMAGE_CACHE=1']),
+                           ('BUILD_FLAGS', '-DRISC_ENABLE_USB_PHY=0'),
+                           ('BUILD_UNFLAGS', '-URISC_ENABLE_USB_PHY'),
                            ('BUILD_FLAGS', '-DCONFIG_ESPTOOLPY_FLASHMODE_QIO=1'),
                            ('BUILD_UNFLAGS', '-UCONFIG_SPIRAM_MODE_OCT')]:
             with self.subTest(key=key, flags=flags), self.assertRaisesRegex(ValueError, 'only from the composition record'):
                 run({key: flags})
+
+    def test_usb_phy_requires_explicit_boolean_opt_in(self):
+        for invalid in (0, 1, None, 'yes'):
+            with self.subTest(invalid=invalid), self.assertRaisesRegex(ValueError, 'USB PHY selection'):
+                self.prepare(usb_phy=invalid)
+            self.assertFalse(self.output.exists())
+        with self.assertRaisesRegex(ValueError, 'explicit true'):
+            composition.validate_build_options({'app_policy_rows':17,'app_image_cache':True,'usb_phy':False})
 
     @unittest.skipUnless(importlib.util.find_spec('elftools'), 'Requires pinned pyelftools')
     def test_compiled_runtime_option_proof_and_mismatches(self):
@@ -253,6 +265,22 @@ class CompositionTest(unittest.TestCase):
         mismatch['build_options']['app_image_cache'] = True
         with self.assertRaisesRegex(ValueError, 'implementation missing'):
             composition.runtime_options_proof(default, mismatch)
+
+        usb_record = copy.deepcopy(record)
+        usb_record['build_options']['usb_phy'] = True
+        with self.assertRaisesRegex(ValueError, 'USB PHY resource marker'):
+            composition.runtime_options_proof(blobs, usb_record)
+        usb_code = code + ('const unsigned risc_usb_phy_resource_enabled=1;\n'
+            'void usbPhyClaim(void){} void usbPhyRelease(void){}\n'
+            'void suspendUsbPhy(void){} void resumeUsbPhy(void){}\n')
+        usb_blobs = compile_code(usb_code)
+        self.assertTrue(composition.runtime_options_proof(usb_blobs, usb_record)['usb_phy']['enabled'])
+        with self.assertRaisesRegex(ValueError, 'Unexpected enabled USB PHY'):
+            composition.runtime_options_proof(usb_blobs, record)
+        with self.assertRaisesRegex(ValueError, 'USB PHY resource marker'):
+            composition.runtime_options_proof(compile_code(usb_code.replace('resource_enabled=1','resource_enabled=0')), usb_record)
+        with self.assertRaisesRegex(ValueError, 'USB PHY implementation'):
+            composition.runtime_options_proof(compile_code(usb_code.replace('void resumeUsbPhy(void){}','')), usb_record)
 
     @unittest.skipUnless(importlib.util.find_spec('elftools'), 'Requires pinned pyelftools from requirements-ci.txt')
     def test_linked_proof_requires_strong_hook_and_matching_marker(self):

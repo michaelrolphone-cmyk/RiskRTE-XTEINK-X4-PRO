@@ -75,19 +75,26 @@ def snapshot(root, revision):
 
 
 def validate_build_options(options):
-    require(isinstance(options, dict) and set(options) == {'app_policy_rows', 'app_image_cache'},
+    require(isinstance(options, dict) and set(options) in
+            ({'app_policy_rows', 'app_image_cache'}, {'app_policy_rows', 'app_image_cache', 'usb_phy'}),
             'Invalid native build options')
     require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
             'App policy rows must be 16 or 17')
     require(type(options['app_image_cache']) is bool, 'App image cache must be boolean')
+    require('usb_phy' not in options or options['usb_phy'] is True,
+            'USB PHY must be an explicit true opt-in')
     return options
 
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
-            app_policy_rows=16, app_image_cache=False, boot_flash_dio=False):
+            app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
-    options = validate_build_options({'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache})
+    require(type(usb_phy) is bool, 'USB PHY selection must be boolean')
+    options = {'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache}
+    if usb_phy:
+        options['usb_phy'] = True
+    validate_build_options(options)
     require(type(boot_flash_dio) is bool, 'DIO selection must be boolean')
     flash_selection = {'boot_flash_experiment': flash_profile.DIO} if boot_flash_dio else {}
     lock = json.loads((platform_root / 'minimal/sources.lock.json').read_text())['runtime']
@@ -372,12 +379,34 @@ def runtime_options_proof(blobs, record):
         require(not any(name in symbols and symbols[name]['st_shndx'] != 'SHN_UNDEF' for name in absent),
                 'Unexpected enabled app image cache implementation')
         cache['absent_enabled_symbols'] = list(absent)
-    return {'schema': 'x4.runtime-options-proof', 'schema_version': 1,
+    usb = None
+    if options.get('usb_phy'):
+        symbol = symbols.get('risc_usb_phy_resource_enabled')
+        require(symbol is not None and symbol['st_info']['bind'] == 'STB_GLOBAL' and
+                elf_symbol_bytes(elf, symbol) == (1).to_bytes(4, 'little'),
+                'Missing enabled USB PHY resource marker')
+        functions = {}
+        for component in ('usbPhyClaim', 'usbPhyRelease', 'suspendUsbPhy', 'resumeUsbPhy'):
+            matches = [s for name, s in symbols.items() if component in name and
+                       isinstance(s['st_shndx'], int) and s['st_size'] > 0 and
+                       elf.get_section(s['st_shndx'])['sh_flags'] & 4]
+            require(len(matches) == 1, 'USB PHY implementation missing or ambiguous: ' + component)
+            functions[component] = {'symbol': matches[0].name,
+                                    'sha256': sha(elf_symbol_bytes(elf, matches[0]))}
+        usb = {'enabled': True, 'marker': 'risc_usb_phy_resource_enabled',
+               'implementation_symbols': functions}
+    elif 'risc_usb_phy_resource_enabled' in symbols:
+        require(symbols['risc_usb_phy_resource_enabled']['st_shndx'] == 'SHN_UNDEF',
+                'Unexpected enabled USB PHY resource')
+    result = {'schema': 'x4.runtime-options-proof', 'schema_version': 1,
             'composition_sha256': record['composition_sha256'], 'build_options': options,
             'elf_sha256': sha(blobs['firmware.elf']), 'firmware_sha256': sha(blobs['firmware.bin']),
             'app_policy': {'rows': rows, 'live_app_grants': 16, 'manifest_requirements': 16,
                            'marker': marker[:-1].decode(), 'symbol': 'risc_app_policy_rows'},
             'app_image_cache': cache, 'hardware_qualified': False}
+    if usb is not None:
+        result['usb_phy'] = usb
+    return result
 
 
 def startup_proof(elf_data, record):
@@ -540,6 +569,8 @@ def main():
                          help='Explicitly enable the Runtime app image cache and qualified pressure retry paths')
     prepare.add_argument('--boot-flash-dio', action='store_true',
                          help='Explicit .29 diagnostic DIO/80MHz flash with octal PSRAM; default QIO unchanged')
+    prepare.add_argument('--usb-phy', action='store_true',
+                         help='Explicitly enable the native USB PHY ownership lease for the SD export provider')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)
