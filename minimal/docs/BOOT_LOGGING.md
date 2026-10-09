@@ -50,7 +50,11 @@ for that boot, with an explicit buffered error; pre-write retries are bounded.
 
 The small, checksummed eight-slot NVS crash summaries remain separate. Their
 64 ordinary-checkpoint limit does not limit the full text. The initial app_main NVS checkpoint remains immediate, before initVariant, PSRAM allocation and app-data mount. First display and
-first failure retain special evidence beyond that limit. No erase/format retry
+first failure retain special evidence beyond that limit. The newest valid earlier NVS checkpoint is mirrored into the current stream
+as `recovered-summary`, with its original session, phase, reset, last line and
+first failure. This preserves summary evidence from attempts that stopped before
+initVariant or app-data mount; it does not reconstruct their missing full text.
+Mirroring uses the already-read NVS history and adds no storage operation. No erase/format retry
 runs. Before app-data is writable, early full text is volatile: sudden power
 loss can lose it, although committed NVS summaries may survive. After mounting, the final unflushed RAM suffix can still be lost on reset or power loss. Explicit USB export drains quiet partial SD batches before handing over the card. Neither PSRAM
 nor RTC RAM is claimed to survive complete power loss. A reset during a file

@@ -461,19 +461,25 @@ static void bootlog_cases(const char *scenario) {
     verify_cleanup();
 }
 static void trace_cases(const char *scenario) {
- const char* fixture=getenv("X4_TRACE_FIXTURE");assert(fixture);
+ const bool early=!strcmp(scenario,"log-trace-early-reset");
+ const char* fixture=getenv(early?"X4_EARLY_TRACE_FIXTURE":"X4_TRACE_FIXTURE");assert(fixture);
  FILE *input=fopen(fixture,"rb");assert(input);
  source_trace_size=fread(source_trace,1,sizeof(source_trace)-1,input);assert(!ferror(input) && feof(input));fclose(input);
- assert(source_trace_size>20000);source_trace[source_trace_size]=0;
+ assert(source_trace_size>(early?1000u:20000u));source_trace[source_trace_size]=0;
  deps[5].api=&fixture_trace.base;
  // Mount with no data, then publish exact production native-logger output.
  source_trace_available=0;assert(START());assert(log_writes==0);
+ if(early) {
+  source_trace_available=(uint32_t)(strchr(source_trace,'\n')-source_trace)+1;
+  bootlog_service(1000);
+  assert(bootlog_batch_bytes && !bootlog_cursor && !log_writes);
+ }
  source_trace_available=source_trace_size;
  if(!strcmp(scenario,"log-trace-close"))log_fail_close=true;
  if(!strcmp(scenario,"log-trace-invalid"))source_trace_invalid=true;
  if(!strcmp(scenario,"log-trace-timeout"))budget_jump=true;
  unsigned iterations=0;
- if(!strcmp(scenario,"log-trace-export")) {
+ if(!strcmp(scenario,"log-trace-export") || early) {
   risc_storage_export_token_t token=0;uint64_t blocks=0;uint32_t block_size=0;
   assert(export_begin(NULL,&token,&blocks,&block_size)==RISC_STORAGE_EXPORT_READY);
   assert(bootlog_cursor==source_trace_available && bootlog_paused);
@@ -487,7 +493,7 @@ static void trace_cases(const char *scenario) {
   assert(log_writes-writes<=1);
   assert(card_writes+card_reads-sectors<=64);
  }
- if(strcmp(scenario,"log-full-trace") && strcmp(scenario,"log-trace-export")){
+ if(strcmp(scenario,"log-full-trace") && strcmp(scenario,"log-trace-export") && !early){
   assert(bootlog_disabled && bootlog_error && bootlog_cursor==0);
   const unsigned writes=log_writes;bootlog_service(1000);assert(log_writes==writes);
   if(!strcmp(scenario,"log-trace-close"))assert(bootlog_retained && has_handles() && !quiesce());
@@ -497,13 +503,18 @@ static void trace_cases(const char *scenario) {
  char actual[262144];const size_t count=read_log(actual,sizeof(actual));
  assert(count==source_trace_size && !memcmp(actual,source_trace,count));
  const char *artifact=getenv("X4_SD_LOG_ARTIFACT");if(artifact){FILE*f=fopen(artifact,"wb");assert(f);assert(fwrite(actual,1,count,f)==count);assert(!fclose(f));}
- assert(strstr(actual,"event=100") && strstr(actual,"panel-start-timeout") && strstr(actual,"stage=rtc-recovery result=ok") && strstr(actual,"file=clock.elf"));
- assert(strstr(actual,"session=2 event=1") && strstr(actual,"session=3 event=1"));
+ if(early) {
+  assert(strstr(actual,"recovered-summary original_session=1") && strstr(actual,"coverage=nvs-checkpoint"));
+  assert(strstr(actual,"recovered-summary phase=rail-ready") && strstr(actual,"session=2 event=1"));
+ } else {
+  assert(strstr(actual,"event=100") && strstr(actual,"panel-start-timeout") && strstr(actual,"stage=rtc-recovery result=ok") && strstr(actual,"file=clock.elf"));
+  assert(strstr(actual,"session=2 event=1") && strstr(actual,"session=3 event=1"));
+ }
  unsigned before=card_writes+card_reads,opens=log_opens;
  for(unsigned i=0;i<100;++i)bootlog_service(1000);
  assert(card_writes+card_reads==before && log_opens==opens);
  owner=false;bootlog_service(1000);owner=true;assert(card_writes+card_reads==before);
- printf("Full trace SD bytes=%zu events>200 chunks=%u physical_reads=%u physical_writes=%u; exact persisted text/order/reset/results PASS\n",count,iterations,card_reads,card_writes);
+ printf("%s SD bytes=%zu chunks=%u physical_reads=%u physical_writes=%u; exact persisted text/order/reset/results PASS\n",early?"Early-reset summary and quiet export":"Full trace",count,iterations,card_reads,card_writes);
  verify_cleanup();
 }
 static void batching_latency_case(void) {

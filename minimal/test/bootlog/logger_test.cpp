@@ -49,7 +49,8 @@ int nvs_commit(nvs_handle_t){
 }
 void nvs_close(nvs_handle_t){}
 #include "../../native/X4EarlyBoot.cpp"
-extern "C" void __real_app_main(){++realMainCalls;initVariant();}
+static bool stopBeforeVariant=false;
+extern "C" void __real_app_main(){++realMainCalls;if(!stopBeforeVariant)initVariant();}
 namespace RiscDiagnostics {void line(const char* s){
  emitted+=s;emitted+='\n';
  observing=true;risc_native_diagnostic_observer(s);observing=false;
@@ -109,6 +110,16 @@ void productionBoot(unsigned providers){
 }
 int main(){
  using namespace X4BootLog;
+ resetRam(true);noFiles();stopBeforeVariant=true;__wrap_app_main();
+ check(commits==1 && current.sequence==1 && !variant && !traceAllocation && !fs::exists(Internal),"first app_main checkpoint commits before initVariant/PSRAM/app-data");
+ check(std::string(traceText,traceBytes).find("recovered-summary")==std::string::npos,"empty NVS history produces no fabricated recovered summary");
+ risc_x4_boot_record={};resetRam();stopBeforeVariant=false;boot();mounted();
+ const std::string earlyRecovered=sourceText();
+ check(commits==4 && current.sequence==2 && earlyRecovered.find("recovered-summary original_session=1")!=std::string::npos && earlyRecovered.find("recovered-summary phase=rail-ready")!=std::string::npos,"early failed attempt is exported as an explicit NVS summary without extra NVS writes");
+ check(earlyRecovered==readFile(Internal),"early recovered summary reaches the checked persistent text file");
+ if(const char* fixture=std::getenv("X4_EARLY_TRACE_FIXTURE"))std::ofstream(fixture)<<earlyRecovered;
+ resetRam(true);noFiles();flash["boot1"]=std::vector<unsigned char>(sizeof(Session),0xff);boot();mounted();
+ check(current.sequence==1 && sourceText().find("recovered-summary")==std::string::npos,"corrupt NVS history produces no fabricated recovered summary");
  resetRam(true);noFiles();boot();
  check(commits==3 && current.sequence==1,"native checkpoints remain separate from full ordered trace");
  check(!fs::exists(Internal),"early text buffers without mounting or formatting storage");

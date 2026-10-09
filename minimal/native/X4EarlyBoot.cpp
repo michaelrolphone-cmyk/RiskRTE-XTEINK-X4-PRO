@@ -191,6 +191,29 @@ void start(const X4Boot::Record& record) {
   std::snprintf(line,sizeof(line),"native nvs-init result=%ld session_identity=%s",
     (long)storageError,current.sequence?"persistent":"unassigned");
   textLine(line,uint64_t(esp_timer_get_time()));
+  // A prior attempt may have stopped before app-data existed. Mirror its
+  // already-read NVS summary into the copied text source; it is not a replay
+  // of missing full text, and adds no NVS/file operation at startup.
+  const Session* recovered=nullptr;
+  for(const auto& candidate:history)
+    if(valid(candidate) && candidate.sequence<current.sequence &&
+       (!recovered || candidate.sequence>recovered->sequence))recovered=&candidate;
+  if(recovered) {
+    const auto& saved=recovered->checkpoint;
+    std::snprintf(line,sizeof(line),"recovered-summary original_session=%llu revision=%lu coverage=nvs-checkpoint full_text=separate-if-persisted",
+      (unsigned long long)recovered->sequence,(unsigned long)recovered->revision);
+    textLine(line,uint64_t(esp_timer_get_time()));
+    std::snprintf(line,sizeof(line),"recovered-summary phase=%s operation=%lu reset=%lu raw0=%lu raw1=%lu wake=%lu milestones=%lu kind=%s last_us=%llu first_display=%lu",
+      X4Boot::phaseName(saved.phase),(unsigned long)saved.operation,(unsigned long)saved.reset,
+      (unsigned long)saved.raw0,(unsigned long)saved.raw1,(unsigned long)saved.wake,
+      (unsigned long)saved.milestoneCount,X4Boot::milestoneName(saved.milestoneKind),
+      (unsigned long long)saved.milestoneUs,(unsigned long)saved.displayCompleted);
+    textLine(line,uint64_t(esp_timer_get_time()));
+    std::snprintf(line,sizeof(line),"recovered-summary last_line=%s",saved.milestone[0]?saved.milestone:"none-recorded");
+    textLine(line,uint64_t(esp_timer_get_time()));
+    std::snprintf(line,sizeof(line),"recovered-summary first_failure=%s",recovered->firstFailure[0]?recovered->firstFailure:"none-recorded");
+    textLine(line,uint64_t(esp_timer_get_time()));
+  }
 }
 void trace(const char* line,uint64_t nowUs,const X4Boot::Record& record) {
   if(std::strstr(line,"boot app-data end "))storageProbeReady=true;
