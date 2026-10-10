@@ -50,5 +50,10 @@
     "one_frame_full_480_row_absolute_fps": 9.79,
     "selection": "two-frame active pulse; no 40 MHz, counterpulse, voltage, or sub-qualified timing changes"
   },
-  "scope": "driver source, manifest, branch regression alignment and validation receipt; product firmware image intentionally left to the X4 builder"
+  "scope": "driver source, manifest, branch regression alignment and validation receipt; product firmware image intentionally left to the X4 builder",
+  "publication": {
+    "source_branch": "recovery/x4-sd-state-0214-20261010",
+    "source_commit": "0be414a17cf48c5096521fa286c742be69e61d83",
+    "qualification_request": "Typed minimal X4 drivers push workflow"
+  }
 }
