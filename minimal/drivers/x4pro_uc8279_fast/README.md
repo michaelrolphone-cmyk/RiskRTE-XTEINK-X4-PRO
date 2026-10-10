@@ -1,10 +1,58 @@
-# X4 UC8279 fast provider 0.1.12
+# X4 UC8279 fast provider 0.1.16
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
 fallback for both UC8279 and SSD1677. Select the new provider explicitly with
 `--panel uc8279 --panel-driver uc8279-fast` in profile/bundle generation and
 `--panel-driver uc8279-fast` in the provider builder. SSD selection is rejected.
+
+## Longer absolute active drive (0.1.16)
+
+Version 0.1.16 returns exactly to the hardware-confirmed 0.1.13 absolute-A2
+implementation and changes only active pulse duration and its scheduling metadata.
+Byte-level changed-region detection, byte-aligned horizontal windows, the
+40/80/160/480-row gate choices, absolute OLD-plane policy, resident endpoint
+settling, four-frame final-target redraw, complete DTM1/DTM2 reconciliation,
+and POF lifecycle are inherited from 0.1.13.
+
+Changed regions no taller than 160 rows now receive one four-frame absolute DRF.
+Broad 480-row motion receives one two-frame absolute DRF. No differential or
+complementary LUT is used, no source-rail or VCOM override is programmed, and no
+second active DRF is added. The additional time is therefore spent driving the
+current target within one coherent refresh rather than replaying an intermediate
+transition. The 160-row laboratory measurement for the four-frame profile was
+approximately 100.9 ms total, or 9.91 FPS.
+
+## Tight changed-pixel windows and stronger motion (0.1.13)
+
+Version 0.1.13 preserves the 0.1.12 final-target endpoint redraw, complete
+DTM1/DTM2 reconciliation, validated BUSY lifecycle and POF ordering. It changes
+only active DEFAULT/LOW_LATENCY motion:
+
+- compares the submitted MONO1 target with the last physically completed target;
+- derives a byte-aligned bounding window from actual XOR changes, even when an
+  application submits a full-screen damage contract;
+- preserves horizontal bounds instead of expanding every fast update to 800
+  pixels, while retaining the lab-qualified 40/80/160/480-row gate heights;
+- uses a two-frame absolute A2 pulse for effective windows no taller than 160
+  rows and retains one frame for broader/full-visible motion;
+- completes identical targets without panel I/O and without cancelling an
+  already armed final-target settle.
+
+The driver still accepts only the typed 20 MHz UC8279 path. It does not import
+40 MHz SPI, counterpulses, voltage changes, undocumented TCON/PLL settings or
+the destructive later laboratory sequences. Horizontal partial-window behavior
+requires device qualification; the host model verifies RAM cursor mapping,
+old/new target preservation, bounded slices and every retained failure path.
+
+## Exact final-target endpoint redraw (0.1.12)
+
+Version 0.1.12 restored one-frame absolute active motion after the differential
+path proved too faint, then retained the final target for 2.3 seconds. At the
+endpoint it uploads the complete target with hidden rows white, performs one
+four-frame full-visible absolute redraw, synchronizes full DTM1 and DTM2, and
+issues POF only after validated BUSY completion. No blank, black-fill or inverse
+intermediate frame is presented.
 
 ## Protocol and source custody
 
@@ -26,22 +74,24 @@ qualification, even though the subsequent selected lab protocol was tested.
 After reset, a presentation without reconstructed history and every explicit CLEAN use the source's
 OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion,
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
-rows). Later DEFAULT/LOW_LATENCY presentations use the one-frame absolute target LUT at PLL
-0x0F: white-target entries 0x81, black-target entries 0x41, VCOM entry 0x01.
-Version0.1.2 corrects registers0x21/0x24 relative to the laboratory; every
-remaining42-byte table field and one-frame duration stays unchanged. No old-plane transfer occurs
-in that mode. Full visible updates transfer **48,000 bytes**; 40/80/160-row
-bands transfer **4,000/8,000/16,000 bytes**.
+rows). Later DEFAULT/LOW_LATENCY presentations use an absolute target LUT at PLL
+0x0F. Effective windows up to 160 rows use four scan frames (white-target entries
+0x84, black-target entries 0x44); broader/full-visible motion uses two frames
+(0x82/0x42). VCOM remains 0x01. Version 0.1.2 corrected registers 0x21/0x24
+relative to the laboratory. No old-plane transfer occurs in active fast mode.
+Payload is the byte-aligned effective width multiplied by the selected
+40/80/160/480-row gate height and divided by eight.
 
-PTIN/PTL establishes a full-width window before DTM2, then PTOUT closes the RAM
-phase. The source's PTIN/PTL, external PSR, PFS, gate scan, CDI, CCSET, TSSET, LUT,
-PON-if-needed, DRF and PTOUT sequence follows. Partial damage expands its vertical
-union to the smallest tested 40/80/160/480-row height; the source's full-width
-RAM protocol is retained. Bytes outside the aligned submitted damage union come from the physically completed image,
+PTIN/PTL establishes the XOR-derived, byte-aligned horizontal window and the
+smallest tested 40/80/160/480-row vertical window before DTM2; PTOUT closes the
+RAM phase. The source's PTIN/PTL, external PSR, PFS, gate scan, CDI, CCSET, TSSET,
+LUT, PON-if-needed, DRF and PTOUT sequence follows. Bytes in the expanded gate
+window but outside submitted damage come from the physically completed image,
 preventing unrelated caller edits from becoming visible. Only accepted,
 completed pixels become history. Caller seeding does not qualify an unshown
-image for the fast mode. Resume clears inferred history; a validated caller reconstruction can
-seed an OTP QUALITY partial, otherwise the next frame uses a full baseline.
+image for the fast mode. Resume clears inferred history; a validated caller
+reconstruction can seed an OTP QUALITY partial, otherwise the next frame uses a
+full baseline.
 
 ## Ownership, timing and failure behavior
 
@@ -88,10 +138,12 @@ For a separately authorized hardware test, select the new provider explicitly,
 verify the repeated probe and recorded 20 MHz typed profile, then compare full
 normal frames with the user-reported 9.97 FPS baseline. Record submission,
 transfer, DRF, BUSY assertion/completion, payload counts and completed tokens.
-Exercise 40/80/160-row bands at several locations, full frames, CLEAN, long
-repeated updates, failed/missed BUSY, touch during transfers, power refusal,
-sleep/resume and fallback selection. Confirm normal fast frames have no DTM1
-sync and that image quality is acceptable for actual UI text and transitions.
+Exercise narrow horizontal windows and 40/80/160-row bands at several locations,
+full frames, identical no-op targets, CLEAN, long repeated updates, failed/missed
+BUSY, touch during transfers, power refusal, sleep/resume and fallback selection.
+Confirm small windows select four LUT frames, broad windows select two, normal
+fast frames have no DTM1 sync, and image quality is acceptable for actual UI text
+and transitions.
 No hardware was accessed or firmware flashed for this change.
 
 ## Completed-image snapshot (0.1.1)
@@ -329,23 +381,3 @@ Home explicitly awaits this condition only before sleep, keeping input active
 so fresh contact or navigation cancels the sleep and restores the foreground.
 The separate transition/cadence investigation is NOT part of this version.
 Physical panel contrast remains unverified.
-
-
-## Hardware-driven endpoint correction (0.1.12)
-
-Device testing of product 0.1.52/0.1.53 found that the one-frame differential
-DEFAULT path produced faint motion and incomplete view transitions, while POF
-exposed previously displayed images. This revision restores the proven
-one-frame absolute A2 path for both DEFAULT and LOW_LATENCY motion.
-
-After the existing 2.3-second resident settling interval, the driver now uploads
-the exact final framebuffer across complete controller DTM2 RAM, programs a
-four-frame absolute endpoint waveform, and physically redraws the full visible
-800x480 target. It never inserts an all-white, all-black, or inverted frame.
-Only after that target-ending BUSY cycle completes does it synchronize complete
-DTM1 and DTM2 (hidden rows white) and issue validated POF. A queued replacement
-can cancel before the endpoint DRF, or after an already-started DRF completes.
-
-The 30-second no-upload maintenance refresh remains removed. PON profile replay,
-uncertain-state invalidation, frontlight tone, and the token-bound sleep-settle
-contract are retained.

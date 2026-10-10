@@ -1,0 +1,49 @@
+{
+  "system": {
+    "local": "ee18c2e1efaa0b1866b80d0e2bcf2bd61628cca3",
+    "public": "cee9e9c46c738386c1b172c63cdc17c874ebfbbb",
+    "tree": "3b1474cc10a1803e33b89e93beccab75d40a652b",
+    "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
+    "branch": "fix/x4-render-performance"
+  },
+  "utilities": {
+    "local": "489963e762a70fe664be121c4c9934b0326bc844",
+    "public": "2e8d0530d3faf8299deb8d93707ca7248e9712d9",
+    "tree": "8e079db687c1637147e1641cf4049dc52bc3ba98",
+    "repository": "michaelrolphone-cmyk/RiscRTE-Utilities",
+    "branch": "fix/x4-render-performance"
+  },
+  "runtime": {
+    "local": "21967e5e5e56d3873072aa6d82ea546cfa559cf4",
+    "public": "f541fdfcff26359fd2ca08689c3ad63c1f5f97e2",
+    "tree": "acd607148c8d29271b266c1624b73c33ee0ac499",
+    "repository": "michaelrolphone-cmyk/RiscRTE",
+    "branch": "integrate/x4-app-upgrades-064"
+  },
+  "productivity": {
+    "local": "c7fd7376e83187203b5b9afae775a8f17c87f4f8",
+    "public": "bd613ba150f0bbe1fd39eaf342574a664a50c67a",
+    "tree": "738717c60a84e8d06336d87eaf39d8f4901f444e",
+    "repository": "michaelrolphone-cmyk/RiscRTE-Productivity",
+    "branch": "fix/x4-render-performance"
+  },
+  "drivers": {
+    "local": "ee6bc2ee71535775b9d549477c0cf6ae5e192042",
+    "public": "aac1cb342696e96345d4546e2c69023834c6c8d4",
+    "tree": "e7c25bbd42646278bfc0130dee4ebfe0337c7d60",
+    "repository": "michaelrolphone-cmyk/RiscRTE-Drivers",
+    "branch": "integrate/x4-app-upgrades-064"
+  },
+  "native_platform": {
+    "local": "3592e0aa45f2fa829dceac07820552e86d46584d",
+    "public": "0b641733ee4162df395eab2c7c1b8aa0c3ec292a",
+    "tree": "4751ed45d050157d5125dd6cfd1d274cad4ea2bd",
+    "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO"
+  },
+  "contexts_baseline": {
+    "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+    "public_commit": "dde97468836204a3f9a3ce9aa936d4123dcbc2bd",
+    "tree": "325320eb4db9948e304e76fe6e37b6a9a3ed8c00",
+    "image_sha256": "f7ea07d92b29f105e799765a4fdd42fc6f98d1f220687463a56d3bd8733b1990"
+  }
+}
