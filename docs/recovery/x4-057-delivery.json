@@ -1,0 +1,28 @@
+{
+  "product_version": "0.1.57",
+  "image": {
+    "bytes": 16777216,
+    "flash_offset": 0,
+    "name": "X4-0.1.57-Wifi-UI-full-0x0.bin",
+    "sha256": "0e78e51b4d77e590f6f80035e54b5462e119f77115d55806c60d870d3783a9a7"
+  },
+  "modules": 47,
+  "changed_modules": 22,
+  "preserved_modules": 25,
+  "store_paths_changed": 46,
+  "store_paths_preserved": 51,
+  "native_version": "0.2.2",
+  "panel_version": "0.1.13",
+  "raster_snapshot_apps": 20,
+  "strict_elf_checks": 47,
+  "cohort_admission": [
+    "normal",
+    "ASan/UBSan"
+  ],
+  "independent_store_readback": true,
+  "hardware_tested": false,
+  "full_flash_warning": "Full0x0 install overwrites internal settings, Wi-Fi profiles, bonds and AppData. Back up first. Removable SD contents are not included.",
+  "assembly_source_local": "28ada8dae97dcd2ba071ab43e2d92c8217e10f2c",
+  "assembly_source_public": "8a3775bee2c262b3fb74543ce1cc061551cd74be",
+  "offline_replay": "byte-identical BIN from bundled source and pinned inputs"
+}

@@ -1,0 +1,10 @@
+{
+  "image_sha256": "0e78e51b4d77e590f6f80035e54b5462e119f77115d55806c60d870d3783a9a7",
+  "native_version": "0.2.2",
+  "embedded_native_source": "0f17a435f99d02d60ca50df1d1a51fcef123db89",
+  "public_tree_equivalent_commit": "b25b1d467a557e8d693211cff2eff959eb9c79de",
+  "tree": "74a0284e1f72e0c568197ba0ed6b25be7ee3d58b",
+  "public_branch": "work/runtime-0.2.2-native-union-20261010",
+  "url": "https://github.com/michaelrolphone-cmyk/RiscRTE/commit/b25b1d467a557e8d693211cff2eff959eb9c79de",
+  "effect": "Additional publication custody only. No delivered image, source marker or archive bytes changed."
+}
