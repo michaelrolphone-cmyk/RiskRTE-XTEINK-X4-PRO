@@ -44,7 +44,7 @@ def main():
             if system is None:continue
             system=system.resolve();include=work/label/'include'
             shutil.copytree(system/'lib/PortableApps/include',include)
-            for header in ['RiscRuntimeV1.h','RiscRealtimeV1.h']:
+            for header in ['RiscRuntimeV1.h','RiscRealtimeV1.h','RiscKeyValueV1.h']:
                 shutil.copyfile(runtime/'sdk/app'/header,include/header)
             # PortableTime includes a sibling ../time path.
             shutil.copytree(system/'lib/PortableApps/time',include.parent/'time')
@@ -73,9 +73,11 @@ def main():
                         assert metrics['bytes']==((metrics['damage'][2]//8)*metrics['damage'][3] if metrics['partial'] else 180000)
                         assert metrics['max_slice_bytes']<=16384 and metrics['max_slice_ms']<=8
                         assert metrics['gpio_writes']<200
-                        assert frame['max_requested_wait_ms']==1
+                        assert 1<=frame['max_requested_wait_ms']<=min(interval,4)
+                        assert frame['max_provider_pending_wait_ms']==1
+                        assert frame['provider_pending_runtime_waits']==frame['provider_pending_runtime_wait_ms']
                         assert metrics['budget_ms']==[8,8]
-                        assert frame['scheduler_wait_ms']==frame['scheduler_waits']
+                        assert frame['scheduler_waits']<=frame['scheduler_wait_ms']<=frame['scheduler_waits']*min(interval,4)
                         if not baseline:
                             assert frame['controller_polls']>0
                             assert frame['max_controller_gap_ms']<=interval+8
@@ -92,7 +94,7 @@ def main():
                     maintenance=data['maintenance']
                     assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==0
                     assert 30000-interval<=maintenance['elapsed_ms']<=30000+3*interval+20
-                    assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==interval
+                    assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==min(interval,4)
                     assert maintenance['controller_polls']>0 and maintenance['max_controller_gap_ms']<=interval+8
                     assert maintenance['touch_samples']>0 and maintenance['max_touch_gap_ms']<=max(20,interval)+8
                     print(json.dumps(data),flush=True)

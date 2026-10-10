@@ -8,17 +8,19 @@ extern "C" uint32_t panel_cadence_clock(void);
 extern "C" bool panel_cadence_pending(void);
 extern "C" void panel_cadence_delay(uint32_t);
 extern "C" void panel_cadence_poll(uint32_t);
+extern "C" void panel_adapter_before_yield(void);
 static RiscBoot::Runtime *active_runtime;
-static unsigned wait_calls,wait_ms,max_wait;
+static unsigned wait_calls,wait_ms,max_wait,provider_wait_calls,provider_wait_ms,max_provider_wait;
 extern "C" void panel_runtime_yield(uint32_t ms) {
-    if(panel_cadence_pending())assert(ms==1);
-    active_runtime->yield(ms);
+    if(panel_cadence_pending()){assert(ms==1);++provider_wait_calls;provider_wait_ms+=ms;if(ms>max_provider_wait)max_provider_wait=ms;}
+    panel_adapter_before_yield();active_runtime->yield(ms);
 }
 extern "C" void panel_runtime_poll(uint32_t ms) { panel_cadence_poll(ms); }
-extern "C" void panel_runtime_reset_metrics(void) { wait_calls=wait_ms=max_wait=0; }
+extern "C" void panel_runtime_reset_metrics(void) { wait_calls=wait_ms=max_wait=provider_wait_calls=provider_wait_ms=max_provider_wait=0; }
 extern "C" void panel_runtime_expect_idle(uint32_t ms) { assert(wait_calls>=1&&wait_ms==ms&&max_wait<=ms); }
 extern "C" void panel_runtime_report(void) {
     printf("\"scheduler_waits\":%u,\"scheduler_wait_ms\":%u,\"max_requested_wait_ms\":%u",wait_calls,wait_ms,max_wait);
+    printf(",\"provider_pending_runtime_waits\":%u,\"provider_pending_runtime_wait_ms\":%u,\"max_provider_pending_wait_ms\":%u",provider_wait_calls,provider_wait_ms,max_provider_wait);
 }
 static void write(const std::string& path,const char *text) { std::ofstream(path)<<text; }
 int main(int argc,char **argv) {

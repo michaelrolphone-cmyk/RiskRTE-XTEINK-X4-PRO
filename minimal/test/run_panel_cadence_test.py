@@ -56,7 +56,7 @@ def main():
             if system is None:continue
             system=system.resolve();include=work/label/'include'
             shutil.copytree(system/'lib/PortableApps/include',include)
-            for header in ['RiscRuntimeV1.h','RiscRealtimeV1.h']:
+            for header in ['RiscRuntimeV1.h','RiscRealtimeV1.h','RiscKeyValueV1.h']:
                 shutil.copyfile(runtime/'sdk/app'/header,include/header)
             # PortableTime includes a sibling ../time path.
             shutil.copytree(system/'lib/PortableApps/time',include.parent/'time')

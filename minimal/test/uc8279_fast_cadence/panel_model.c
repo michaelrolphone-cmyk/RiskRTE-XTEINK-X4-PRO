@@ -34,6 +34,7 @@ const risc_display_output_api_v1 *panel_cadence_start(unsigned unused) {
     risc_provider_dependency_v1 deps[]={{"hardware.device",1,&device_model},{"platform.gpio",1,&gpio_model},{"platform.clock",1,&clock_model},{"platform.sync",1,&sync_model},{"board.power.ready",1,&power_model},{"display.frontlight",1,&light_model},{"spi.bus",1,&spi_model}};
     assert(t5_driver_get(2)->start(deps,7));output=t5_driver_get(2)->capability;return output;
 }
+bool panel_cadence_pending(void){return present_state==PRESENT_QUEUED||present_state==PRESENT_ACTIVE;}
 uint32_t panel_cadence_clock(void){return (uint32_t)tick;}
 void panel_cadence_delay(uint32_t ms){tick+=ms;}
 void panel_cadence_poll(uint32_t budget){
