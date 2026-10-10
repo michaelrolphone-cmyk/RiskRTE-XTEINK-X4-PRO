@@ -85,7 +85,10 @@ def build(plan_path,output):
         require(result.returncode==0,'Build step failed: '+step['id']+'; see '+row['log'])
         for name in step['outputs']:
             path=inside(root,name);require(path.is_file() and not path.is_symlink(),'Missing or symlink output: '+name)
-            require(path.stat().st_mtime_ns>=epoch,'Output predates clean build: '+name)
+            # Source JSON manifests may be copied with their original mtime.
+            # Their destination must still have been created by this step.
+            observed=path.stat().st_ctime_ns if path.suffix=='.json' else path.stat().st_mtime_ns
+            require(observed>=epoch,'Output predates clean build: '+name)
             ledger['artifacts'][name]={'producer':step['id'],'bytes':path.stat().st_size,'sha256':sha(path),'mtime_ns':path.stat().st_mtime_ns}
         save()
     # A source changed mid-build invalidates every result, even if commands passed.

@@ -9,6 +9,8 @@ export X4_TRACE_FIXTURE="$build/full-boot-trace.txt"
 export X4_EARLY_TRACE_FIXTURE="$build/early-reset-trace.txt"
 bash "$root/minimal/test/run_bootlog_test.sh"
 flags=(-std=c11 -O1 -g -Wall -Wextra -Werror -Wno-overflow)
+# This matrix uses the GPIO wire fixture; production requires native SDMMC.
+flags+=(-DX4PRO_SD_ALLOW_LEGACY_GPIO=1)
 if [[ -n "${X4_SD_DRIVER_SOURCE:-}" ]]; then flags+=("-DX4_SD_DRIVER_SOURCE=\"$X4_SD_DRIVER_SOURCE\""); else flags+=(-DX4_EXPECT_BATCHING=1); fi
 if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer); fi
 "${CC:-cc}" "${flags[@]}" -I"$build/sdk" -I"$RISCRTE_READER_ROOT/Drivers/storage_fatfs" \
