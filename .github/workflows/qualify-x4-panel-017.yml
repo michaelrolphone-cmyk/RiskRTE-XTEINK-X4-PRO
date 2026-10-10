@@ -1,0 +1,106 @@
+name: Qualify X4 panel 0.1.17
+
+on:
+  push:
+    branches:
+      - experiment/x4-panel-012-strong-drive-017
+    paths:
+      - .github/workflows/qualify-x4-panel-017.yml
+
+permissions:
+  contents: write
+
+env:
+  PLATFORMIO_SETTING_ENABLE_TELEMETRY: "No"
+
+jobs:
+  qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/x4-panel-012-strong-drive-017
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Apply scoped host expectations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 minimal/scripts/adjust_x4_panel_017_tests.py
+          rm minimal/scripts/adjust_x4_panel_017_tests.py \
+             .github/workflows/qualify-x4-panel-017.yml
+          git diff --check
+          grep -q 'frames==1||frames==2||frames==3||frames==X4PRO_FINAL_TARGET_FRAMES' minimal/test/uc8279_fast_test.c
+          grep -q 'settle_stage==SETTLE_WAIT' minimal/test/uc8279_fast_test.c
+          grep -q "\['version'\]=='0.1.17'" minimal/test/run_idle_panel_policy_test.py
+
+      - name: Verify package and profile
+        run: |
+          test "$(python3 -c 'import json; print(json.load(open("minimal/drivers/x4pro_uc8279_fast/manifest.json"))["version"])')" = '0.1.17'
+          python3 -m json.tool minimal/validation/uc8279-012-three-pass-0.1.17.json >/dev/null
+          python3 minimal/test/prepare_sdk_test.py
+          python3 minimal/test/uc8279_fast_profile_test.py
+
+      - name: Run UC8279 provider regressions
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        run: |
+          SANITIZE=0 bash minimal/test/run_uc8279_fast_test.sh
+          SANITIZE=1 bash minimal/test/run_uc8279_fast_test.sh
+
+      - name: Commit exact qualified cohort
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test(x4): qualify 0.1.12-based three-pass panel driver'
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:experiment/x4-panel-012-strong-drive-017
+
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Build Xtensa panel provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+          python3 minimal/scripts/build_drivers.py \
+            --runtime .shared/runtime \
+            --reader .shared/reader \
+            --source-lock minimal/test/ordinary-driver-sources.lock.json \
+            --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" \
+            --output build/x4-uc8279-fast-0.1.17 \
+            --sleep \
+            --panel-driver uc8279-fast
+          printf '%s\n' '${{ steps.source.outputs.sha }}' > build/x4-uc8279-fast-0.1.17/platform-source-sha.txt
+          sha256sum \
+            minimal/drivers/x4pro_uc8279_fast/driver.c \
+            minimal/drivers/x4pro_uc8279_fast/manifest.json \
+            > build/x4-uc8279-fast-0.1.17/source-sha256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-uc8279-fast-0.1.17-${{ steps.source.outputs.sha }}
+          path: build/x4-uc8279-fast-0.1.17/
+          if-no-files-found: error
+          retention-days: 14
