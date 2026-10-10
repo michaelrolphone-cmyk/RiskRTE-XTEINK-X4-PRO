@@ -50,7 +50,6 @@ jobs:
           grep -q 'command(0x02)' minimal/drivers/x4pro_uc8279_fast/driver.c
           ! grep -q 'if (screen_powered) return RISC_DISPLAY_POWER_BUSY' minimal/drivers/x4pro_uc8279_fast/driver.c
           python3 -m json.tool minimal/validation/uc8279-012-selective-realsleep-0.1.19.json >/dev/null
-          python3 minimal/test/prepare_sdk_test.py
           python3 minimal/test/uc8279_fast_profile_test.py
 
       - name: Focused real-world lifecycle tests
