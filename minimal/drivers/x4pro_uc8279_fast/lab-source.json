@@ -1,0 +1,53 @@
+{
+  "repository": "michaelrolphone-cmyk/T5S3-Reader",
+  "commit": "05d811ae3a75b0711540484ccdbee32464042dd6",
+  "lab_version": "0.1.5",
+  "selected_modes": [
+    4,
+    6,
+    7,
+    9
+  ],
+  "spi_hz": 20000000,
+  "files": [
+    {
+      "path": "experiments/x4-high-fps/README.md",
+      "blob": "7a33256ef1774c10d0bc6ecf2cffb05ae1255f7d"
+    },
+    {
+      "path": "experiments/x4-high-fps/src/main.cpp",
+      "blob": "d5ac87ea9725d716e06e69d343e15910a10d7be5"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_0.inc",
+      "blob": "ee9c16aa05d471c9c8627e78d479b89243d14dfe"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_1.inc",
+      "blob": "6a5113516dc7041677a401749ad47686a50295c8"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_2.inc",
+      "blob": "a075e028926921980578b3bd4004fb9f57bb0242"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_3.inc",
+      "blob": "db64ea233f1a726388dc4f4e54f75ab5de8a7b0d"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_4.inc",
+      "blob": "bcc9a19ed249368ba9ebeefa40c3354a934bc205"
+    },
+    {
+      "path": "experiments/x4-high-fps/source/lab_part_5.inc",
+      "blob": "019810ce8fbe960ebe4888c6846ec5b9ee7714f8"
+    },
+    {
+      "path": "platformio.x4lab.ini",
+      "blob": "4523be4e42a03c1f8480d5ee7f6b3eec95fdb0dc"
+    }
+  ],
+  "user_reported_fullscreen_fps": 9.97,
+  "measurement_custody": "Raw 9.97 log not recovered; user-reported comparison baseline only. No integrated hardware measurement.",
+  "excluded": "40/80 MHz transport and later min-TCON experiments"
+}

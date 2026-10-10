@@ -1,0 +1,39 @@
+{
+  "baseline": {
+    "bytes": 16777216,
+    "sha256": "e9a7ff26a0417baff62d3ac05fd96e88645f0c008237d4806385be7b03e2484b"
+  },
+  "system_commit": "9d32d82389bf287443aa5287bd74c75f62e6fd39",
+  "sdk_commit": "e66c5f1056a90f80b17cbe3f42db0242cbe2ced4",
+  "helper_original_commit": "3ac5d91e901d67bcdc671607e74c535d69e90ca2",
+  "packaging_commit": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
+  "home_elf": {
+    "bytes": 421892,
+    "sha256": "5f86e3cf9d86c62795cc58d1d9582072584d5734df237e9000dbaf041894642e"
+  },
+  "home_manifest": {
+    "bytes": 1261,
+    "sha256": "77e33eb1120c1fd97cdb1f40810c2ba6f324e85a477b65804bcb0d065c691248"
+  },
+  "home_receipt": {
+    "bytes": 59103,
+    "sha256": "308b7c0beef2cbae0ceb03fcc780a5545f1c0d07cca172b2e4be0833de6a1d57"
+  },
+  "native": {
+    "version": "0.1.99",
+    "source_revision": "11b16cf60c5d3bd9b6a202f25b7b86a2ff05ca21",
+    "source_tree": "fc135aef0b12314df77a793ab6f94ca95b84ed02",
+    "bytes": 1353520,
+    "sha256": "d54ba2cec882d1afd56b4e78fff8c4a7545ec0416a4b786dfdc9594d20bc4900"
+  },
+  "preserved_provider_versions": {
+    "sd": "0.2.13",
+    "panel": "0.1.9"
+  },
+  "only_rebuilt_package": "default.elf",
+  "native_feature_contract": {
+    "usb_phy": true,
+    "diagnostic_source": true,
+    "evidence": "Frozen .49 archive build composition and source; native ELF selection marker check unavailable"
+  }
+}

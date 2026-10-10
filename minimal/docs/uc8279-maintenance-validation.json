@@ -1,0 +1,146 @@
+{
+  "schema": 1,
+  "provider": "x4pro-uc8279-fast",
+  "version": "0.1.6",
+  "baseline_product": "154c3f6f4d587cea7c64082a0a94d4c144c7114b",
+  "runtime": "a8a91061b5ff5dd9c6c683fa0fae00a2ae7eee4e",
+  "reader_sdk": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "source_sha256": "26dd67f3e48811e7d676a1c6a5bf4b049f4ce0993b0dac9f673122f16062db10",
+  "elf": {
+    "bytes": 71540,
+    "sha256": "53a61993499b69516db184425067ad458840a9c836549c52725217a95b109e70",
+    "relative_pointers_verified": 520,
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ]
+  },
+  "policy": {
+    "interval_ms": 30000,
+    "pulses_per_event": 1,
+    "region": [
+      0,
+      0,
+      800,
+      480
+    ],
+    "pixel_payload_bytes": 0,
+    "starts_after": "completed fast frame and completed 2300 ms settling",
+    "disabled_for": [
+      "QUALITY",
+      "CLEAN",
+      "cold OTP baseline",
+      "seed-only reconstruction",
+      "power preparation",
+      "sleep and resume",
+      "fault"
+    ],
+    "new_target": "cancels pending maintenance; drains an active BUSY pulse before upload",
+    "late_poll": "one pulse; no missed-interval catchup",
+    "wake_or_input_idle_changes": false
+  },
+  "checks": {
+    "host_scenarios": 72,
+    "normal": "passed",
+    "asan_ubsan": "passed; leak detection disabled",
+    "profile": "passed",
+    "target": "passed",
+    "all_provider_package": "passed against clean exact pinned Runtime and Reader SDK",
+    "boundary_and_gates": "deadline-1, deadline, late polling, no budget, foreign owner, held frame, metrics/pixel preservation",
+    "cancellation": "replacement before deadline and during window/assert/BUSY, QUALITY, sleep while waiting/active, power timeout/retry, cleanup and resume",
+    "failures": "missed/stuck BUSY, SPI, clock failure/rollback fail closed with completed token preserved",
+    "cadence": "actual paper-motion adapter and Runtime scheduler; one pulse after30 s; no app presentation or pixel upload"
+  },
+  "cadence_sources": {
+    "/workspace/scratch/c744abbbbd60/x4-awake-resident-maintenance/minimal/drivers/x4pro_uc8279_fast/driver.c": "26dd67f3e48811e7d676a1c6a5bf4b049f4ce0993b0dac9f673122f16062db10",
+    "/workspace/scratch/c744abbbbd60/x4-awake-resident-maintenance/minimal/interfaces/RiscDisplayOutputMetricsV1.h": "5be17adbae2ec26a855894e0d6443ac29572002c21efe53b2a913a5a0f0c642d",
+    "/workspace/scratch/c744abbbbd60/x4-awake-resident-maintenance/minimal/interfaces/RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6",
+    "../x4-app-sheet-motion/lib/PortableApps/src/adapter.c": "37bc9581d73a1787c092743f68a05e7092bdf5326cad399ef0bee413c8cd7a17",
+    "/workspace/scratch/c744abbbbd60/x4-quality-runtime-fixture/src/bootstrap/Runtime.cpp": "66597d0aa0c927281a6b4510a1e5a689d4ad089f771d8c23e747519f93c1b78d",
+    "/workspace/scratch/c744abbbbd60/x4-quality-runtime-fixture/src/runtime/drivers/ProviderGraphV2.cpp": "0416793cc3c0193cd4a769d26a42b06bbb5d4aa62bcb75644ddeb1676deb0033"
+  },
+  "cadence_maintenance": [
+    {
+      "app_wait_ms": 1,
+      "elapsed_ms": 30019,
+      "bytes": 0,
+      "repeats": 1,
+      "provider_polls": 30019,
+      "max_slice_ms": 0,
+      "max_slice_bytes": 0,
+      "budget_ms": [
+        8,
+        8
+      ],
+      "scheduler_waits": 30019,
+      "scheduler_wait_ms": 30019,
+      "max_requested_wait_ms": 1,
+      "controller_polls": 30019,
+      "max_controller_gap_ms": 1,
+      "touch_samples": 30019,
+      "max_touch_gap_ms": 1
+    },
+    {
+      "app_wait_ms": 8,
+      "elapsed_ms": 30016,
+      "bytes": 0,
+      "repeats": 1,
+      "provider_polls": 3752,
+      "max_slice_ms": 0,
+      "max_slice_bytes": 0,
+      "budget_ms": [
+        8,
+        8
+      ],
+      "scheduler_waits": 3752,
+      "scheduler_wait_ms": 30016,
+      "max_requested_wait_ms": 8,
+      "controller_polls": 3752,
+      "max_controller_gap_ms": 8,
+      "touch_samples": 3752,
+      "max_touch_gap_ms": 8
+    },
+    {
+      "app_wait_ms": 20,
+      "elapsed_ms": 30000,
+      "bytes": 0,
+      "repeats": 1,
+      "provider_polls": 1500,
+      "max_slice_ms": 0,
+      "max_slice_bytes": 0,
+      "budget_ms": [
+        8,
+        8
+      ],
+      "scheduler_waits": 1500,
+      "scheduler_wait_ms": 30000,
+      "max_requested_wait_ms": 20,
+      "controller_polls": 1500,
+      "max_controller_gap_ms": 20,
+      "touch_samples": 1500,
+      "max_touch_gap_ms": 20
+    },
+    {
+      "app_wait_ms": 50,
+      "elapsed_ms": 30000,
+      "bytes": 0,
+      "repeats": 1,
+      "provider_polls": 600,
+      "max_slice_ms": 0,
+      "max_slice_bytes": 0,
+      "budget_ms": [
+        8,
+        8
+      ],
+      "scheduler_waits": 600,
+      "scheduler_wait_ms": 30000,
+      "max_requested_wait_ms": 50,
+      "controller_polls": 600,
+      "max_controller_gap_ms": 50,
+      "touch_samples": 600,
+      "max_touch_gap_ms": 50
+    }
+  ],
+  "hardware": "not run; contrast, power cost and effects of earlier panel experiments are unqualified"
+}

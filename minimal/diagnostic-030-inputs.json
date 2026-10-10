@@ -1,0 +1,31 @@
+{
+  "apps": {
+    "springboard": {
+      "source_revision": "7b515a19f5ef5ce0290175304303f2fb36bf9d39",
+      "system_source_revision": "7b515a19f5ef5ce0290175304303f2fb36bf9d39",
+      "elf_sha256": "4709636faf74a8c8c6d40dcedac85ba53d2dd7c4d07bdc69f712f27af0b829f1",
+      "path": "/workspace/shared/springboard-1.7.16-final-target",
+      "manifest_sha256": "19bd95dceb9c2d30dfcdee7867560c8da0c9b971b25a61a23abd5acd843c067b"
+    },
+    "ble_touchpad": {
+      "source_revision": "1f5acec8c7572474a755ab9db4cd39fa68b96d7a",
+      "system_source_revision": "5a5cdbf92a6d307708cfa432b28caa9218c1a109",
+      "elf_sha256": "5870ff5d2599ae210363d9e531dd54672c65549510f2c1557bbf8a42926d1591",
+      "path": "/workspace/shared/x4-hid-0.1.13-target/ble_touchpad",
+      "manifest_sha256": "fcc3cd87f52c03a684ee50e60461fd39addd202d3a97df0877f6f4754dbe9f93"
+    },
+    "ble_buttons": {
+      "source_revision": "1f5acec8c7572474a755ab9db4cd39fa68b96d7a",
+      "system_source_revision": "5a5cdbf92a6d307708cfa432b28caa9218c1a109",
+      "elf_sha256": "a2a20b1ea4f0f17b3e7b1a4ad6f0e8de87aec697c60abba5bc3177de303e5479",
+      "path": "/workspace/shared/x4-hid-0.1.13-target/ble_buttons",
+      "manifest_sha256": "c85064906682752cd112c9a70f65a1dce7ea567ef913944252635ca642e92142"
+    }
+  },
+  "sd": {
+    "path": "/workspace/shared/x4-bootlog-checkpoint/sd-target-final",
+    "source_revision": "03deed43c908a852948d619186c285e0de3d639a",
+    "elf_sha256": "3173f6dd81908e42d4d943a7d60396bbec1cf96b70d607068375be1bc6aba561",
+    "manifest_sha256": "26ebf034abde214b5a624852549288b5fe797b84ac95d9fc048966014d99f809"
+  }
+}

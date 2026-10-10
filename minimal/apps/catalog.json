@@ -1,0 +1,99 @@
+{
+  "apps": [
+    {
+      "display_name": "File Browser",
+      "file_name": "file_browser.elf",
+      "icon": "solid:f07c"
+    },
+    {
+      "display_name": "Bluetooth Scanner",
+      "file_name": "ble_scanner.elf",
+      "icon": "solid:f7c0"
+    },
+    {
+      "display_name": "Points in Time",
+      "file_name": "points_in_time.elf",
+      "icon": "solid:f017"
+    },
+    {
+      "display_name": "Settings",
+      "file_name": "settings.elf",
+      "icon": "solid:f013"
+    },
+    {
+      "display_name": "Calculator",
+      "file_name": "calculator.elf",
+      "icon": "solid:f1ec"
+    },
+    {
+      "display_name": "Stopwatch",
+      "file_name": "stopwatch.elf",
+      "icon": "solid:f2f2"
+    },
+    {
+      "display_name": "Countdown",
+      "file_name": "countdown.elf",
+      "icon": "solid:f254"
+    },
+    {
+      "display_name": "Timecard",
+      "file_name": "timecard.elf",
+      "icon": "solid:f274"
+    },
+    {
+      "display_name": "Battery",
+      "file_name": "battery.elf",
+      "icon": "solid:f240"
+    },
+    {
+      "display_name": "Alarms",
+      "file_name": "alarms.elf",
+      "icon": "solid:f0f3"
+    },
+    {
+      "display_name": "Wi-Fi",
+      "file_name": "wifi_settings.elf",
+      "icon": "solid:f1eb"
+    },
+    {
+      "display_name": "Bluetooth Touchpad",
+      "file_name": "ble_touchpad.elf",
+      "icon": "solid:f0ec"
+    },
+    {
+      "display_name": "Bluetooth Buttons",
+      "file_name": "ble_buttons.elf",
+      "icon": "solid:f11c"
+    },
+    {
+      "display_name": "RF Spectrogram",
+      "file_name": "waterfall.elf",
+      "icon": "solid:f550"
+    },
+    {
+      "display_name": "OTA Update",
+      "file_name": "ota_update.elf",
+      "icon": "solid:f019"
+    },
+    {
+      "display_name": "App Store",
+      "file_name": "app_store.elf",
+      "icon": "solid:f187"
+    },
+    {
+      "display_name": "Contexts",
+      "file_name": "contexts.elf",
+      "icon": "solid:f015"
+    },
+    {
+      "display_name": "USB Transfer",
+      "file_name": "usb_sd_transfer.elf",
+      "icon": "solid:f0ec"
+    },
+    {
+      "display_name": "GameBoy",
+      "file_name": "gameboy.elf",
+      "icon": "solid:f11b"
+    }
+  ]
+}

@@ -1,0 +1,159 @@
+--- a/Drivers/storage_fatfs/volume.c
++++ b/Drivers/storage_fatfs/volume.c
+@@ -1,6 +1,27 @@
+ /* Included by driver.c; FatFs is linked into this ELF, not into the host HAL. */
+ #include "fatfs/ff.h"
+ #include "fatfs/diskio.h"
++
++/* External owner-task guard: the provider owns token lifecycle and failure
++ * retention. Hooks return bool; false rejects admission or poisons release.
++ * This mode never creates a synthetic OS identity or a provider-BSS atomic. */
++#if defined(STORAGE_VOLUME_EXTERNAL_GUARD) && defined(STORAGE_VOLUME_OS_CPU_MUTEX)
++#error "Choose exactly one storage synchronization backend"
++#endif
++#if defined(STORAGE_VOLUME_EXTERNAL_GUARD) && (!defined(STORAGE_VOLUME_GUARD_ENTER) || !defined(STORAGE_VOLUME_GUARD_LEAVE))
++#error "External storage guard requires enter and leave hooks"
++#endif
++#if defined(STORAGE_VOLUME_OS_CPU_MUTEX) || defined(STORAGE_VOLUME_EXTERNAL_GUARD)
++#define STORAGE_VOLUME_SERIALIZED
++#endif
++#if defined(STORAGE_VOLUME_COMMIT_POWER_DOWN) || defined(STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN)
++#define STORAGE_VOLUME_HAS_POWER_COMMIT
++#endif
++#if defined(STORAGE_VOLUME_EXTERNAL_GUARD)
++#define STORAGE_VOLUME_SET_PREPARED(value) (power_down_prepared = (value))
++#else
++#define STORAGE_VOLUME_SET_PREPARED(value) __atomic_store_n(&power_down_prepared, (value), __ATOMIC_RELEASE)
++#endif
+ 
+ #define FILE_SLOTS 12u
+ #define DIR_SLOTS 8u
+@@ -16,11 +37,11 @@
+ static x4_cpu_task operation_owner;
+ static bool mutex_poisoned, quiescing, quiesced;
+ static bool valid_task(void) { return !xPortInIsrContext() && xTaskGetCurrentTaskHandle() != 0; }
+-#else
++#elif !defined(STORAGE_VOLUME_EXTERNAL_GUARD)
+ static bool operation_busy;
+ #endif
+ static bool power_down_prepared;
+-#ifdef STORAGE_VOLUME_COMMIT_POWER_DOWN
++#ifdef STORAGE_VOLUME_HAS_POWER_COMMIT
+ static bool power_down_committed;
+ #endif
+ static uint32_t next_generation = 1;
+@@ -39,7 +60,9 @@
+     return false;
+ }
+ static bool enter_lifecycle(void) {
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_EXTERNAL_GUARD
++    if (!STORAGE_VOLUME_GUARD_ENTER()) return false;
++#elif defined(STORAGE_VOLUME_OS_CPU_MUTEX)
+     if (!valid_task() || !operation_mutex || __atomic_load_n(&mutex_poisoned, __ATOMIC_ACQUIRE) ||
+         __atomic_load_n(&quiescing, __ATOMIC_ACQUIRE)) return false;
+     /* Zero wait, nonrecursive. Reject contenders before state or hardware. */
+@@ -59,7 +82,9 @@
+     return true;
+ }
+ static bool leave(void) {
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_EXTERNAL_GUARD
++    return STORAGE_VOLUME_GUARD_LEAVE();
++#elif defined(STORAGE_VOLUME_OS_CPU_MUTEX)
+     if (!valid_task() || operation_owner != xTaskGetCurrentTaskHandle()) {
+         __atomic_store_n(&mutex_poisoned, true, __ATOMIC_RELEASE);
+         return false;
+@@ -82,7 +107,7 @@
+     return true;
+ }
+ static bool enter_ready(void) {
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_SERIALIZED
+     if (!enter()) return false;
+     if (!mounted || io_failed) { (void)leave(); return false; }
+     return true;
+@@ -194,7 +219,7 @@
+ }
+ static bool ready(void *context) {
+     (void)context;
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_SERIALIZED
+     if (!enter_ready()) return false;
+     return leave();
+ #else
+@@ -204,7 +229,7 @@
+ static bool label(void *context, char *out, size_t size) {
+     (void)context;
+     if (!out || size < sizeof(STORAGE_VOLUME_LABEL)) return false;
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_SERIALIZED
+     if (!enter_ready()) return false;
+     memcpy(out, STORAGE_VOLUME_LABEL, sizeof(STORAGE_VOLUME_LABEL)); return leave();
+ #else
+@@ -447,13 +472,13 @@
+ }
+ static bool last_error_api(void *context, char *out, size_t capacity) {
+     (void)context; if (!out || !capacity) return false;
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_SERIALIZED
+     if (!enter_lifecycle()) return false;
+ #endif
+     size_t i = 0; while (error[i] && i + 1 < capacity) { out[i] = error[i]; ++i; }
+     out[i] = 0;
+     const bool present = error[0] != 0;
+-#ifdef STORAGE_VOLUME_OS_CPU_MUTEX
++#ifdef STORAGE_VOLUME_SERIALIZED
+     return leave() && present;
+ #else
+     return present;
+@@ -472,29 +497,34 @@
+     // Read handles carry only RAM metadata; keep their ELF and dependencies
+     // pinned. No filesystem operation or active transport survives this barrier.
+     if (card_ready && !sync_card()) { fail("power down media sync failed"); leave(); return false; }
+-    __atomic_store_n(&power_down_prepared, true, __ATOMIC_RELEASE);
++    STORAGE_VOLUME_SET_PREPARED(true);
+     return leave();
+ }
+ static bool cancel_power_down(void *context) {
+     (void)context;
+     if (!enter_lifecycle()) return false;
+     const bool safe = !io_failed && transport_idle()
+-#ifdef STORAGE_VOLUME_COMMIT_POWER_DOWN
++#ifdef STORAGE_VOLUME_HAS_POWER_COMMIT
+         && !power_down_committed
+ #endif
+         ;
+-    if (safe) __atomic_store_n(&power_down_prepared, false, __ATOMIC_RELEASE);
++    if (safe) STORAGE_VOLUME_SET_PREPARED(false);
+     return leave() && safe;
+ }
+-#ifdef STORAGE_VOLUME_COMMIT_POWER_DOWN
++#ifdef STORAGE_VOLUME_HAS_POWER_COMMIT
+ static bool commit_power_down(void *context) {
+     (void)context;
+     if (!enter_lifecycle()) return false;
+     const bool safe = power_down_prepared && !io_failed && transport_idle();
+     if (safe && !power_down_committed) {
+-        // The board owner's final transition is fixed, synchronous and cannot
+-        // fail after its frozen/synced precondition. No fallible I/O follows.
++#ifdef STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN
++        /* Scoped transports may fail; never publish commit on uncertainty. */
++        if (!STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN()) { (void)leave(); return false; }
++#else
++        /* Legacy board transition is fixed, synchronous and infallible after
++         * its frozen/synced precondition. No fallible I/O follows. */
+         STORAGE_VOLUME_COMMIT_POWER_DOWN();
++#endif
+         power_down_committed = true;
+     }
+     return leave() && safe;
+@@ -510,7 +540,7 @@
+     file_open, file_seek, file_info, file_sync, dir_rewind, dir_close_checked,
+     handle_error, mkdir_path, rename_path
+   }, prepare_power_down, cancel_power_down
+-#ifdef STORAGE_VOLUME_COMMIT_POWER_DOWN
++#ifdef STORAGE_VOLUME_HAS_POWER_COMMIT
+   }, RISC_STORAGE_POWER_COMMIT_TAG, 1u, commit_power_down
+ #endif
+ };
