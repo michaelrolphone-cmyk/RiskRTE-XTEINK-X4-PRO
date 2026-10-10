@@ -1,0 +1,39 @@
+name: Repair exact X4 panel 0.1.16 fixture
+
+on:
+  push:
+    branches:
+      - recovery/x4-sd-state-0214-20261010
+    paths:
+      - .github/workflows/repair-x4-panel-016-test-exact.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: recovery/x4-sd-state-0214-20261010
+          fetch-depth: 0
+      - name: Restore exact baseline and apply scoped expectations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 minimal/scripts/repair_x4_panel_016_test_exact.py
+          rm minimal/scripts/repair_x4_panel_016_test_exact.py \
+             .github/workflows/repair-x4-panel-016-test-exact.yml
+          git diff --check
+          grep -q 'nominal_refresh_millihz==9000' minimal/test/uc8279_fast_test.c
+          grep -q 'settle_stage==settle_before&&fast_lut_frames==1u' minimal/test/uc8279_fast_test.c
+          grep -q 'update_area.height==480&&fast_lut_frames==2u' minimal/test/uc8279_fast_test.c
+          grep -q 'static void test_snapshot' minimal/test/uc8279_fast_test.c
+          grep -q 'static void test_retained' minimal/test/uc8279_fast_test.c
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test(x4): restore exact 0.1.16 qualification fixture'
+          git push origin HEAD:recovery/x4-sd-state-0214-20261010
