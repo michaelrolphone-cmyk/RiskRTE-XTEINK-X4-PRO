@@ -70,7 +70,7 @@ def main():
                     for frame in data['frames']:
                         metrics=frame.get('full',frame.get('partial'))
                         assert metrics['state']==3
-                        assert metrics['bytes']==(metrics['damage'][3]*100 if metrics['partial'] else 180000)
+                        assert metrics['bytes']==((metrics['damage'][2]//8)*metrics['damage'][3] if metrics['partial'] else 180000)
                         assert metrics['max_slice_bytes']<=16384 and metrics['max_slice_ms']<=8
                         assert metrics['gpio_writes']<200
                         assert frame['max_requested_wait_ms']==1
@@ -81,10 +81,10 @@ def main():
                             assert frame['max_controller_gap_ms']<=interval+8
                     assert not data['frames'][0]['full']['partial'] and data['frames'][1]['partial']['partial']
                     idle=data['idle']
-                    assert idle['bytes']==120000 and idle['max_slice_bytes']<=16384
+                    assert idle['bytes']==180000 and idle['max_slice_bytes']<=16384
                     assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
                     # Finalize both retained planes in bounded slices, then POF.
-                    assert 2300<=idle['elapsed_ms']<=2300+12*interval+100
+                    assert 2300<=idle['elapsed_ms']<=2300+20*interval+300
                     assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
                     assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
                     assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8

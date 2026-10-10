@@ -13,6 +13,8 @@ for scenario in power-subscriptions power-owner power-neutral power-prepare-rele
 for n in {1..7}; do "$build/test" "power-write-$n"; done
 for n in {1..4}; do "$build/test" "power-claim-$n"; "$build/test" "power-pin-release-$n"; done
 for n in {1..3}; do "$build/test" "power-transfer-$n"; done
+"${CC:-cc}" "${flags[@]}" -I"$build/sdk" "$root/minimal/test/gt911_multicontact_test.c" "$root/minimal/drivers/x4pro_gt911/driver.c" -o "$build/multicontact"
+for scenario in wire-layout reorder-lift five-contacts malformed partial-reads acknowledge overflow-subscribers power-neutral; do "$build/multicontact" "$scenario"; done
 # Optional target check uses the same canonical SDK and production flags.
 if [[ -n "${NATIVE_DRIVER_CC:-}" ]]; then
   elf="$build/driver.elf"

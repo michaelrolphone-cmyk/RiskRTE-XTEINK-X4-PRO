@@ -33,6 +33,6 @@ old="out=ROOT/'build'/('hid-watch-renderer' if watch else 'hid-paper-renderer' i
 assert old in body;body=body.replace(old,"out=Path("+repr(str(out))+")/str(int(san))/name")
 sys.path.insert(0,str(source.parent))
 sys.argv=[str(source),'--paper','--system-apps',str(a.system.resolve()),'--watch',str(root),'--watch-touch-source',str((a.driver or root/'minimal/drivers/x4pro_gt911/driver.c').resolve())]
-for scene in a.scene or ['reconnect','left-tap','keys','pair-accept','pair-reject','pair-move','home','back','cleanup']:
+for scene in a.scene or ['reconnect','left-tap','tap-drag','scroll-x','scroll-y','scroll-free','keys','pair-accept','pair-reject','pair-move','home','back','cleanup']:
  sys.argv+=['--scene',scene]
 exec(compile(body,str(source),'exec'),{'__file__':str(source),'__name__':'__main__'})

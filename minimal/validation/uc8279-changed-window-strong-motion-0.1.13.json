@@ -1,0 +1,163 @@
+{
+  "schema": "x4.uc8279.changed-window-strong-motion-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T11:50:26.878643+00:00",
+  "baseline": {
+    "product": "0.1.54",
+    "image": "X4-0.1.54-Panel-0.1.12-full-0x0.bin",
+    "image_sha256": "ff05016b3a87e06ae25de9d2be4f9577ff09fed4c231d1d0da0cff712171a601",
+    "driver_version": "0.1.12",
+    "driver_source_sha256": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+    "driver_manifest_sha256": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498",
+    "readme_sha256": "7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a"
+  },
+  "candidate": {
+    "driver_version": "0.1.13",
+    "driver_source_sha256": "82ed04151d08364c5e893501af04f1ff5cb2f9a6492649cf08fd40631c71acb0",
+    "driver_manifest_sha256": "34224397956b34063a0381927b808a4623a4d81ee20dd6266f27fdcc6b46161e",
+    "readme_sha256": "595340f1555f54a9f7ec2d7eb628a635d8917252e1b25a6e280fdb7215b17de2"
+  },
+  "changes": [
+    "derive the effective active-motion window from byte-level XOR against the last completed target",
+    "honor submitted damage while preserving byte-aligned horizontal bounds",
+    "retain only the lab-qualified 40/80/160/480-row gate heights",
+    "use two-frame absolute A2 for effective windows up to 160 rows and one frame for broader motion",
+    "complete identical targets with zero panel I/O without cancelling an already armed endpoint settle",
+    "retain the 0.1.12 2.3-second four-frame full-target endpoint redraw, full DTM1/DTM2 reconciliation and POF ordering"
+  ],
+  "software_validation": {
+    "provider_cases_normal": 60,
+    "provider_cases_asan_ubsan": 60,
+    "idle_policy_cases_normal": 5,
+    "idle_policy_cases_asan_ubsan": 5,
+    "cadence_runs_normal": [
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 22,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2417,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 24,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2507,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 40,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2691,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 50,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 3100,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      }
+    ],
+    "cadence_runs_asan_ubsan": [
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 22,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2417,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 24,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2507,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 40,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 2691,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      },
+      {
+        "partial_effective_update": [
+          344,
+          127,
+          16,
+          40
+        ],
+        "partial_bytes": 80,
+        "partial_elapsed_ms": 50,
+        "partial_waveform_frames": 2,
+        "idle_elapsed_ms": 3100,
+        "idle_bytes": 180000,
+        "max_partial_slice_bytes": 80
+      }
+    ],
+    "profile_test": "pass",
+    "host_compiler": "C11 with -Wall -Wextra -Werror -pedantic; ASan/UBSan with no recovery",
+    "target_elf_build": "not run in this workspace; Xtensa compiler unavailable",
+    "hardware_tested": false
+  },
+  "test_log_sha256": {
+    "test-normal.log": "d3c48456aab6afcaee5f4f18a9323fb0808ebcc80ee832a023997668eaf07c9f",
+    "test-sanitized.log": "d3c48456aab6afcaee5f4f18a9323fb0808ebcc80ee832a023997668eaf07c9f",
+    "test-profile.log": "b087f71365a9c0cf9e955c73ed9b717e6499ab1a33db493a04188be545e112ee",
+    "test-idle-policy.log": "670ffcedc66f54cccfac1733b7ea084d3ebfcea5dd6a90aed0ad2ed014ac4086",
+    "test-cadence-normal.log": "3d89e50e2b9a223855217181ca5136cb73134b1e5df0f3b3757803e6f68d9f5f",
+    "test-cadence-sanitized.log": "3d89e50e2b9a223855217181ca5136cb73134b1e5df0f3b3757803e6f68d9f5f"
+  },
+  "scope": "driver source, manifest, documentation, provider regressions, actual idle helper integration, and actual Runtime/System cadence model; no firmware image built or device accessed"
+}

@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "615fb236b591bc6974a35ae23c7b2b785c0a5016",
-    "version": "0.1.100"
+    "commit": "274bc66f193cbe29018d2a85c9400cb0dce8aacc",
+    "version": "0.1.106"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
-    "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
-    "base_commit": "34d8e694d89a1e72d8854403d8592c289fae3ddc"
+    "commit": "45cf61ac013fb618e8d7fed63217a35350484d52",
+    "base_commit": "af3f638c6c2bf1ad0c78bc048a160374f2a2fdd4"
   },
-  "status": "Native resident object-export repair over delivered X4 0.1.45. All application/provider ELFs and policies are preserved; hardware boot validation pending."
+  "status": "Recovered source union for a future clean .55 build. Runtime106 includes105 capacity. No old product outputs are valid assembly inputs."
 }

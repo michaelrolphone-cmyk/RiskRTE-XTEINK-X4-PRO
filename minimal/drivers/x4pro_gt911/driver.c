@@ -1,4 +1,4 @@
-/* X4 GT911 raw 480x800, source-0.1.5 single-contact/event semantics.
+/* X4 GT911 raw 480x800, hardware-tracked multi-contact reports.
  * Hardware access is exclusively through scoped typed tables. The board rail
  * dependency remains live while this provider owns its switched touch rail. */
 #include <RiscProviderV2.h>
@@ -13,7 +13,10 @@
 #include <string.h>
 
 #define STATUS 0x814eu
-#define POINT 0x8150u
+#define POINT 0x814fu
+#define CONTACT_BYTES 8u
+#define GT911_MAX_CONTACTS 5u
+_Static_assert(RISC_TOUCH_MAX_CONTACTS >= GT911_MAX_CONTACTS, "GT911 contact capacity");
 static const risc_i2c_bus_api_v1 *bus;
 static const risc_platform_clock_api_v1 *clock_api;
 static const garden_gpio_v1 *gpio;
@@ -167,23 +170,49 @@ static bool unsubscribe(void *context, uint64_t sub) {
     }
     return leave() && okay;
 }
+static const risc_touch_contact_v1 *find_contact(const risc_touch_contact_v1 *contacts,
+                                                uint8_t count, uint8_t id) {
+    for (uint8_t i = 0; i < count; ++i)
+        if (contacts[i].id == id) return &contacts[i];
+    return NULL;
+}
+static bool reject_report(const char *reason) {
+    fail(reason); invalidate(); (void)write_reg(STATUS, 0); return false;
+}
 static bool poll_locked(void) {
     uint8_t status = 0;
     if (!read_reg(STATUS, &status, 1)) { fail("gt911 status"); return false; }
     if (!(status & 0x80u)) return true;
     const uint8_t contacts = status & 0x0fu;
-    /* Source X4 coordinates have no stable track IDs. Multi-contact and
-     * out-of-bounds packets fence the stream instead of fabricating taps. */
-    if (contacts > 1u) { invalidate(); (void)write_reg(STATUS, 0); return false; }
-    risc_touch_contact_v1 contact = {0};
+    if (contacts > GT911_MAX_CONTACTS) return reject_report("gt911 contact count");
+    risc_touch_contact_v1 current[RISC_TOUCH_MAX_CONTACTS] = {{0}};
     if (contacts) {
-        uint8_t raw[8] = {0};
-        if (!read_reg(POINT, raw, sizeof(raw))) { fail("gt911 point"); return false; }
-        contact.x = (uint16_t)(raw[0] | ((uint16_t)raw[1] << 8));
-        contact.y = (uint16_t)(raw[2] | ((uint16_t)raw[3] << 8));
-        contact.id = 1;
-        if (contact.x >= 480u || contact.y >= 800u) {
-            invalidate(); (void)write_reg(STATUS, 0); return false;
+        /* Goodix GT911 Programming Guide, coordinate registers: records start
+         * at 0x814f, each containing track ID, LE16 X/Y/size and one reserved
+         * byte. Read the entire READY report before emitting or committing.
+         * A failed/short I2C transfer leaves state and unread queues intact. */
+        uint8_t raw[GT911_MAX_CONTACTS * CONTACT_BYTES] = {0};
+        if (!read_reg(POINT, raw, contacts * CONTACT_BYTES)) { fail("gt911 point"); return false; }
+        for (uint8_t i = 0; i < contacts; ++i) {
+            const uint8_t *point = raw + i * CONTACT_BYTES;
+            /* Finger IDs occupy the low nibble. Reject special records (e.g.
+             * proximity ID 32) instead of aliasing them to a real finger.
+             * ID+1 keeps the usual hardware ID 0 as legacy public ID 1. */
+            if (point[0] > 0x0fu) return reject_report("gt911 track id");
+            risc_touch_contact_v1 contact = {0};
+            contact.id = (uint8_t)(point[0] + 1u);
+            contact.x = (uint16_t)(point[1] | ((uint16_t)point[2] << 8));
+            contact.y = (uint16_t)(point[3] | ((uint16_t)point[4] << 8));
+            if (contact.x >= 480u || contact.y >= 800u)
+                return reject_report("gt911 coordinates");
+            if (find_contact(current, i, contact.id)) return reject_report("gt911 duplicate id");
+            /* Canonical ID order keeps both snapshots and event order stable
+             * when the controller changes the order of its contact records. */
+            uint8_t slot = i;
+            while (slot && current[slot - 1u].id > contact.id) {
+                current[slot] = current[slot - 1u]; --slot;
+            }
+            current[slot] = contact;
         }
     }
     const uint64_t when = now_ms();
@@ -195,19 +224,33 @@ static bool poll_locked(void) {
         if (!contacts && !(status & 0x10u)) neutral_gate = false;
         return true;
     }
-    if (state.contact_count && !contacts)
-        emit(RISC_TOUCH_EVENT_UP, 1, state.contacts[0].x, state.contacts[0].y, when);
-    else if (!state.contact_count && contacts)
-        emit(RISC_TOUCH_EVENT_DOWN, 1, contact.x, contact.y, when);
-    else if (state.contact_count && contacts &&
-             (state.contacts[0].x != contact.x || state.contacts[0].y != contact.y))
-        emit(RISC_TOUCH_EVENT_MOVE, 1, contact.x, contact.y, when);
     const bool home = (status & 0x10u) != 0;
     const bool was_home = (state.buttons & RISC_TOUCH_BUTTON_PRIMARY) != 0;
+    unsigned changes = home != was_home;
+    for (uint8_t i = 0; i < state.contact_count; ++i)
+        if (!find_contact(current, contacts, state.contacts[i].id)) ++changes;
+    for (uint8_t i = 0; i < contacts; ++i) {
+        const risc_touch_contact_v1 *old = find_contact(state.contacts, state.contact_count, current[i].id);
+        if (!old || old->x != current[i].x || old->y != current[i].y) ++changes;
+    }
+    /* Never publish only a prefix of a report at sequence exhaustion. */
+    if (sequence > UINT64_MAX - changes) return reject_report("gt911 sequence exhausted");
+    for (uint8_t i = 0; i < state.contact_count; ++i) {
+        const risc_touch_contact_v1 *old = &state.contacts[i];
+        if (!find_contact(current, contacts, old->id))
+            emit(RISC_TOUCH_EVENT_UP, old->id, old->x, old->y, when);
+    }
+    for (uint8_t i = 0; i < contacts; ++i) {
+        const risc_touch_contact_v1 *contact = &current[i];
+        const risc_touch_contact_v1 *old = find_contact(state.contacts, state.contact_count, contact->id);
+        if (!old) emit(RISC_TOUCH_EVENT_DOWN, contact->id, contact->x, contact->y, when);
+        else if (old->x != contact->x || old->y != contact->y)
+            emit(RISC_TOUCH_EVENT_MOVE, contact->id, contact->x, contact->y, when);
+    }
     if (home != was_home)
         emit(home ? RISC_TOUCH_EVENT_BUTTON_DOWN : RISC_TOUCH_EVENT_BUTTON_UP, 0, 0, 0, when);
     state.contact_count = contacts;
-    state.contacts[0] = contacts ? contact : (risc_touch_contact_v1){0};
+    memcpy(state.contacts, current, sizeof(current));
     state.buttons = home ? RISC_TOUCH_BUTTON_PRIMARY : 0;
     state.sequence = sequence; state.timestamp_ms = when;
     /* Commit before ACK: retrying an ambiguous ACK cannot duplicate an edge. */

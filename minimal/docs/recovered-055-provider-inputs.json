@@ -1,0 +1,208 @@
+{
+  "source_only": true,
+  "final_build_started": false,
+  "source_overlays": [
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/DELAYED_POLL.md",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "657b79f1feb4d35cc4d6cfefe6c94436faeff2d656e50f7a09ad42aac418a7cc"
+    },
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/README.md",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "595340f1555f54a9f7ec2d7eb628a635d8917252e1b25a6e280fdb7215b17de2"
+    },
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/driver.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "82ed04151d08364c5e893501af04f1ff5cb2f9a6492649cf08fd40631c71acb0"
+    },
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/lab-source.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "7f5795a9a6af6f6b7ed563ffb5486969457997239e175d61efd4dee049d77271"
+    },
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/manifest.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "34224397956b34063a0381927b808a4623a4d81ee20dd6266f27fdcc6b46161e"
+    },
+    {
+      "path": "minimal/drivers/x4pro_uc8279_fast/polarity-source.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "60a2f1dbcc242397bc4f87772a8d6b25e6c8368f878485662d1f9242867cb2a1"
+    },
+    {
+      "path": "minimal/test/uc8279_fast_test.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "c862fc03f73636f44bbde4f8801f66089600fc79d4992c537a7d039caff430a2"
+    },
+    {
+      "path": "minimal/test/uc8279_fast_profile_test.py",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "f5f40725aed7e5abb57d838e0802c675b4ca7dfc655b155a43674fa0611b4246"
+    },
+    {
+      "path": "minimal/test/run_uc8279_fast_test.sh",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "05da8e77a769c2b7a0354d8e34018871fd1b89e828c5835f0bbc866feb58a599"
+    },
+    {
+      "path": "minimal/test/run_uc8279_fast_target_test.sh",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "0d721df47c10b9c01b12eb8b1b6f13265696117920490d495bdb892a8a916343"
+    },
+    {
+      "path": "minimal/test/run_uc8279_fast_cadence_test.py",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "35f9b4df5b6d4f78435ffeae8353857c5cb16cb07c103533c49fd14a1a421d58"
+    },
+    {
+      "path": "minimal/test/uc8279_fast_cadence/panel_model.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "57f0aff33b4380535d1075ba1a520dcfed7121e6cb474935dee0b01cf80aaa4d"
+    },
+    {
+      "path": "minimal/test/idle_panel_policy.inc",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "76a6350e23ad312912ce731cc47ff9df9a4245ccaaef26a896a9a69d8a4e87e0"
+    },
+    {
+      "path": "minimal/validation/uc8279-changed-window-strong-motion-0.1.13.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "9c48d999580fb7f58638eb535de84899829943d9a159eb0f762d7f9f9b0ddf19"
+    },
+    {
+      "path": "minimal/validation/uc8279-delta-multipulse-0.1.13.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "25efe1fa5abe7f0c9fad6fc109da587a00dd5d238c45529ec17a08ca13111027"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/BootLog.h",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "be49f4c78f5c6054f79cabe82c951b95d984b28e8740e61f71896541c93fc6a0"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/Export.h",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "cba8ca234c8e58c8138f175296f6ac21c1b2fac06b8fa79cbb863a8faaa41c7a"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/README.md",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "e8ec9b0dc53b2eb457ea340914f1312f937d8acd9103f48ceedfe51166d6dcd9"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/driver.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "57b50acf86d413929fb4b53edaa970d366f907495ca83b1d707870142c33673d"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/manifest.json",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "ebf15337558c49de1ad7f38bd3f504a023ae337d30e4d4f330a2be4a51a7470f"
+    },
+    {
+      "path": "minimal/drivers/x4pro_sd/shared-volume-hooks.patch",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "d01d645850ce20888bfd2148f10bd4ef55bc676662746d142106851422d09af9"
+    },
+    {
+      "path": "minimal/interfaces/RiscStorageVolumeStateV1.h",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "1f2f7dbfe9ec7ac27a57149ac720cf7f3a4801d6d34b5532f77c77db252b87a1"
+    },
+    {
+      "path": "minimal/test/sdmmc_storage_test.inc",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "1739f02751536b9c1208b7a1a316bbeea51aa1e1d8c7545ebe05db1991d6be13"
+    },
+    {
+      "path": "minimal/test/sd_export_test.inc",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "ce7553f0de751f0ddc4c3469d427fc60ffcd7960ddc2978141dbdc37f3602ad5"
+    },
+    {
+      "path": "minimal/test/sd_test.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "fa19763407cd4c38385cbd3e0266c4aa42822be3746c61092d4cece31fed5c97"
+    },
+    {
+      "path": "minimal/test/crash_report_sd_integration.c",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "c9c9c2d21f355fff066cf8aae446c0921a04833b703a7b35d6fde152e6ab3860"
+    },
+    {
+      "path": "minimal/scripts/test_crash_report_sd_integration.py",
+      "source_commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "sha256": "b46f88aa648f071fb7ae732bc5efcb7316eed2556838077e837b996f22a2d0b4"
+    },
+    {
+      "path": "minimal/interfaces/RiscDisplayOutputSettledV1.h",
+      "source": "exact recovered panel .1.12 shared settled API",
+      "sha256": "18bfd89f3fa01d35e74f83c28ace60f16ca42fa0f678d7dc1fdc16e163fccc4f"
+    },
+    {
+      "path": "minimal/drivers/x4pro_gt911/README.md",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "8006727f20949cfb60fcaffd1a598745bfd5753a1417cb8e6c0adc3d41e45cfb"
+    },
+    {
+      "path": "minimal/drivers/x4pro_gt911/manifest.json",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "fc63bf11712a2bdec8204c6e64b5fdeb5e999a25506a992fc2cc5db3df048bce"
+    },
+    {
+      "path": "minimal/drivers/x4pro_gt911/driver.c",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "da287cbd675b6a59131b97278a48c6cf1734b90e30a9e2674e72b0063c9a86d1"
+    },
+    {
+      "path": "minimal/test/gt911_test.c",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "538377486bf3be4b9a0f166590f89e850e518b793e8118864973c3d591cdfdc1"
+    },
+    {
+      "path": "minimal/test/gt911_multicontact_test.c",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "819d0815f159249d57f22f58c1354e2fe0964b40d629560083ba5b7e9a5cdaad"
+    },
+    {
+      "path": "minimal/test/hid_gt911_backend.c",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "26e30a1f72fd2b5d7f546238a068072f13a5976351a899cd32c49275040b5002"
+    },
+    {
+      "path": "minimal/test/run_gt911_test.sh",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "cd05bab60488a413a595d96c97b306ae37247dbec409dda7a9de6a1b42e6fd80"
+    },
+    {
+      "path": "minimal/test/run_hid_gt911_test.py",
+      "source_commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "sha256": "7b1ae5a354600ee4811857e2eeb8fba4037fbcc9f77b33801bed507cb707f86f"
+    },
+    {
+      "path": "minimal/scripts/prepare_native_runtime.py",
+      "source": "reconstructed .105 composition; qualified with combined Runtime .106",
+      "sha256": "03df5b53755187c8b11cbbd7757e3fcdff36479e437d16eb7939d12970bb87b3"
+    },
+    {
+      "path": "minimal/native/build.py",
+      "source": "reconstructed .105 composition; qualified with combined Runtime .106",
+      "sha256": "d9f60420a9f075ff934ce9af7b9f2e1a4ddb54203d9b62bf99603bf5b8b54804"
+    },
+    {
+      "path": "minimal/test/uc8279_fast_settled.inc",
+      "source": "exact recovered panel .1.12 settled-contract fixture",
+      "sha256": "d0af5781f87eb279fd666e097feb695a32e0e71db78972419a584bd1da12a66e"
+    }
+  ],
+  "preserved": "Other X4 source remains recovered .54, including warm/cool frontlight and CPU fixture compatibility repair.",
+  "remaining": "Final source-only builder and complete source union qualification",
+  "host_checks": {
+    "panel_013": "46 provider scenarios normal and ASan/UBSan; exact external driver unchanged",
+    "gt911_019": "original full provider/multicontact suite ASan/UBSan",
+    "sd_0214": "7 real provider/custody scenarios normal and ASan/UBSan against Runtime106/System union"
+  }
+}

@@ -77,10 +77,15 @@ def snapshot(root, revision):
 def validate_build_options(options):
     required = {'app_policy_rows', 'app_image_cache'}
     require(isinstance(options, dict) and required <= set(options) and
-            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'},
+            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'app_requirement_rows'},
             'Invalid native build options')
-    require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
-            'App policy rows must be 16 or 17')
+    require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17, 18),
+            'App policy rows must be 16, 17 or 18')
+    require('app_requirement_rows' not in options or
+            (type(options['app_requirement_rows']) is int and options['app_requirement_rows'] == 17),
+            'App requirement rows must be an explicit 17-row opt-in')
+    require(options.get('app_requirement_rows', 16) <= options['app_policy_rows'],
+            'App requirement rows exceed policy rows')
     require(type(options['app_image_cache']) is bool, 'App image cache must be boolean')
     require('usb_phy' not in options or options['usb_phy'] is True,
             'USB PHY must be an explicit true opt-in')
@@ -94,11 +99,13 @@ def validate_build_options(options):
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
             app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False,
-            retained_wake_bytes=None, failure_evidence=False):
+            retained_wake_bytes=None, failure_evidence=False, app_requirement_rows=None):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
     require(type(usb_phy) is bool, 'USB PHY selection must be boolean')
     options = {'app_policy_rows': app_policy_rows, 'app_image_cache': app_image_cache}
+    if app_requirement_rows is not None:
+        options['app_requirement_rows'] = app_requirement_rows
     if usb_phy:
         options['usb_phy'] = True
     if retained_wake_bytes is not None:
@@ -386,15 +393,29 @@ def runtime_options_proof(blobs, record):
     from elftools.elf.elffile import ELFFile
     options = validate_build_options(record.get('build_options'))
     rows = options['app_policy_rows']
+    requirements = options.get('app_requirement_rows', 16)
     marker = ('RISC_APP_POLICY_ROWS:' + str(rows)).encode() + b'\0'
-    other = ('RISC_APP_POLICY_ROWS:' + str(33 - rows)).encode() + b'\0'
+    requirement_marker = b'RISC_APP_REQUIREMENT_ROWS:17\0'
     for name in ('firmware.bin', 'firmware.elf'):
-        require(marker in blobs[name] and other not in blobs[name], 'Compiled app policy row mismatch: ' + name)
+        require(set(re.findall(rb'RISC_APP_POLICY_ROWS:[^\x00]*\x00', blobs[name])) == {marker},
+                'Compiled app policy row mismatch: ' + name)
+        require(set(re.findall(rb'RISC_APP_REQUIREMENT_ROWS:[^\x00]*\x00', blobs[name])) ==
+                ({requirement_marker} if requirements == 17 else set()),
+                'Compiled app requirement row mismatch: ' + name)
     elf = ELFFile(io.BytesIO(blobs['firmware.elf']))
     symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
     policy = symbols.get('risc_app_policy_rows')
     require(policy is not None and policy['st_info']['bind'] == 'STB_GLOBAL' and
             elf_symbol_bytes(elf, policy) == marker, 'Missing compiled policy-row symbol')
+    requirement = symbols.get('risc_app_requirement_rows')
+    if requirements == 17:
+        require(requirement is not None and requirement['st_info']['bind'] == 'STB_GLOBAL' and
+                requirement['st_info']['type'] == 'STT_OBJECT' and
+                elf_symbol_bytes(elf, requirement) == requirement_marker and
+                elf.get_section(requirement['st_shndx'])['sh_flags'] & 2,
+                'Missing strong loaded requirement-row symbol')
+    elif requirement is not None:
+        require(requirement['st_shndx'] == 'SHN_UNDEF', 'Unexpected compiled requirement-row symbol')
     # These owner/Runtime atomics and creation call exist only in the enabled
     # Runtime implementation. The loader's cached-open API exists even when off
     # and is therefore insufficient evidence by itself.
@@ -454,9 +475,12 @@ def runtime_options_proof(blobs, record):
     result = {'schema': 'x4.runtime-options-proof', 'schema_version': 1,
             'composition_sha256': record['composition_sha256'], 'build_options': options,
             'elf_sha256': sha(blobs['firmware.elf']), 'firmware_sha256': sha(blobs['firmware.bin']),
-            'app_policy': {'rows': rows, 'live_app_grants': 16, 'manifest_requirements': 16,
+            'app_policy': {'rows': rows, 'live_app_grants': 16, 'manifest_requirements': requirements,
                            'marker': marker[:-1].decode(), 'symbol': 'risc_app_policy_rows'},
             'app_image_cache': cache, 'hardware_qualified': False}
+    if requirements == 17:
+        result['app_policy'].update(requirement_marker=requirement_marker[:-1].decode(),
+                                    requirement_symbol='risc_app_requirement_rows')
     if usb is not None:
         result['usb_phy'] = usb
     if options.get('failure_evidence'):
@@ -601,7 +625,11 @@ def stage(runtime, workspace, output, appdata):
             len(blobs['firmware.bin']) <= shared.APP_DATA_EXPECTED['app0'][3], 'Native ABI/size mismatch')
     proof = shared.native_proof(blobs['firmware.elf'])
     proof['radio_iq'] = iq_tool.prove(blobs['firmware.elf'])
-    proof['app_policy'] = shared.policy_rows_proof(blobs,record['build_options']['app_policy_rows'])
+    options = record['build_options']
+    # Preserve the historical two-argument helper contract for ordinary builds.
+    proof['app_policy'] = (shared.policy_rows_proof(blobs, options['app_policy_rows'], options['app_requirement_rows'])
+                           if 'app_requirement_rows' in options else
+                           shared.policy_rows_proof(blobs, options['app_policy_rows']))
     performance = environment.endswith('-perf')
     if performance:
         from elftools.elf.elffile import ELFFile
@@ -673,8 +701,10 @@ def main():
     prepare.add_argument('--output', type=Path, required=True)
     prepare.add_argument('--runtime-commit')
     prepare.add_argument('--environment', choices=ENVIRONMENTS, default=ENVIRONMENTS[0])
-    prepare.add_argument('--app-policy-rows', type=int, choices=(16, 17), default=16,
-                         help='Immutable app policy rows; live grants and manifest requirements remain 16')
+    prepare.add_argument('--app-policy-rows', type=int, choices=(16, 17, 18), default=16,
+                         help='Immutable app policy rows; live grants remain 16')
+    prepare.add_argument('--app-requirement-rows', type=int, choices=(17,),
+                         help='Explicitly enable 17 manifest requirements; absent selection remains 16')
     prepare.add_argument('--app-image-cache', action='store_true',
                          help='Explicitly enable the Runtime app image cache and qualified pressure retry paths')
     prepare.add_argument('--boot-flash-dio', action='store_true',

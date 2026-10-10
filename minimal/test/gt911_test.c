@@ -17,7 +17,8 @@ static const risc_driver_v2 *driver;
 static const risc_touch_api_v1 *api;
 static const risc_touch_power_api_v1 *power;
 static uint64_t serial=1,mutex,bus_token,time_ms;
-static uint8_t bus_address,good_address=0x5d,status,raw[8];
+static uint8_t bus_address,good_address=0x5d,status,raw[5*8];
+static size_t partial_point_bytes;
 static struct { uint64_t token; bool output,level,held; } pins[49];
 static unsigned creates,takes,destroys,claims,writes,releases,holds,retires,bus_claims,bus_releases,transacts,power_checks;
 static bool owner=true,locked,power_ready=true,create_ok=true,unlock_ok=true,destroy_ok=true;
@@ -125,7 +126,9 @@ static bool transact(void *context,uint64_t token,const uint8_t *tx,size_t tn,ui
             memcpy(rx,bus_address==good_address?"9110":"bad!",4);return true;
         }
         if(reg==0x814e) { assert(rn==1);if(!read_ok)return false;*rx=status;return true; }
-        assert(reg==0x8150 && rn==8);if(!point_ok)return false;memcpy(rx,raw,8);return true;
+        assert(reg==0x814f && rn==(status&15u)*8u && rn<=sizeof(raw));
+        if(!point_ok){assert(partial_point_bytes<rn);memcpy(rx,raw,partial_point_bytes);return false;}
+        memcpy(rx,raw,rn);return true;
     }
     assert(tn==3 && !rx && reg==0x814e && tx[2]==0);record("a;");
     if(!ack_ok){if(ack_reaches)status=0;return false;}
@@ -160,10 +163,14 @@ static void clean(void) {
     assert(!locked && !mutex && !bus_token && !pins[2].token && !pins[4].token && !pins[10].token);
     assert(pins[2].level && pins[2].held);
 }
+static void wire_point(unsigned index,uint8_t id,uint16_t x,uint16_t y) {
+    assert(index<5);uint8_t *p=raw+index*8;
+    p[0]=id;p[1]=(uint8_t)x;p[2]=(uint8_t)(x>>8);p[3]=(uint8_t)y;p[4]=(uint8_t)(y>>8);
+    p[5]=0xa5;p[6]=0x5a;p[7]=0xff;
+}
 static void packet(uint8_t contact_count,uint16_t x,uint16_t y,bool home) {
     status=(uint8_t)(0x80u|contact_count|(home?0x10u:0));
-    raw[0]=(uint8_t)x;raw[1]=(uint8_t)(x>>8);raw[2]=(uint8_t)y;raw[3]=(uint8_t)(y>>8);
-    raw[4]=0xa5;raw[5]=0x5a;raw[6]=0xff;raw[7]=0xff;++time_ms;
+    memset(raw,0,sizeof(raw));wire_point(0,0,x,y);++time_ms;
 }
 static risc_touch_snapshot_v1 snapshot(void) {
     risc_touch_snapshot_v1 out={0};assert(api->snapshot(NULL,&out));assert(out.width==480 && out.height==800);return out;
@@ -267,7 +274,7 @@ static bool reference_poll(void) {
     uint16_t x=0,y=0;
     if(count==1){
         if(!point_ok)return false;
-        x=(uint16_t)(raw[0]+256u*raw[1]);y=(uint16_t)(raw[2]+256u*raw[3]);
+        x=(uint16_t)(raw[1]+256u*raw[2]);y=(uint16_t)(raw[3]+256u*raw[4]);
     }
     if(count>1 || x>=480 || y>=800){
         ++reference.sequence;reference.contact_count=0;reference.buttons=0;
@@ -310,7 +317,9 @@ static void source_equivalence(void) {
         random=random*1664525u+1013904223u;
         uint8_t contacts=(uint8_t)((random>>16)&1u);
         uint16_t x=(uint16_t)((random>>8)%480u),y=(uint16_t)((random>>12)%800u);
-        if(i%101==0)contacts=2;
+        /* Multi-contact is now valid; use an impossible count for the legacy
+         * oracle's malformed-count branch. Valid packets remain single-touch. */
+        if(i%101==0)contacts=6;
         if(i%103==0)x=480;
         if(i%107==0)y=800;
         packet(contacts,x,y,((random>>20)&1u)!=0);
@@ -403,7 +412,7 @@ static void power_tests(const char *name) {
         packet(0,0,0,false);read_ok=false;assert(!api->poll(NULL,1));read_ok=true;
         ack_ok=false;ack_reaches=true;assert(!api->poll(NULL,1) && !status);no_event(sub,0);
         ack_ok=true;assert(api->poll(NULL,1));packet(1,17,29,true);assert(api->poll(NULL,1));no_event(sub,0);
-        packet(2,0,0,false);assert(!api->poll(NULL,1));no_event(sub,-1);
+        packet(6,0,0,false);assert(!api->poll(NULL,1));no_event(sub,-1);
         packet(1,480,0,false);assert(!api->poll(NULL,1));no_event(sub,-1);
         packet(1,5,6,true);point_ok=false;assert(!api->poll(NULL,1));point_ok=true;
         assert(api->poll(NULL,1));no_event(sub,0);
@@ -631,7 +640,7 @@ int main(int argc,char **argv) {
         packet(1,0xffff,0xffff,false);assert(!api->poll(NULL,1));no_event(sub,-1);done(sub);
     } else if(!strcmp(argv[1],"gaps")) {
         assert(start());uint64_t sub=api->subscribe(NULL);packet(1,8,9,true);assert(api->poll(NULL,1));
-        packet(2,8,9,true);assert(!api->poll(NULL,1) && !status);no_event(sub,-1);no_event(sub,0);
+        packet(6,8,9,true);assert(!api->poll(NULL,1) && !status);no_event(sub,-1);no_event(sub,0);
         out=snapshot();assert(!out.contact_count && !out.buttons && out.sequence==3);
         packet(1,12,13,false);assert(api->poll(NULL,1));expect_event(sub,RISC_TOUCH_EVENT_DOWN,12,13,4);done(sub);
     } else if(!strcmp(argv[1],"overflow")) {

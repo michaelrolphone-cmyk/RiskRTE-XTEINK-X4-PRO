@@ -13,6 +13,11 @@ static bool hid_transact(void *c,uint64_t id,const uint8_t *w,size_t wn,
         assert(value.width==480 && value.height==800);
         packet(value.contact_count,value.contacts[0].x,value.contacts[0].y,
                (value.buttons&RISC_TOUCH_BUTTON_PRIMARY)!=0);
+        assert(value.contact_count<=5);
+        for(unsigned i=0;i<value.contact_count;++i) {
+            assert(value.contacts[i].id>=1 && value.contacts[i].id<=16);
+            wire_point(i,(uint8_t)(value.contacts[i].id-1u),value.contacts[i].x,value.contacts[i].y);
+        }
     }
     return transact(c,id,w,wn,r,rn,timeout);
 }
