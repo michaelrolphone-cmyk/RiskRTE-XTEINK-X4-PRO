@@ -23,7 +23,9 @@ jobs:
       - name: Materialize panel 0.1.13 source
         run: |
           mkdir -p "$RUNNER_TEMP/x4-panel-013"
-          cat .github/x4-panel-013/payload.part.* | base64 -d | tar -xz -C "$RUNNER_TEMP/x4-panel-013"
+          cat .github/x4-panel-013/payload.part.* > "$RUNNER_TEMP/x4-panel-013/payload.b64"
+          echo 'f9cc77435cc0e407952b6fe0310890286267fef108f4fd2ed01320b08e993707  '"$RUNNER_TEMP/x4-panel-013/payload.b64" | sha256sum -c -
+          base64 -d "$RUNNER_TEMP/x4-panel-013/payload.b64" | tar -xz -C "$RUNNER_TEMP/x4-panel-013"
           cp "$RUNNER_TEMP/x4-panel-013/driver.c" minimal/drivers/x4pro_uc8279_fast/driver.c
           cp "$RUNNER_TEMP/x4-panel-013/manifest.json" minimal/drivers/x4pro_uc8279_fast/manifest.json
           cp "$RUNNER_TEMP/x4-panel-013/validation.json" minimal/validation/uc8279-delta-multipulse-0.1.13.json
