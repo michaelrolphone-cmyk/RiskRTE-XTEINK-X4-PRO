@@ -28,6 +28,7 @@ def main():
     ap.add_argument('--system',type=Path,required=True)
     ap.add_argument('--output',type=Path,required=True)
     ap.add_argument('--sanitize',action='store_true')
+    ap.add_argument('--snapshot',action='store_true',help='Use the deployed sliced renderer and four-ms input service cadence')
     ap.add_argument('--paper-transitions',action='store_true',help='Pair with the selected LOW_LATENCY interactive adapter')
     args=ap.parse_args();runtime=args.runtime.resolve();args.output.mkdir(parents=True,exist_ok=True)
     fixture=ROOT/'minimal/test/uc8279_fast_cadence';results=[]
@@ -49,6 +50,7 @@ def main():
             # PortableTime includes a sibling ../time path.
             shutil.copytree(system/'lib/PortableApps/time',include.parent/'time')
             flags=['-DPANEL_BASELINE_ADAPTER'] if baseline else []
+            if args.snapshot:flags.append('-DPORTABLE_RASTER_SNAPSHOT')
             if args.paper_transitions:flags.append('-DPORTABLE_PAPER_TRANSITIONS')
             adapter_cc=[os.environ.get('CC','cc'),'-std=c11','-O1','-g','-Wall','-Wextra','-Werror',*san]
             run([*adapter_cc,'-I'+str(include),'-I'+str(system/'lib/NativeApps/include'),
@@ -77,9 +79,9 @@ def main():
                             assert metrics['bytes']==180000
                         assert metrics['max_slice_bytes']<=16384 and metrics['max_slice_ms']<=8
                         assert metrics['gpio_writes']<200
-                        assert frame['max_requested_wait_ms']==1
+                        assert 1<=frame['max_requested_wait_ms']<=(4 if args.snapshot else 1)
                         assert metrics['budget_ms']==[8,8]
-                        assert frame['scheduler_wait_ms']==frame['scheduler_waits']
+                        assert frame['scheduler_waits']<=frame['scheduler_wait_ms']<=frame['scheduler_waits']*(4 if args.snapshot else 1)
                         if not baseline:
                             assert frame['controller_polls']>0
                             assert frame['max_controller_gap_ms']<=interval+8
@@ -96,7 +98,7 @@ def main():
                     maintenance=data['maintenance']
                     assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==0
                     assert 30000-interval<=maintenance['elapsed_ms']<=30000+3*interval+20
-                    assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==interval
+                    assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==(min(4,interval) if args.snapshot else interval)
                     assert maintenance['controller_polls']>0 and maintenance['max_controller_gap_ms']<=interval+8
                     assert maintenance['touch_samples']>0 and maintenance['max_touch_gap_ms']<=max(20,interval)+8
                     print(json.dumps(data),flush=True)
@@ -105,7 +107,7 @@ def main():
         ROOT/'minimal/test/uc8279_fast_test.c',fixture/'panel_model.c',ROOT/'minimal/test/panel_cadence/adapter_bridge.c',
         args.system/'lib/PortableApps/src/adapter.c',
         runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/streams/AppStreamSessions.cpp',runtime/'src/runtime/streams/ProviderQueueHost.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
-    receipt={'hardware':'not run','paper_transitions':args.paper_transitions,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
+    receipt={'hardware':'not run','snapshot':args.snapshot,'paper_transitions':args.paper_transitions,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
         'sources':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'runs':results}
     (args.output/'evidence.json').write_text(json.dumps(receipt,indent=2)+'\n')
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package the shared renderer performance repair over exact delivered X4 .59."""
+"""Package the renderer repair and fast panel 0.1.15 over exact delivered X4 .59."""
 import argparse,hashlib,io,json,os,sys
 from pathlib import Path
 from build_recovered_diagnostic import require,sha,encoded,digest_inventory
@@ -16,7 +16,11 @@ def build(a):
  spec=json.loads(a.spec.read_text());source=clean(ROOT)
  require(spec['x4_source']==source['commit'],'Source identity changed')
  require(spec['scope']=='exact-.59-render-performance','Unexpected integration scope')
- require(len(spec['modules'])==20,'Incomplete portable renderer replacement scope')
+ require(len(spec['modules'])==21,'Incomplete renderer and panel replacement scope')
+ panel=spec['modules'].get('x4pro-uc8279-fast',{})
+ require(panel.get('store_elf')=='panel/driver.elf' and panel.get('store_manifest')=='panel/manifest.json','Missing selected fast panel')
+ require(json.loads(artifact(panel['manifest']))['version']=='0.1.15','Wrong fast panel version')
+ require(sha(Path(spec['sources']['panel']['path'],'minimal/drivers/x4pro_uc8279_fast/driver.c').read_bytes())=='9d51c7c40f5aea918ffd0911f81a960020b08d66bdd04d6a733741bf60d05f61','Wrong selected panel source')
  require(json.loads((ROOT/'minimal/product.json').read_text())['version']=='0.1.62','Wrong product version')
  for label,row in spec['sources'].items():
   actual=clean(Path(row['path']));require(actual['commit']==row['commit'] and actual['tree']==row['tree'],'Changed source: '+label)
@@ -98,7 +102,7 @@ def build(a):
  bank=initial_bank_state(firmware,fs,True);pair=parse_record(bank[:96],True);require(pair[6]==hashlib.sha256(firmware).digest() and pair[7]==hashlib.sha256(fs).digest(),'Pair SHA/CRC mismatch')
  image=bytearray(raw);image[0x2f0000:0x800000]=fs;image[0xff2000:0xff4000]=bank;regions=[(0,0x2f0000),(0x800000,0xff2000),(0xff4000,0x1000000)]
  require(all(image[lo:hi]==raw[lo:hi] for lo,hi in regions) and read_image(bytes(image[0x2f0000:0x800000]),0x510000)==files,'Final frozen regions/readback differ')
- name='X4-0.1.62-Renderer-Performance-full-0x0.bin';(a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(fs)
+ name='X4-0.1.62-Renderer-Performance-Panel-0.1.15-full-0x0.bin';(a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(fs)
  report={'schema':'x4.renderer-performance-cohort','schema_version':1,'product_version':'0.1.62','source':source,'inputs':spec,'native_proof':native_proof,'native_unchanged':True,'native_firmware_sha256':sha(firmware),'native_elf_sha256':sha(native_elf),'native_export_count':len(names),'cohort':cohort,'image':{'name':name,'bytes':len(image),'sha256':sha(image),'flash_offset':0},'build_receipts':receipts,'compactions':compactions,'cohort_admission':admissions,'strict_admission':strict,'strict_elf_count':len(strict),'store_generator':capacity,'store_files':digest_inventory(files),'changed_store_paths':changed,'preserved_store_paths':sorted(set(files)-expected),'preserved_regions':[{'offset':lo,'bytes':hi-lo,'sha256':sha(raw[lo:hi])} for lo,hi in regions],'boot_graph_and_grants_unchanged':True,'paired_sha_crc_verified':True,'hardware_tested':False,'inclusions':spec['inclusions'],'excluded':spec['excluded'],'first_install_warning':'Full 16 MiB image at 0x0 overwrites internal settings, Bluetooth bonds and AppData. Back up first. Removable SD contents are not included.'}
  (a.output/'build-custody.json').write_bytes(encoded(report));print(json.dumps(report['image']))
 if __name__=='__main__':

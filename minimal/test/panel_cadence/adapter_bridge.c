@@ -14,6 +14,7 @@ extern void panel_runtime_yield(uint32_t);
 extern void panel_runtime_reset_metrics(void);
 extern void panel_runtime_report(void);
 extern void panel_runtime_expect_idle(uint32_t);
+extern void panel_runtime_expect_idle_sliced(uint32_t);
 #ifdef PANEL_RESIDENT_SETTLE
 extern bool panel_cadence_settle_active(void);
 extern void panel_cadence_settle_begin(void);
@@ -57,7 +58,11 @@ static void measure_frame(unsigned interval,bool partial) {
     if(partial)v->circle(350,350,2,true);
     present(false);
 #ifndef PANEL_BASELINE_ADAPTER
+#ifdef PORTABLE_RASTER_SNAPSHOT
+    while(!portable_paper_frame_idle()&&!failed){
+#else
     while(paper_token&&!failed){
+#endif
         t5_app_input_t input={0};assert(poll_input(&input,interval));++input_polls;
         const uint32_t now=panel_cadence_clock();
         if(now-last_input_at>max_input_gap)max_input_gap=now-last_input_at;
@@ -95,7 +100,12 @@ void panel_adapter_cadence(void) {
         input_polls,max_input_gap,touch_samples,max_touch_gap);
 #endif
     panel_runtime_reset_metrics();last_poll_at=panel_cadence_clock();
-    t5_app_input_t input={0};assert(poll_input(&input,interval));panel_runtime_expect_idle(interval);
+    t5_app_input_t input={0};assert(poll_input(&input,interval));
+#ifdef PORTABLE_RASTER_SNAPSHOT
+    panel_runtime_expect_idle_sliced(interval);
+#else
+    panel_runtime_expect_idle(interval);
+#endif
     panel_runtime_report();
 #ifdef PANEL_RESIDENT_MAINTENANCE
     printf("},\"maintenance\":{");
