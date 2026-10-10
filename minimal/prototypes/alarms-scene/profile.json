@@ -1,0 +1,9 @@
+{
+  "schema": "riscrte.declarative-alarms.prototype",
+  "schema_version": 1,
+  "version": "0.1.0",
+  "presentation": "portrait-monochrome",
+  "alarm_control": "alarm-control-utc",
+  "scene_state_namespace": 61,
+  "provider_capacity": 28
+}
