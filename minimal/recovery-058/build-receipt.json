@@ -1,0 +1,38 @@
+{
+  "product": "X4",
+  "version": "0.1.58",
+  "image": {
+    "bytes": 16777216,
+    "flash_offset": 0,
+    "name": "X4-0.1.58-Panel-0.1.14-Latest-full-0x0.bin",
+    "sha256": "11395fdcbe81c4f5b97d1e82c17ffbee2d314475804432a639362ffa22be506e"
+  },
+  "modules_changed": {
+    "x4pro-uc8279-fast": "0.1.14",
+    "x4pro-gt911": "0.1.10",
+    "ble_buttons": "0.1.22"
+  },
+  "unchanged_modules": 44,
+  "native": "0.2.2 byte-identical to0.1.57",
+  "strict_elf_count": 47,
+  "cohort_admission": [
+    "normal",
+    "ASan/UBSan"
+  ],
+  "changed_store_files": 7,
+  "preserved_store_files": 90,
+  "offline_replay_byte_identical": true,
+  "independent_readbacks": 2,
+  "paired_sha_crc_verified": true,
+  "hardware_tested": false,
+  "source_commit": "87d6c00d5225592bac5b27064d99a229a3646622",
+  "local_build_commit": "4290d89071b2b61064efe7d542e18791ae00ba0c",
+  "source_tree": "16afbeae2c2331e21ae1503c5ac19c768c4bb565",
+  "full_flash_warning": "Flash full16MiB at0x0. Internal settings, saved Wi-Fi networks, Bluetooth bonds and AppData overwritten. Back up first. SD contents excluded.",
+  "limitation": "Optional8ms cadence idle fixture fails identically on panel.13/.14; focused and1ms/Light-idle checks pass.",
+  "excluded_unfinished": [
+    "Files sharing",
+    "Watch-only work",
+    "unused Runtime.2.3-.2.5 foundations"
+  ]
+}
