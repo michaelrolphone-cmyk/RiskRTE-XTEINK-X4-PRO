@@ -1,0 +1,12 @@
+[
+  {
+    "scenario": "additions-before-motion",
+    "baseline_exit_code": -6,
+    "fixed_exit_code": 0
+  },
+  {
+    "scenario": "earlier-report-order",
+    "baseline_exit_code": -6,
+    "fixed_exit_code": 0
+  }
+]

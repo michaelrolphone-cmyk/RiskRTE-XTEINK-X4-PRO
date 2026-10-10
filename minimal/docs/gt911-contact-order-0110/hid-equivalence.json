@@ -1,0 +1,12 @@
+{
+  "frame_files": 106,
+  "identical_pixels": true,
+  "identical_action_and_cleanup_logs": true,
+  "cases_per_mode": 20,
+  "modes": [
+    "normal",
+    "asan-ubsan"
+  ],
+  "source_baseline_driver_sha256": "da287cbd675b6a59131b97278a48c6cf1734b90e30a9e2674e72b0063c9a86d1",
+  "source_fixed_driver_sha256": "ddb898395bcfb4ca126b284f01b288274da97f34efd2e2e63c9347dff8ed4cb5"
+}

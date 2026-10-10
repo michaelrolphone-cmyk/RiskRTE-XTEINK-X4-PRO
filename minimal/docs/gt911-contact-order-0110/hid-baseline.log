@@ -1,0 +1,241 @@
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 5 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=reject x=110 y=732 contacts=1 armed=1
+HID pairing response action=reject requested
+HID pairing response action=reject result=ok
+HID stop reason=Pairing rejected
+HID suspend status=1 state=4 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing touch ignored reason=moved
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID cleanup pending; retaining invocation
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=default.elf
+HID production app/adapter: 2 frames, 100 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 3 frames, 240 polls; 0 mouse/1 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=reject x=110 y=732 contacts=1 armed=1
+HID pairing response action=reject requested
+HID pairing response action=reject result=ok
+HID stop reason=Pairing rejected
+HID suspend status=1 state=4 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing touch ignored reason=moved
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID cleanup pending; retaining invocation
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=default.elf
+HID production app/adapter: 2 frames, 100 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 5 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 2 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=reject x=110 y=732 contacts=1 armed=1
+HID pairing response action=reject requested
+HID pairing response action=reject result=ok
+HID stop reason=Pairing rejected
+HID suspend status=1 state=4 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing touch ignored reason=moved
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID cleanup pending; retaining invocation
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=default.elf
+HID production app/adapter: 2 frames, 100 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 2 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 3 frames, 240 polls; 0 mouse/1 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=reject x=110 y=732 contacts=1 armed=1
+HID pairing response action=reject requested
+HID pairing response action=reject result=ok
+HID stop reason=Pairing rejected
+HID suspend status=1 state=4 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=4 flags=31 error=0 generation=1
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing touch ignored reason=moved
+HID pairing contact target=accept x=348 y=732 contacts=1 armed=1
+HID pairing response action=accept requested
+HID pairing response action=accept result=ok
+HID state from=4 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+HID production app/adapter: 4 frames, 240 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID stop reason=Stopped
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID cleanup pending; retaining invocation
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=springboard.elf
+HID production app/adapter: 2 frames, 31 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID state from=0 to=5 flags=31 error=0 generation=1
+HID suspend status=1 state=5 flags=31 error=0 generation=1
+HID closed status=1 state=0 flags=31 error=0 generation=1
+launch=default.elf
+HID production app/adapter: 2 frames, 100 polls; 0 mouse/0 key reports; all grants released, neutral reports and stride guards verified
+HID production adapter: pairing, raw touches, gaps, disconnect, edits, Back and quick controls passed normally and under address,undefined

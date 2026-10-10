@@ -1,0 +1,1 @@
+baseline-multicontact: minimal/test/gt911_multicontact_test.c:124: earlier_report_order: Assertion `api->next(NULL,sub,&e)==1 && e.kind==kinds[i] && e.id==ids[i] && e.sequence==i+1u' failed.
