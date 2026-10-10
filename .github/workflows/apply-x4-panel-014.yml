@@ -24,7 +24,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/x4-panel-014-payload/part-* | tr -d '\n' | base64 -d > /tmp/x4-panel-014.patch.gz
+          cat .github/x4-panel-014-payload/part-00 \
+              .github/x4-panel-014-payload/part-01 \
+              .github/x4-panel-014-payload/part-02 \
+              .github/x4-panel-014-payload/part-03 \
+              .github/x4-panel-014-payload/part-04a \
+              .github/x4-panel-014-payload/part-04b \
+              .github/x4-panel-014-payload/part-04c \
+              .github/x4-panel-014-payload/part-05 | tr -d '\n' | base64 -d > /tmp/x4-panel-014.patch.gz
           echo '37d111e9e44a51bccf94e46df558713e7914462b96c2441ef7f8926e31592ba3  /tmp/x4-panel-014.patch.gz' | sha256sum -c -
           gzip -dc /tmp/x4-panel-014.patch.gz > /tmp/x4-panel-014.patch
           git apply --index /tmp/x4-panel-014.patch
