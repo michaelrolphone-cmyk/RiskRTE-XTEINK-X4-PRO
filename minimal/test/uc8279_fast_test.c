@@ -10,7 +10,7 @@ static bool fail_claim, fail_gpio_read, fail_gpio, fail_spi_begin, fail_spi_exch
 static bool fail_hold, fail_unhold, fail_retire, fail_release, no_busy, stuck_busy, stuck_power, fail_clock, reverse_clock;
 static bool ambiguous, zero_probe, unstable;static uint8_t lut_id=0x68;
 static uint64_t tick=100, busy_from, busy_until, bus_deadline, gpio_serial=10, model_bus_token, last_refresh_at;
-static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, refreshes, pons, pofs, sleeps, polls;
+static unsigned phase, gpio_writes, bus_calls, exchanges, ends, probe_reads, refreshes, final_target_refreshes, pons, pofs, sleeps, polls;
 static uint32_t payload, max_exchange, max_poll_bytes;
 static unsigned command_cost, scheduler_gap=1, refresh_pulse_ms=20, refresh_assert_delay, reset_assertions;
 static unsigned commands[256], data_index;static uint8_t cmd, regs[256][42];
@@ -72,7 +72,8 @@ static void model_command(uint8_t value){
   unsigned top=0,height=480,left=0,width=800;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
-   const uint8_t frames=regs[0x20][1];assert(frames==1||frames==2);
+   const uint8_t frames=regs[0x20][1];assert(frames==2||frames==X4PRO_FINAL_TARGET_FRAMES);
+   if(frames==X4PRO_FINAL_TARGET_FRAMES)++final_target_refreshes;
    const bool absolute=(regs[0x21][1]&0xC0u)!=0;
    for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){
     uint8_t want=0;if(i==0||i==5||i==6)want=1;
@@ -87,6 +88,9 @@ static void model_command(uint8_t value){
    }
    top=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])-120;
    height=(((unsigned)regs[0x90][6]<<8)|regs[0x90][7])-120-top+1;
+   left=((unsigned)regs[0x90][0]<<8)|regs[0x90][1];
+   width=(((unsigned)regs[0x90][2]<<8)|regs[0x90][3])-left+1;
+   assert(!(left&7u)&&!(width&7u)&&width>=X4PRO_FAST_MIN_WIDTH&&left+width<=800);
   }else {
    assert(regs[0x00][0]==0x17&&regs[0x30][0]==0x0E);
    if(ptin){
@@ -108,7 +112,7 @@ static void model_command(uint8_t value){
     * {DTM1,DTM2}=00->24,01->22,10->23,11->21. 0x4x darkens,0x8x whitens.
     * Decode actual emitted LUT/RAM, rather than assuming DTM2 is visible. */
    const uint8_t selector[4]={0x24,0x22,0x23,0x21};
-   for(unsigned y=top;y<top+height;++y)for(unsigned x=0;x<100;++x){
+   for(unsigned y=top;y<top+height;++y)for(unsigned x=left/8;x<(left+width)/8;++x){
     unsigned i=(y+120)*100+x;uint8_t result=0;
     for(unsigned bit=0;bit<8;++bit){unsigned n=(ram[i]>>bit)&1u,o=(old_ram[i]>>bit)&1u;
      const uint8_t rail=regs[selector[(o<<1)|n]][1]&0xC0u;assert(!rail||rail==0x40||rail==0x80);
@@ -132,7 +136,7 @@ static void model_data(uint8_t value){
  if(cmd==0x10||cmd==0x13){
   ++payload;
   unsigned pos=data_index;
-  if(ptin){assert(regs[0x90][0]==0&&regs[0x90][1]==0&&regs[0x90][2]==3&&regs[0x90][3]==0x1F);pos+=(((unsigned)regs[0x90][4]<<8)|regs[0x90][5])*100;}
+  if(ptin){unsigned left=((unsigned)regs[0x90][0]<<8)|regs[0x90][1];unsigned width=(((unsigned)regs[0x90][2]<<8)|regs[0x90][3])-left+1;unsigned row=width/8;assert(!(left&7u)&&!(width&7u)&&row);pos=((((unsigned)regs[0x90][4]<<8)|regs[0x90][5])+(data_index/row))*100+left/8+(data_index%row);}
   assert(pos<sizeof(ram));if(cmd==0x13)ram[pos]=value;else old_ram[pos]=value;
  }
  ++data_index;
@@ -166,7 +170,7 @@ static void baseline(void){const unsigned old10=commands[0x10],old13=commands[0x
 static void fast_band(unsigned y,unsigned h){
  const unsigned old_sync=commands[0x10];risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0xAA,48000);
  const risc_display_rect_v1 d={17,(int32_t)y,1,h};uint64_t t=submit_frame(f,&d,1,false);assert(fast_update&&partial_update);complete_frame(t);
- assert(commands[0x10]==old_sync&&bytes_sent==100*h);risc_display_present_metrics_v1 m=snapshot();assert(m.mode==RISC_DISPLAY_METRICS_PARTIAL&&m.effective_update.x==0&&m.effective_update.width==800&&m.effective_update.y==(int)y&&m.effective_update.height==h);
+ assert(commands[0x10]==old_sync&&bytes_sent==12*h);risc_display_present_metrics_v1 m=snapshot();assert(m.mode==RISC_DISPLAY_METRICS_PARTIAL&&m.effective_update.x==0&&m.effective_update.width==96&&m.effective_update.y==(int)y&&m.effective_update.height==h);
  assert(visible[y*100+2]==0x55&&visible[y*100+1]==0xF0);assert(previous_frame[y*100+2]==0xAA&&previous_frame[y*100+1]==0x0F);
 }
 static void test_polarity(void) {
@@ -345,7 +349,7 @@ static void test_quality(const char *scenario){
  f=acquire_frame();((uint8_t*)f.pixels)[47999]=0x55;
  const risc_display_present_options_v1 fast={RISC_DISPLAY_PRESENT_LOW_LATENCY,RISC_DISPLAY_QUEUE_FIFO,0};
  const unsigned synced=commands[0x10];assert(output->submit(NULL,f.frame,&minute,1,&fast,&token));complete_frame(token);
- assert(fast_update&&!quality_partial&&bytes_sent==4000&&commands[0x10]==synced&&settle_stage==SETTLE_READY&&visible[47999]==0xAA);
+ assert(fast_update&&!quality_partial&&bytes_sent==480&&commands[0x10]==synced&&settle_stage==SETTLE_READY&&visible[47999]==0xAA);
  assert(d->quiesce());
 }
 static void test_maintenance(const char *scenario) {
@@ -354,11 +358,11 @@ static void test_maintenance(const char *scenario) {
   assert(dtm1_synced&&screen_powered);
   risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,FRAME_BYTES);
   const risc_display_rect_v1 damage={16,120,8,1};
-  const unsigned old1=commands[0x10],old2=commands[0x13],off=pofs;
+  const unsigned old1=commands[0x10],old2=commands[0x13],off=pofs,finals=final_target_refreshes;
   uint64_t token=submit_default(f,&damage,1);complete_frame(token);
-  assert(fast_update&&!absolute_update&&!settle_update&&dtm1_synced);
-  assert(commands[0x10]==old1+1&&commands[0x13]==old2+1&&settle_stage==SETTLE_WAIT);
-  drain_settle();assert(!screen_powered&&pofs==off+1&&dtm1_synced);
+  assert(fast_update&&absolute_update&&!settle_update&&!dtm1_synced&&fast_lut_frames==2);
+  assert(commands[0x10]==old1&&commands[0x13]==old2+1&&settle_stage==SETTLE_READY);
+  drain_settle();assert(!screen_powered&&pofs==off+1&&dtm1_synced&&final_target_refreshes==finals+1);
   assert(!memcmp(old_ram,ram,sizeof(ram)));assert(d->quiesce());return;
  }
  if(!strcmp(scenario,"idle-wake-profile")){
@@ -377,8 +381,8 @@ static void test_maintenance(const char *scenario) {
  assert(absolute_frames==16&&!dtm1_synced);
  risc_display_surface_v1 f=acquire_frame();((uint8_t*)f.pixels)[16]^=0xFF;
  const risc_display_rect_v1 damage={128,200,8,1};uint64_t token=submit_frame(f,&damage,1,false);complete_frame(token);
- assert(absolute_update&&settle_update&&fast_lut_frames==2&&dtm1_synced&&absolute_frames==0);
- assert(bytes_sent==64000&&settle_stage==SETTLE_WAIT);drain_settle();assert(!screen_powered);assert(d->quiesce());
+ assert(absolute_update&&!settle_update&&fast_lut_frames==2&&!dtm1_synced&&absolute_frames==17);
+ assert(bytes_sent==480&&settle_stage==SETTLE_READY);drain_settle();assert(!screen_powered&&dtm1_synced);assert(d->quiesce());
 }
 static void test_settle(const char *scenario) {
  const risc_driver_v2 *d=t5_driver_get(2);
@@ -389,11 +393,11 @@ static void test_settle(const char *scenario) {
   risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x66,FRAME_BYTES);
   const risc_display_rect_v1 damage={16,3,8,1};uint64_t token=submit_frame(f,&damage,1,false);
   assert(!settle_stage);complete_frame(token);assert(pofs==off&&settle_stage==SETTLE_READY);
-  drain_settle();assert(pofs==off+1&&!screen_powered&&payload==bytes+4000+120000);assert(d->quiesce());return;
+  drain_settle();assert(pofs==off+1&&!screen_powered&&payload==bytes+480+180000);assert(d->quiesce());return;
  }
  assert(!strcmp(scenario,"settle-finalize"));
  drain_settle();assert(pofs==off+1&&!screen_powered&&dtm1_synced);
- assert(payload==bytes+120000&&commands[0x10]>=2&&commands[0x13]>=2);
+ assert(payload==bytes+180000&&commands[0x10]>=2&&commands[0x13]>=3&&final_target_refreshes>=1);
  assert(!memcmp(old_ram,ram,sizeof(ram)));assert(visible[44002]==0x55);assert_idle();assert(d->quiesce());
 }
 #ifdef TEST_X4_IDLE_POLICY
@@ -459,7 +463,7 @@ int main(int argc,char**argv){
  if(!strcmp(s,"foreign-owner")){unsigned old=exchanges;owner=false;((const risc_driver_poll_v2*)d)->poll(8);risc_display_surface_v1 f={0};assert(!output->acquire(NULL,1,&f)&&!d->quiesce()&&old==exchanges);owner=true;}
  fast_band(220,40);fast_band(200,80);fast_band(160,160);
  {risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x77,48000);const risc_display_rect_v1 damage[2]={{8,478,8,1},{40,479,8,1}};uint64_t t=submit_frame(f,damage,2,false);complete_frame(t);
-  assert(bytes_sent==4000&&update_area.y==440&&visible[47801]==0x88&&visible[47905]==0x88);
+  assert(bytes_sent==480&&update_area.x==0&&update_area.width==96&&update_area.y==440&&visible[47801]==0x88&&visible[47905]==0x88);
   assert(visible[47803]==0xF0&&visible[47701]==0xF0&&previous_frame[47803]==0x0F&&previous_frame[47701]==0x0F);
  }
  {risc_display_surface_v1 f=acquire_frame();memset(f.pixels,0x33,48000);unsigned old_sync=commands[0x10];uint64_t t=submit_frame(f,NULL,0,false);complete_frame(t);assert(bytes_sent==48000&&commands[0x10]==old_sync&&visible[0]==0xCC&&visible[47999]==0xCC);}

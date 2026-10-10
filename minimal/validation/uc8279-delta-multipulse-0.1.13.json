@@ -1,0 +1,54 @@
+{
+  "schema": "x4.uc8279.delta-multipulse-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T11:35:49.760368+00:00",
+  "baseline": {
+    "product": "0.1.54",
+    "driver_version": "0.1.12",
+    "driver_source_sha256": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+    "product_image_sha256": "ff05016b3a87e06ae25de9d2be4f9577ff09fed4c231d1d0da0cff712171a601"
+  },
+  "candidate": {
+    "driver_version": "0.1.13",
+    "driver_source_sha256": "e70f37ee8b2158350c4ab3c43ef9d3a22c71e80c6a3d17a47cabca08c4236629",
+    "driver_manifest_sha256": "34224397956b34063a0381927b808a4623a4d81ee20dd6266f27fdcc6b46161e"
+  },
+  "policy": {
+    "active_waveform": "absolute A2, two waveform frames",
+    "delta_source": "submitted MONO1 XOR last physically completed MONO1, constrained by explicit damage when supplied",
+    "source_window": "byte aligned, minimum 96 pixels, maximum 800 pixels",
+    "gate_window_rows": [
+      40,
+      80,
+      160,
+      480
+    ],
+    "identical_frame_fallback": "preserve prior qualified submission window/full-frame behavior",
+    "completed_history": "commit only changed/damaged bytes inside the effective rectangle",
+    "endpoint": "unchanged 2.3-second resident settling plus four-frame full-visible final-target redraw, complete DTM1/DTM2 reconciliation, then validated POF"
+  },
+  "changes": [
+    "discover actual changed byte bounds before active DEFAULT/LOW_LATENCY presentation",
+    "preserve explicit application damage as an upper bound on publishable changes",
+    "use a qualified 96-pixel minimum source window instead of unconditional 800-pixel width",
+    "select the smallest qualified 40/80/160/480-row gate band containing the delta",
+    "drive every active target with two absolute A2 waveform frames",
+    "map partial DTM2 uploads through the effective x/y window",
+    "union x and y coverage during resident settling",
+    "retain the 0.1.12 full-target endpoint and power-off sequence"
+  ],
+  "local_validation": {
+    "delta_geometry_model": "pass",
+    "c_helper_compile": "pass (-std=c11 -Wall -Wextra -Werror)",
+    "manifest_json": "pass",
+    "full_provider_regressions": "scheduled on GitHub branch after source publication",
+    "hardware_tested": false
+  },
+  "lab_basis": {
+    "two_frame_160_row_absolute_fps": 14.22,
+    "two_frame_80_row_absolute_fps": 16.82,
+    "one_frame_full_480_row_absolute_fps": 9.79,
+    "selection": "two-frame active pulse; no 40 MHz, counterpulse, voltage, or sub-qualified timing changes"
+  },
+  "scope": "driver source, manifest, branch regression alignment and validation receipt; product firmware image intentionally left to the X4 builder"
+}

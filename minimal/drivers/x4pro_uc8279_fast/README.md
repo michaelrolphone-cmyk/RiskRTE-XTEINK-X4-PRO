@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.9
+# X4 UC8279 fast provider 0.1.13
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -279,3 +279,20 @@ uses white hidden rows and the full visible target, so a later refresh cannot
 replay mixed-generation DTM2 bands. No inversion/counterpulse, voltage, TCON,
 compact geometry, SPI overclock, undocumented PLL, PMIC or battery changes are
 included.
+
+
+## Delta-window, multi-pulse motion (0.1.13)
+
+Active DEFAULT and LOW_LATENCY presentations compare the submitted MONO1 target
+with the last physically completed target. The provider constrains that delta by
+any explicit application damage, then selects the smallest qualified 96-pixel
+source window and 40/80/160/480-row gate band containing the changed bytes.
+Legacy applications that submit no damage, including Game Boy, receive the same
+delta discovery across the complete framebuffer.
+
+Each active target uses a two-frame absolute A2 waveform instead of the prior
+one-frame pulse. Expanded window padding and gaps retain the previous target;
+only reported/detected changes are committed to completed history. The existing
+2.3-second resident settling, four-frame full-target endpoint redraw, complete
+DTM1/DTM2 reconciliation, validated POF, profile replay, and fault invalidation
+remain unchanged.
