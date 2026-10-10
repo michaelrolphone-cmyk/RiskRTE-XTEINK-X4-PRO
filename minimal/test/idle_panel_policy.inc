@@ -6,13 +6,15 @@
 #include <RiscTouchPowerV1.h>
 #include <RiscStorageVolumeV1.h>
 static bool ip_touch,ip_sd;
+static bool ip_require_settled,ip_settle_confirmed;
 static unsigned ip_live,ip_lights,ip_resumes;
 static const risc_display_output_api_v1 *ip_display;
 static bool ip_health(risc_runtime_health_v1 *v){v->uptime_ms=(uint32_t)tick;return true;}
 static void ip_yield(uint32_t ms){tick+=ms;owner_poll(8);}
 static bool ip_key(void*c,bool*down){(void)c;*down=false;return true;}
 static int32_t ip_light(void*c,uint32_t ms,risc_light_sleep_result_v1*out){
- (void)c;assert(ms&&out&&ip_touch&&ip_sd&&reset_held&&!started&&!settle_stage&&!maintenance_enabled);
+ (void)c;assert(ms&&out&&ip_touch&&ip_sd&&reset_held&&!started&&!settle_stage&&!screen_powered);
+ if(ip_require_settled)assert(ip_settle_confirmed);
  unsigned e=exchanges,r=refreshes;tick+=60000;owner_poll(8);assert(exchanges==e&&refreshes==r);
  out->wake_cause=RISC_LIGHT_SLEEP_WAKE_GPIO;ip_lights++;return RISC_LIGHT_SLEEP_OK;
 }
@@ -55,16 +57,46 @@ static int32_t ip_alarm_ack(void*c,const alarm_token_v1*t){(void)c;(void)t;retur
 static int32_t ip_alarm_resume(void*c,const alarm_sleep_v1*t){(void)c;assert(!ip_touch&&!ip_sd&&!reset_held&&!memcmp(t,&ip_ticket,sizeof(*t)));ip_resumes++;return 0;}
 static const alarm_service_descriptor_v2 ip_alarm={{2,sizeof(ip_alarm),NULL,ip_alarm_status,ip_alarm_step,ip_alarm_step,ip_alarm_ack,ip_alarm_prepare,ip_alarm_step},ALARM_SERVICE_DESCRIPTOR_TAG,ALARM_SERVICE_DESCRIPTOR_VERSION,ALARM_MODE_VISUAL,ALARM_DESCRIPTOR_RESUME_SLEEP,ip_alarm_resume};
 unsigned portable_quick_brightness(void){return 0;}
+static uint8_t ip_sleep_frame[FRAME_BYTES],ip_foreground_frame[FRAME_BYTES];
+static portable_idle_ui_result ip_overlay_begin(void *context) {
+ (void)context;memcpy(ip_foreground_frame,previous_frame,FRAME_BYTES);
+ risc_display_surface_v1 f=acquire_frame();memcpy(f.pixels,ip_sleep_frame,FRAME_BYTES);
+ const uint64_t token=submit_frame(f,NULL,0,false);complete_frame(token);
+ const risc_display_output_api_v1_settled *settled=risc_display_output_settled(output);assert(settled);
+ assert(settled->request_settle(NULL,token));
+ assert(settled->settled_status(NULL,token)==RISC_DISPLAY_SETTLED_PENDING);
+ const uint64_t began=tick;unsigned queries=0;
+ while(settled->settled_status(NULL,token)==RISC_DISPLAY_SETTLED_PENDING){assert(++queries<10000);ip_yield(1);}
+ assert(settled->settled_status(NULL,token)==RISC_DISPLAY_SETTLED_COMPLETE);
+ assert(tick-began>=2300u&&dtm1_synced&&!screen_powered);
+ settled_planes();ip_settle_confirmed=true;
+ printf("Actual Home raster + real provider: settled_ms=%llu queries=%u before power preparation\n",(unsigned long long)(tick-began),queries);
+ return PORTABLE_IDLE_UI_READY;
+}
+static portable_idle_ui_result ip_overlay_restore(void *context) {
+ (void)context;assert(ip_settle_confirmed&&!reset_held&&!ip_touch&&!ip_sd);
+ risc_display_surface_v1 f=acquire_frame();memcpy(f.pixels,ip_foreground_frame,FRAME_BYTES);
+ complete_frame(submit_frame(f,NULL,0,false));settled_planes();return PORTABLE_IDLE_UI_READY;
+}
 static void idle_policy_panel(const char *scenario) {
  ip_display=output;
  ip_storage.terminal.power.volume.base=(risc_storage_volume_api_v1){.api_version=1,.struct_size=sizeof(ip_storage)};
  ip_storage.terminal.extension_tag=RISC_STORAGE_POWER_COMMIT_TAG;ip_storage.terminal.extension_version=1;ip_storage.terminal.commit_power_down=ip_legacy;
  ip_storage.sleep_tag=RISC_STORAGE_SLEEP_TAG;ip_storage.sleep_version=1;
  ip_storage.prepare_sleep=ip_sd_prepare;ip_storage.commit_sleep=ip_sd_commit;ip_storage.resume_sleep=ip_sd_resume;
+ if(!strcmp(scenario,"policy-overlay-settled")) {
+  const char *path=getenv("SLEEP_OVERLAY_FRAME");assert(path);FILE *file=fopen(path,"rb");assert(file);
+  assert(fread(ip_sleep_frame,1,sizeof(ip_sleep_frame),file)==sizeof(ip_sleep_frame));assert(fgetc(file)==EOF);assert(!fclose(file));
+  ip_require_settled=true;
+  const portable_idle_sleep_ui ui={NULL,ip_overlay_begin,ip_overlay_restore};
+  assert(portable_app_idle_sleep_with_ui(&ip_runtime,output,NULL,&ip_alarm.base,&ui)==1);
+  assert(ip_lights==1&&ip_resumes==1&&ip_settle_confirmed&&!ip_live&&started&&!reset_held);
+  assert(!memcmp(previous_frame,ip_foreground_frame,FRAME_BYTES));assert(t5_driver_get(2)->quiesce());return;
+ }
  fast_band(440,40);assert(settle_until-busy_done_ms==2300u);
- if(strstr(scenario,"maintenance")) {
-  drain_settle();assert(maintenance_due==last_sample_ms+30000u);tick=maintenance_due;
-  refresh_pulse_ms=100;owner_poll(8);assert(maintenance_active&&settle_stage);
+ if(strstr(scenario,"finalized")) {
+  drain_settle();assert(dtm1_synced&&!screen_powered&&!settle_stage);
+  const unsigned before=refreshes;tick+=30000;owner_poll(8);assert(refreshes==before&&!settle_stage);
  }
  uint64_t token=0;
  if(strstr(scenario,"frame")) {
@@ -76,8 +108,8 @@ static void idle_policy_panel(const char *scenario) {
   complete_frame(token);
  }
  assert(portable_app_idle_sleep(&ip_runtime,output,NULL,&ip_alarm.base)==1);
- assert(ip_lights==1&&ip_resumes==1&&!ip_live&&started&&!reset_held&&!settle_stage&&!maintenance_enabled);
+ assert(ip_lights==1&&ip_resumes==1&&!ip_live&&started&&!reset_held&&!settle_stage&&!screen_powered);
  unsigned e=exchanges,r=refreshes;tick+=90000;owner_poll(8);assert(exchanges==e&&refreshes==r);
  assert(t5_driver_get(2)->quiesce());
- puts("Actual fast0.1.6 panel + automatic Light: settling/maintenance/pending frame readiness PASS");
+ puts("Actual fast0.1.13 panel + automatic Light: settling/finalized-off/pending frame readiness PASS");
 }

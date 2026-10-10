@@ -6,6 +6,37 @@ fallback for both UC8279 and SSD1677. Select the new provider explicitly with
 `--panel uc8279 --panel-driver uc8279-fast` in profile/bundle generation and
 `--panel-driver uc8279-fast` in the provider builder. SSD selection is rejected.
 
+## Tight changed-pixel windows and stronger motion (0.1.13)
+
+Version 0.1.13 preserves the 0.1.12 final-target endpoint redraw, complete
+DTM1/DTM2 reconciliation, validated BUSY lifecycle and POF ordering. It changes
+only active DEFAULT/LOW_LATENCY motion:
+
+- compares the submitted MONO1 target with the last physically completed target;
+- derives a byte-aligned bounding window from actual XOR changes, even when an
+  application submits a full-screen damage contract;
+- preserves horizontal bounds instead of expanding every fast update to 800
+  pixels, while retaining the lab-qualified 40/80/160/480-row gate heights;
+- uses a two-frame absolute A2 pulse for effective windows no taller than 160
+  rows and retains one frame for broader/full-visible motion;
+- completes identical targets without panel I/O and without cancelling an
+  already armed final-target settle.
+
+The driver still accepts only the typed 20 MHz UC8279 path. It does not import
+40 MHz SPI, counterpulses, voltage changes, undocumented TCON/PLL settings or
+the destructive later laboratory sequences. Horizontal partial-window behavior
+requires device qualification; the host model verifies RAM cursor mapping,
+old/new target preservation, bounded slices and every retained failure path.
+
+## Exact final-target endpoint redraw (0.1.12)
+
+Version 0.1.12 restored one-frame absolute active motion after the differential
+path proved too faint, then retained the final target for 2.3 seconds. At the
+endpoint it uploads the complete target with hidden rows white, performs one
+four-frame full-visible absolute redraw, synchronizes full DTM1 and DTM2, and
+issues POF only after validated BUSY completion. No blank, black-fill or inverse
+intermediate frame is presented.
+
 ## Protocol and source custody
 
 The waveform and window protocol are adapted from T5S3-Reader's standalone
@@ -26,22 +57,24 @@ qualification, even though the subsequent selected lab protocol was tested.
 After reset, a presentation without reconstructed history and every explicit CLEAN use the source's
 OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion,
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
-rows). Later DEFAULT/LOW_LATENCY presentations use the one-frame absolute target LUT at PLL
-0x0F: white-target entries 0x81, black-target entries 0x41, VCOM entry 0x01.
-Version0.1.2 corrects registers0x21/0x24 relative to the laboratory; every
-remaining42-byte table field and one-frame duration stays unchanged. No old-plane transfer occurs
-in that mode. Full visible updates transfer **48,000 bytes**; 40/80/160-row
-bands transfer **4,000/8,000/16,000 bytes**.
+rows). Later DEFAULT/LOW_LATENCY presentations use an absolute target LUT at PLL
+0x0F. Effective windows up to 160 rows use two scan frames (white-target entries
+0x82, black-target entries 0x42); broader/full-visible motion uses one frame
+(0x81/0x41). VCOM remains 0x01. Version 0.1.2 corrected registers 0x21/0x24
+relative to the laboratory. No old-plane transfer occurs in active fast mode.
+Payload is the byte-aligned effective width multiplied by the selected
+40/80/160/480-row gate height and divided by eight.
 
-PTIN/PTL establishes a full-width window before DTM2, then PTOUT closes the RAM
-phase. The source's PTIN/PTL, external PSR, PFS, gate scan, CDI, CCSET, TSSET, LUT,
-PON-if-needed, DRF and PTOUT sequence follows. Partial damage expands its vertical
-union to the smallest tested 40/80/160/480-row height; the source's full-width
-RAM protocol is retained. Bytes outside the aligned submitted damage union come from the physically completed image,
+PTIN/PTL establishes the XOR-derived, byte-aligned horizontal window and the
+smallest tested 40/80/160/480-row vertical window before DTM2; PTOUT closes the
+RAM phase. The source's PTIN/PTL, external PSR, PFS, gate scan, CDI, CCSET, TSSET,
+LUT, PON-if-needed, DRF and PTOUT sequence follows. Bytes in the expanded gate
+window but outside submitted damage come from the physically completed image,
 preventing unrelated caller edits from becoming visible. Only accepted,
 completed pixels become history. Caller seeding does not qualify an unshown
-image for the fast mode. Resume clears inferred history; a validated caller reconstruction can
-seed an OTP QUALITY partial, otherwise the next frame uses a full baseline.
+image for the fast mode. Resume clears inferred history; a validated caller
+reconstruction can seed an OTP QUALITY partial, otherwise the next frame uses a
+full baseline.
 
 ## Ownership, timing and failure behavior
 
@@ -88,10 +121,12 @@ For a separately authorized hardware test, select the new provider explicitly,
 verify the repeated probe and recorded 20 MHz typed profile, then compare full
 normal frames with the user-reported 9.97 FPS baseline. Record submission,
 transfer, DRF, BUSY assertion/completion, payload counts and completed tokens.
-Exercise 40/80/160-row bands at several locations, full frames, CLEAN, long
-repeated updates, failed/missed BUSY, touch during transfers, power refusal,
-sleep/resume and fallback selection. Confirm normal fast frames have no DTM1
-sync and that image quality is acceptable for actual UI text and transitions.
+Exercise narrow horizontal windows and 40/80/160-row bands at several locations,
+full frames, identical no-op targets, CLEAN, long repeated updates, failed/missed
+BUSY, touch during transfers, power refusal, sleep/resume and fallback selection.
+Confirm small windows select two LUT frames, broad windows select one, normal
+fast frames have no DTM1 sync, and image quality is acceptable for actual UI text
+and transitions.
 No hardware was accessed or firmware flashed for this change.
 
 ## Completed-image snapshot (0.1.1)
@@ -281,18 +316,51 @@ compact geometry, SPI overclock, undocumented PLL, PMIC or battery changes are
 included.
 
 
-## Delta-window, multi-pulse motion (0.1.13)
+## Optional frontlight tone forwarding (0.1.10)
 
-Active DEFAULT and LOW_LATENCY presentations compare the submitted MONO1 target
-with the last physically completed target. The provider constrains that delta by
-any explicit application damage, then selects the smallest qualified 96-pixel
-source window and 40/80/160/480-row gate band containing the changed bytes.
-Legacy applications that submit no damage, including Game Boy, receive the same
-delta discovery across the complete framebuffer.
+The optional `RiscDisplayOutputFrontlightV1.h` suffix follows the exact existing
+base/history/power/metrics/snapshot prefixes. It forwards the dimensionless
+cool-to-warm ratio through the already-required `display.frontlight@1`
+dependency's optional `RiscFrontlightToneV1.h` suffix. Zero is cool, maximum is
+warm, and midpoint is neutral; these values are not calibrated Kelvin claims.
+The underlying provider preserves logical brightness, including OFF.
 
-Each active target uses a two-frame absolute A2 waveform instead of the prior
-one-frame pulse. Expanded window padding and gaps retain the previous target;
-only reported/detected changes are committed to completed history. The existing
-2.3-second resident settling, four-frame full-target endpoint redraw, complete
-DTM1/DTM2 reconciliation, validated POF, profile replay, and fault invalidation
-remain unchanged.
+Both calls require normal serialized owner admission, a started provider and
+an awake lifecycle. Tone does not acquire or release a frame, submit a
+presentation, advance a waveform, read the clock, or perform panel I/O. Existing
+rendering, settling and plane-coherence state is unchanged. Only the underlying
+frontlight callback may touch its output. No rollback, retry or cleanup I/O is
+issued after a failed callback.
+
+`set_tone` returns false for a zero maximum, an out-of-range value, an absent or
+malformed suffix, a provider refusal, or failed admission. `get_tone` returns
+OK (0) only after a successful callback returns a nonzero maximum and a valid
+ratio; UNAVAILABLE (1) only when an otherwise admitted dependency lacks a valid
+tone suffix; FAILED (-1) for provider failure, invalid arguments or lifecycle
+failure. Output pointers must be distinct and non-null, and remain unchanged
+unless the complete operation succeeds, including owner unlock.
+
+Host tests cover legacy exact-size and malformed descriptors, logical OFF,
+readback validation, callback failures, invalid arguments, reentry, non-owner
+and lifecycle refusal, retained/unlock failures, and unchanged display activity.
+
+
+## Explicit sleep-overlay settling (0.1.11)
+
+This successor preserves the exact 0.1.10 ordinary rendering state machine.
+It adds an optional token-bound settling request/status suffix after the exact
+frontlight tone prefix. Only an owner explicitly preparing a final sleep image
+uses it. Normal app/GameBoy frame completion, burst policy, RAM synchronization,
+2.3-second quiet period and POF/PON cadence are unchanged.
+
+A request for the just-completed overlay enables resident settling for that
+absolute target if its existing burst policy selected quiet WAIT. Matching
+status reports PENDING until the repeats, dual-plane sync and validated POF
+finish; invalid/newer tokens and uncertain custody fail. The callbacks do not
+lease frames, perform panel I/O or sample time. Ordinary Runtime polling does
+the work. A newer frame preempts exactly as before.
+
+Home explicitly awaits this condition only before sleep, keeping input active
+so fresh contact or navigation cancels the sleep and restores the foreground.
+The separate transition/cadence investigation is NOT part of this version.
+Physical panel contrast remains unverified.

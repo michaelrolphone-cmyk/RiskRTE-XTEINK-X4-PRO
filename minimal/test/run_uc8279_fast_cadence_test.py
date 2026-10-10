@@ -70,7 +70,7 @@ def main():
                     for frame in data['frames']:
                         metrics=frame.get('full',frame.get('partial'))
                         assert metrics['state']==3
-                        assert metrics['bytes']==(metrics['damage'][3]*100 if metrics['partial'] else 180000)
+                        assert metrics['bytes']==((metrics['damage'][2]//8)*metrics['damage'][3] if metrics['partial'] else 180000)
                         assert metrics['max_slice_bytes']<=16384 and metrics['max_slice_ms']<=8
                         assert metrics['gpio_writes']<200
                         assert frame['max_requested_wait_ms']==1
@@ -81,21 +81,24 @@ def main():
                             assert frame['max_controller_gap_ms']<=interval+8
                     assert not data['frames'][0]['full']['partial'] and data['frames'][1]['partial']['partial']
                     idle=data['idle']
-                    assert idle['bytes']==0 and idle['max_slice_bytes']==0
+                    assert idle['bytes']==180000 and idle['max_slice_bytes']<=16384
                     assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
-                    assert 2300<=idle['elapsed_ms']<=2300+2*interval+20
+                    # Finalize both retained planes in bounded slices, then POF.
+                    assert 2300<=idle['elapsed_ms']<=2300+20*interval+300
                     assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
                     assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
                     assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8
                     assert data['after_settle']['scheduler_wait_ms']==interval
                     maintenance=data['maintenance']
-                    assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==1
+                    assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==0
                     assert 30000-interval<=maintenance['elapsed_ms']<=30000+3*interval+20
                     assert maintenance['max_slice_ms']<=8 and maintenance['max_requested_wait_ms']==interval
                     assert maintenance['controller_polls']>0 and maintenance['max_controller_gap_ms']<=interval+8
                     assert maintenance['touch_samples']>0 and maintenance['max_touch_gap_ms']<=max(20,interval)+8
                     print(json.dumps(data),flush=True)
     sources=[ROOT/'minimal/drivers/x4pro_uc8279_fast/driver.c',ROOT/'minimal/interfaces/RiscDisplayOutputMetricsV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputSnapshotV1.h',
+        ROOT/'minimal/interfaces/RiscFrontlightToneV1.h',ROOT/'minimal/interfaces/RiscDisplayOutputFrontlightV1.h',
+        ROOT/'minimal/test/uc8279_fast_test.c',fixture/'panel_model.c',ROOT/'minimal/test/panel_cadence/adapter_bridge.c',
         args.system/'lib/PortableApps/src/adapter.c',
         runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/streams/AppStreamSessions.cpp',runtime/'src/runtime/streams/ProviderQueueHost.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
     receipt={'hardware':'not run','paper_transitions':args.paper_transitions,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
