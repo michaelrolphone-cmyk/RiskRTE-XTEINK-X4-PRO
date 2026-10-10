@@ -10,7 +10,7 @@ permissions:
 jobs:
   integration-tools:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -21,38 +21,16 @@ jobs:
           run-id: 38006463248
           github-token: ${{ github.token }}
           path: prepared
-      - name: Retain the pinned compiler, SDK and source only
+      - name: Export remaining pinned ULP compiler
         run: |
           mkdir -p .integration output
-          tar -xzf prepared/x4-native-integration-tools.tar.gz -C .integration
-          rm -rf prepared .integration/platformio/.cache
-          python3 - <<'PY'
-          import pathlib, shutil
-          sdk=pathlib.Path('.integration/platformio/packages/framework-arduinoespressif32/tools/sdk')
-          for item in sdk.iterdir():
-              if item.is_dir() and item.name != 'esp32s3': shutil.rmtree(item)
-          for item in pathlib.Path('.integration').rglob('__pycache__'): shutil.rmtree(item)
-          PY
-          tar -czf output/sources.tar.gz -C .integration sources
-          tar -czf output/compiler-python.tar.gz -C .integration python platformio/platforms platformio/packages/toolchain-xtensa-esp32s3 platformio/packages/tool-esptoolpy platformio/packages/tool-scons
-          tar -czf output/esp32s3-sdk.tar.gz -C .integration platformio/packages/framework-arduinoespressif32
-          ls -lh output
+          tar -xzf prepared/x4-native-integration-tools.tar.gz -C .integration ./platformio/packages/toolchain-riscv32-esp
+          tar -czf output/ulp-compiler.tar.gz -C .integration platformio/packages/toolchain-riscv32-esp
           sha256sum output/* > output/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: x4-integration-sources-${{ github.sha }}
-          path: output/sources.tar.gz
+          name: x4-integration-ulp-${{ github.sha }}
+          path: output/
           compression-level: 0
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: x4-integration-compiler-${{ github.sha }}
-          path: output/compiler-python.tar.gz
-          compression-level: 0
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v4
-        with:
-          name: x4-integration-sdk-${{ github.sha }}
-          path: output/esp32s3-sdk.tar.gz
-          compression-level: 0
-          if-no-files-found: error
+          retention-days: 7
