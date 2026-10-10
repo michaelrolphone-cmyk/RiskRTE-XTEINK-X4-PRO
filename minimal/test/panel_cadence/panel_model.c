@@ -15,7 +15,9 @@ static unsigned payload_polls,min_budget,max_budget;
 static uint64_t measured_at;
 
 const risc_display_output_api_v1 *panel_cadence_start(unsigned gpio_writes_per_ms) {
-    async_model = true; chip = PROBE_UC8279;
+    async_model = true; chip = getenv("PANEL_CONTROLLER_SSD") ? PROBE_SSD : PROBE_UC8279;
+    if (getenv("PANEL_REFRESH_MS")) refresh_delay_ms=(unsigned)atoi(getenv("PANEL_REFRESH_MS"));
+    require_busy_observation=chip==PROBE_SSD;
     native = (garden_gpio_v1){.api_version=1,.struct_size=sizeof(native),.claim=fake_claim,
         .write=fake_write,.read=fake_read,.release=fake_release,.deep_sleep_hold=fake_hold};
 #ifdef GARDEN_GPIO_RETIRE_HELD_OUTPUT_V1_SIZE
@@ -24,9 +26,10 @@ const risc_display_output_api_v1 *panel_cadence_start(unsigned gpio_writes_per_m
     config = (risc_hw_spi_display_v1){.struct_size=sizeof(config),
         .bus={.struct_size=sizeof(config.bus),.kind=1,.instance_id=101,.controller=0,
         .frequency_hz=1000000,.sclk=12,.mosi=11,.miso=-1,.sda=-1,.scl=-1},
-        .width=800,.height=480,.offset_y=120,.cs=13,.dc=18,.reset=14,.backlight=-1,
-        .busy=6,.reset_assert_ms=50,.reset_recovery_ms=50};
-    device = (risc_hardware_device_v1){1,sizeof(device),2,"ultrachip,uc8279",
+        .width=800,.height=480,.offset_y=chip==PROBE_SSD?0:120,.cs=13,.dc=18,.reset=14,.backlight=-1,
+        .busy=6,.busy_active_high=chip==PROBE_SSD,
+        .reset_assert_ms=chip==PROBE_SSD?10:50,.reset_recovery_ms=chip==PROBE_SSD?10:50};
+    device = (risc_hardware_device_v1){1,sizeof(device),2,chip==PROBE_SSD?"solomon-systech,ssd1677":"ultrachip,uc8279",
         "unspecified","display.spi",1,sizeof(config),&config};
     clock_api_model = (risc_platform_clock_api_v1){1,sizeof(clock_api_model),NULL,fake_time,fake_sleep};
     sync_model = (risc_provider_sync_api_v1){1,sizeof(sync_model),NULL,fake_owner,fake_create,fake_lock,fake_unlock,fake_destroy};
@@ -39,6 +42,7 @@ const risc_display_output_api_v1 *panel_cadence_start(unsigned gpio_writes_per_m
     display=t5_driver_get(2)->capability; charge_every=gpio_writes_per_ms;
     return display;
 }
+bool panel_cadence_pending(void) { return present_state==PRESENT_QUEUED || present_state==PRESENT_ACTIVE; }
 uint32_t panel_cadence_clock(void) { return (uint32_t)fake_time(NULL); }
 void panel_cadence_delay(uint32_t ms) { fake_now += ms; }
 void panel_cadence_poll(uint32_t budget) {

@@ -17,6 +17,8 @@ static bool fail_unhold, hold_retained, frozen_clock, stuck_reset;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
 static bool async_model;
+static bool async_reentry;
+static unsigned async_reentry_checks;
 static unsigned refresh_delay_ms=3;
 static bool require_busy_observation,busy_observed;
 static uint64_t phase_until;
@@ -113,6 +115,13 @@ static bool fake_write(void *c, uint64_t token, bool level) {
     assert(owner && lock_held && pads[pin].output && !pads[pin].held);
     if (charge_every && writes % charge_every == 0) ++fake_now;
     if (fail_write) return false;
+    if (async_reentry) {
+        async_reentry=false;const unsigned before=writes;
+        ((const risc_driver_poll_v2 *)t5_driver_get(2))->poll(8);
+        risc_display_surface_v1 nested_surface={0};
+        assert(!display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&nested_surface) && !t5_driver_get(2)->quiesce());
+        assert(writes==before);++async_reentry_checks;
+    }
     wire_hash=(wire_hash ^ (uint64_t)(pin*2u+(level?1u:0u)))*UINT64_C(1099511628211);
     if (pin == 13 && !level && pads[pin].level) { shift = bits = 0; }
     if (pin == 12 && level && !pads[12].level && !pads[13].level && pads[11].output) {
@@ -501,7 +510,9 @@ int main(int argc, char **argv) {
         unsigned before=writes; assert(!display->wait_present(NULL,token,20000,NULL) && writes==before);
         assert(display->wait_present(NULL,token,0,&status) && status.state==RISC_DISPLAY_PRESENT_QUEUED && writes==before);
         display->release(NULL,surface.frame); assert(!display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
-        if (!strncmp(scenario,"ssd-async-",10)) {
+        if (!strcmp(scenario,"ssd-intents") || !strcmp(scenario,"ssd-async-intents")) {
+            ssd_intent_cases(driver,token);goto done;
+        } else if (!strncmp(scenario,"ssd-async-",10)) {
             ssd_async_cases(scenario,driver,&surface,token);goto done;
         } else if (!strcmp(scenario,"uc-async-metrics")) {
             test_metrics(driver,token);goto done;

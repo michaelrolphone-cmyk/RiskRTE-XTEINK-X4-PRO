@@ -9,7 +9,7 @@ static void ssd_async_cases(const char *scenario,const risc_driver_v2 *base,
         const unsigned before=writes,reads=pin_reads,times=clock_reads;
         d->poll(0);owner=false;d->poll(8);owner=true;lock_held=true;d->poll(8);lock_held=false;
         assert(writes==before && pin_reads==reads && clock_reads==times && present_state==PRESENT_QUEUED);
-        d->poll(1);assert(present_state==PRESENT_ACTIVE && bytes_sent<=512u);
+        async_reentry=true;d->poll(1);assert(present_state==PRESENT_ACTIVE && bytes_sent<=512u && async_reentry_checks==1u);
         const unsigned active_writes=writes;
         assert(display->wait_present(NULL,token,1,&status) && status.state==PRESENT_ACTIVE && writes==active_writes);
         display->release(NULL,surface->frame);assert(held && !base->quiesce());
@@ -88,4 +88,25 @@ static void ssd_async_cases(const char *scenario,const risc_driver_v2 *base,
     }
     printf("SSD progress refresh_ms=%u changes=%u elapsed=%llu max_slice_ms=%u max_slice_writes=%u pending_polls=%u terminal=%u\n",
         refresh_delay_ms,logical_changes,(unsigned long long)(fake_now-began),max_elapsed,max_writes,assert_polls,status.state);
+}
+
+static void ssd_intent_cases(const risc_driver_v2 *driver,uint64_t token) {
+    complete(token);
+    for(unsigned intent=RISC_DISPLAY_PRESENT_DEFAULT;intent<=RISC_DISPLAY_PRESENT_CLEAN;++intent) {
+        risc_display_surface_v1 surface={0};assert(display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
+        const risc_display_output_api_v1_history *history=risc_display_output_history(display);assert(history);
+        for(size_t i=0;i<surface.size_bytes;++i)((uint8_t*)surface.pixels)[i]=(uint8_t)(i*7u+intent);
+        assert(history->seed_previous(NULL,surface.frame));
+        for(size_t i=0;i<surface.size_bytes;++i)((uint8_t*)surface.pixels)[i]=(uint8_t)(i*13u+intent+9u);
+        const risc_display_present_options_v1 options={(uint8_t)intent,RISC_DISPLAY_QUEUE_FIFO,0};
+        const risc_display_rect_v1 damage[2]={{1,17,790,5},{9,18,2,1}};
+        assert(display->submit(NULL,surface.frame,damage,2,&options,&token));
+        assert(partial_update==(intent!=RISC_DISPLAY_PRESENT_CLEAN));complete(token);
+        assert(bytes_sent==(intent==RISC_DISPLAY_PRESENT_CLEAN?FRAME_BYTES*2u:990u));
+        assert(registers[0x22][0]==(intent==RISC_DISPLAY_PRESENT_CLEAN?0xF7:0xFC));
+        const risc_display_present_metrics_v1 observed=snapshot_metrics();
+        assert(observed.damage_count==2 && !memcmp(observed.submitted_damage,damage,sizeof(damage)));
+        assert(observed.state==PRESENT_COMPLETE && observed.valid_times==63u);
+    }
+    assert(driver->quiesce());
 }

@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "package": "x4pro-panel",
+  "version": "0.1.23",
+  "base_commit": "f4ef23bcb8d91432adaf39784039e20af8e292ab",
+  "provider_cases_per_mode": 88,
+  "provider_modes": [
+    "normal",
+    "ASan/UBSan (LSan disabled under executor ptrace)"
+  ],
+  "provider_cases_pass": true,
+  "ssd_wire_equivalence": {
+    "full_partial_seed_and_lifecycle": "97678426b017010d",
+    "all_four_intents_and_multi_damage": "d8b6b1ad01508a54"
+  },
+  "unchanged_source_paths": {
+    "transfer_frame": {
+      "baseline_byte_equal": true,
+      "sha256": "a8f81cd48b49e42deba3d3a90069f27cb811549abdd8770836b753619f43cb4d"
+    },
+    "poll_present": {
+      "baseline_byte_equal": true,
+      "sha256": "0849f60f7607ea96613fc04740f71ebbcf1ebb3eb9b18b7df4192d1d767275a4"
+    },
+    "wait_present_impl": {
+      "baseline_byte_equal": true,
+      "sha256": "9177c3ad9391d25fab86306486725d2754b12c4f4430b74ba286f2316f48915a"
+    }
+  },
+  "integration": [
+    {
+      "refresh_ms": 0,
+      "mode": "normal",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "e02956aa00ba607ec5b1c90aef8bb7d2499cdd1effd8da95fe8ef4428c23cf98"
+    },
+    {
+      "refresh_ms": 0,
+      "mode": "sanitized",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "e02956aa00ba607ec5b1c90aef8bb7d2499cdd1effd8da95fe8ef4428c23cf98"
+    },
+    {
+      "refresh_ms": 17,
+      "mode": "normal",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "3275e215b26ce705603ed2e4c0809a83a5ba6e0dd203a25a492502ef664eabe0"
+    },
+    {
+      "refresh_ms": 17,
+      "mode": "sanitized",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "3275e215b26ce705603ed2e4c0809a83a5ba6e0dd203a25a492502ef664eabe0"
+    },
+    {
+      "refresh_ms": 2300,
+      "mode": "normal",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "df793381eb7c5b6cae7e60bb46437391a3fd3cf5bbceb5c8472ebc833645b5dd"
+    },
+    {
+      "refresh_ms": 2300,
+      "mode": "sanitized",
+      "combinations": 12,
+      "max_slice_ms": 8,
+      "max_touch_gap_ms": 9,
+      "evidence_sha256": "df793381eb7c5b6cae7e60bb46437391a3fd3cf5bbceb5c8472ebc833645b5dd"
+    }
+  ],
+  "uc_integration_regression_combinations": 12,
+  "system_adapter_sha256": "f8ad7ecb9be1c9b1fcb689c48275eecf67399a3c2be2c6e0b769aa187ca450bc",
+  "system_local_commit": "397636876721cb724f3b0ac673d606ccc87fdbab",
+  "runtime_commit": "274bc66f193cbe29018d2a85c9400cb0dce8aacc",
+  "reader_commit": "45cf61ac013fb618e8d7fed63217a35350484d52",
+  "limits": [
+    "GPIO/BUSY and time are deterministic host models, not hardware throughput or refresh measurements.",
+    "A native GPIO/sync callback cannot be preempted; poll time bound is selected slice plus one finite transfer/register quantum.",
+    "Base-only adapter fixture does not expose seed_previous; SSD uses full absolute frames there. Explicit-seed partial/full/clean intent equivalence is separately tested.",
+    "No cancellation API added; release/quiesce retain queued/active frames exactly as before.",
+    "Production UC normal body and separate UC fast source unchanged.",
+    "Final clean target build and product integration are separate from these host results."
+  ],
+  "system_remote_commit": "3a0145adcab1e03629709f61daa1901324b25281",
+  "system_tree": "994bdf0b1a00d8fac43a9ae20c408bfa67137f6a"
+}
