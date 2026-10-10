@@ -28,6 +28,7 @@ def main():
     ap.add_argument('--system',type=Path,required=True)
     ap.add_argument('--output',type=Path,required=True)
     ap.add_argument('--sanitize',action='store_true')
+    ap.add_argument('--settle-work-ms',type=int,default=0,help='Synchronous foreground work between settling polls')
     ap.add_argument('--snapshot',action='store_true',help='Use the deployed sliced renderer and four-ms input service cadence')
     ap.add_argument('--paper-transitions',action='store_true',help='Pair with the selected LOW_LATENCY interactive adapter')
     args=ap.parse_args();runtime=args.runtime.resolve();args.output.mkdir(parents=True,exist_ok=True)
@@ -66,7 +67,7 @@ def main():
             run([*cpp,*sources,fixture/'runtime_bridge.cpp',work/'panel.o',work/'adapter.o','-Wl,--wrap=free','-ldl','-o',binary])
             for cost in [0]:
                 for interval in [1,8,20,50]:
-                    env=dict(os.environ,PANEL_APP_WAIT_MS=str(interval),PANEL_GPIO_WRITES_PER_MS=str(cost),ASAN_OPTIONS='detect_leaks=0')
+                    env=dict(os.environ,PANEL_APP_WAIT_MS=str(interval),PANEL_GPIO_WRITES_PER_MS=str(cost),PANEL_SETTLE_WORK_MS=str(args.settle_work_ms),ASAN_OPTIONS='detect_leaks=0')
                     result=run([binary,work],env=env,capture_output=True,text=True,timeout=60)
                     data=json.loads(result.stdout);data['adapter']=label;results.append(data)
                     for frame in data['frames']:
@@ -90,10 +91,10 @@ def main():
                     assert idle['bytes']==180000 and idle['max_slice_bytes']<=16384
                     assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
                     # Finalize both retained planes in bounded slices, then POF.
-                    assert 2300<=idle['elapsed_ms']<=2300+20*interval+300
+                    assert 2300<=idle['elapsed_ms']<=2300+20*max(interval,args.settle_work_ms+1)+300
                     assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
-                    assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=interval+8
-                    assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval)+8
+                    assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=max(interval,args.settle_work_ms+1)+8
+                    assert idle['touch_samples']>0 and idle['max_touch_gap_ms']<=max(20,interval,args.settle_work_ms+1)+8
                     assert data['after_settle']['scheduler_wait_ms']==interval
                     maintenance=data['maintenance']
                     assert maintenance['bytes']==0 and maintenance['max_slice_bytes']==0 and maintenance['repeats']==0
@@ -107,7 +108,7 @@ def main():
         ROOT/'minimal/test/uc8279_fast_test.c',fixture/'panel_model.c',ROOT/'minimal/test/panel_cadence/adapter_bridge.c',
         args.system/'lib/PortableApps/src/adapter.c',
         runtime/'src/bootstrap/Runtime.cpp',runtime/'src/runtime/streams/AppStreamSessions.cpp',runtime/'src/runtime/streams/ProviderQueueHost.cpp',runtime/'src/runtime/drivers/ProviderGraphV2.cpp']
-    receipt={'hardware':'not run','snapshot':args.snapshot,'paper_transitions':args.paper_transitions,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
+    receipt={'hardware':'not run','snapshot':args.snapshot,'paper_transitions':args.paper_transitions,'settle_work_ms':args.settle_work_ms,'timing_model':'20 MHz payload clock only; 20 ms BUSY fixture; no SDK/CPU cost; not hardware timing',
         'sources':{str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},'runs':results}
     (args.output/'evidence.json').write_text(json.dumps(receipt,indent=2)+'\n')
 
