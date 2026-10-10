@@ -13,8 +13,8 @@
   "sources": {
     "utilities": {
       "repository": "michaelrolphone-cmyk/RiscRTE-Utilities",
-      "commit": "dfce2c026a3be8119fc4a16639806ff88fc0b0c5",
-      "tree": "10cb6e823e038527f34d9c208b69f1ae19c50969"
+      "commit": "814502e51125d799a7ca625b78707753ca12d4e5",
+      "tree": "c2f1092b7d07ae9eb639e0d40141b2d84658fbbe"
     },
     "system": {
       "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
