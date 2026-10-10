@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build Contexts 0.1.9 from recovered app sources and selected shared adapter with the frozen shared System."""
+"""Build Contexts 0.1.10 from recovered app sources and selected shared adapter with the frozen shared System."""
 import argparse,hashlib,json,subprocess
 from pathlib import Path
 import resident_client_build as resident
@@ -26,9 +26,9 @@ if a.check_only:
   resident.run([c['cc'],'-std=c11','-fsyntax-only','-Wall','-Wextra','-Werror',*defines,*['-I'+str(v) for v in includes],src])
   text=subprocess.check_output([c['cc'],'-std=c11','-MM',*defines,*['-I'+str(v) for v in includes],src],text=True).replace('\\\n',' ')
   for token in text.split(':',1)[1].split():deps[str(Path(token).resolve())]=resident.sha(token)
- resident.write(c['out']/'source-only-recipe.json',dict(source=resident.git(root,'rev-parse','HEAD'),historical_app_source=baseline['source_revision'],historical_app_owned_sources_exact=True,version='0.1.9',system=resident.git(c['system'],'rev-parse','HEAD'),runtime=resident.RUNTIME,build_defines=defines,compiled_source_units=list(map(str,all_sources)),dependencies=deps,required_grants=grants,syntax_checks='passed',production_objects_built=False))
- print('Contexts 0.1.9 exact application sources, frozen shared ABI and syntax PASS; no production objects built')
+ resident.write(c['out']/'source-only-recipe.json',dict(source=resident.git(root,'rev-parse','HEAD'),historical_app_source=baseline['source_revision'],historical_app_owned_sources_exact=True,version='0.1.10',system=resident.git(c['system'],'rev-parse','HEAD'),runtime=resident.RUNTIME,build_defines=defines,compiled_source_units=list(map(str,all_sources)),dependencies=deps,required_grants=grants,syntax_checks='passed',production_objects_built=False))
+ print('Contexts 0.1.10 exact application sources, frozen shared ABI and syntax PASS; no production objects built')
 else:
- record=resident.build(c,root,'contexts','0.1.9',defines,sources,grants,baseline['features'])
+ record=resident.build(c,root,'contexts','0.1.10',defines,sources,grants,baseline['features'])
  record['recovery']={'historical_private_revision':baseline['source_revision'],'private_commit_recovered':False,'all_three_app_owned_compiled_inputs_byte_exact':True,'historical_helper_byte_exact':False,'historical_helper_sha256':baseline['build_helper_sha256'],'selected_helper_public_commit':'35c2141c68668971dc524d98702109b00c740815','raster_snapshot':a.raster_snapshot,'shared_system_selected_by_integrator':True}
  resident.write(c['out']/'contexts/x4-native-app.json',record)
