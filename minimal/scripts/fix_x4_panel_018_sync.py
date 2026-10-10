@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Keep PTIN active through the 0.1.18 differential DTM1 synchronization."""
+"""Repair 0.1.18 differential DTM1 sync and powered-retention admission."""
 from pathlib import Path
 
 path = Path("minimal/drivers/x4pro_uc8279_fast/driver.c")
@@ -36,4 +36,36 @@ new = """            if (fast_update) {
 """
 if text.count(old) != 1:
     raise SystemExit("refresh-completion PTIN block not found exactly once")
-path.write_text(text.replace(old, new, 1))
+text = text.replace(old, new, 1)
+
+old = """    if (shutdown_stage == 0u) {
+        const bool busy = !panel_pin_read(X4PRO_PIN_EPD_BUSY);
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        if (busy) return RISC_DISPLAY_POWER_BUSY;
+        started = false; previous_seeded = completed_history = dtm1_synced = false;
+        absolute_frames = 0; absolute_started_ms = UINT64_MAX;
+        if (screen_powered) {
+            /* No POF/DSLP while an established image is on glass. Returning
+             * BUSY keeps the device awake rather than entering the observed
+             * unpowered relaxation state. */
+            return RISC_DISPLAY_POWER_BUSY;
+        } else shutdown_stage = 2u;
+    }
+"""
+new = """    if (shutdown_stage == 0u) {
+        const bool busy = !panel_pin_read(X4PRO_PIN_EPD_BUSY);
+        if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+        if (busy) return RISC_DISPLAY_POWER_BUSY;
+        /* Refuse sleep before invalidating any live state. A BUSY result must
+         * leave started/history/planes intact so normal rendering can continue. */
+        if (screen_powered) return RISC_DISPLAY_POWER_BUSY;
+        started = false; previous_seeded = completed_history = dtm1_synced = false;
+        absolute_frames = 0; absolute_started_ms = UINT64_MAX;
+        shutdown_stage = 2u;
+    }
+"""
+if text.count(old) != 1:
+    raise SystemExit("powered-retention prepare block not found exactly once")
+text = text.replace(old, new, 1)
+
+path.write_text(text)
