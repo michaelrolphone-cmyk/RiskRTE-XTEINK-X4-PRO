@@ -1,0 +1,1239 @@
+{
+  "schema": 1,
+  "baseline": {
+    "version": "0.1.46",
+    "source": "ebdb2a04b45e0a8d2639e0a5602234dfc8916033",
+    "receipt": {
+      "bytes": 53644,
+      "sha256": "ac6f6cf79e734a147c8cbe1407af84f75be19cd092385ebe36603cc74b070e76"
+    },
+    "image": {
+      "bytes": 16777216,
+      "name": "xteink-x4-pro-0.1.46-resident-loader-repair-first-install.bin",
+      "sha256": "bef2dd81a78b8607ed7fe090744b56ef88fb2dec400d453e30e2284a041b1008"
+    }
+  },
+  "packaging_source": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
+  "system_source": "09922405ee21639f845359386abaae4a258d2a95",
+  "fast_adapter_sha256": "9490dd958060310d1cade647efc23270352fe922ce6d4a3f5ff672482824978e",
+  "apps": {
+    "alarms": {
+      "version": "0.2.15",
+      "elf_sha256": "cb7c5c06b30df237b352de58832cce3087871ddbdc5b9ef01f868d1408c17573",
+      "manifest_sha256": "1496e8a0e1b29522bbd5be3200498a8a177d4640f9fa4fcbb8d0f5af889a5afc",
+      "receipt_sha256": "e55db08705183670f23a2e011cd6f475bc12548e50b3030d499baea778065aed",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/alarms",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "app_store": {
+      "version": "1.2.9",
+      "elf_sha256": "d94abf06e7e1196d9169c6b63e8697bf5715b19940e93643bd229d1a5c5e9a6f",
+      "manifest_sha256": "7292f5187154e416b6265a2c7d6272bff5fd54471342ec8e5a1ea25fce5eab2d",
+      "receipt_sha256": "c24cfb75e80da6d64dbc298296e422e75f8271219cd7df50f6d83e0339ee39d8",
+      "receipt": "build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/updates/app_store",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "software.update.apps",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "battery": {
+      "version": "1.1.13",
+      "elf_sha256": "f3600c07a7c0e7b56442afe3cd7efdcde779aad6c275b3717321e88b4cd9d534",
+      "manifest_sha256": "d7d2e501ffd98a5ad47e66d43b065166f3b5d618daa2f38613c804949c38d4cc",
+      "receipt_sha256": "ba08a766dc1c1a6131019561bd4b0a9fc49a06c7ca0358cc3c02852cdf2f9ebc",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/battery",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "ble_buttons": {
+      "version": "0.1.17",
+      "elf_sha256": "fe95fa8016973ecabfb579317e1b107ef3e11783ff8375b992e74ae7238f979a",
+      "manifest_sha256": "4097c9b29d861c160d1a51ad0cac0c95ac128006429d7a626c409fd11bce0cda",
+      "receipt_sha256": "81f6ce5402fd55d7cf6565b29020872352bbcdedafe477bdb9adf5b45decc362",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/ble_buttons",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hid",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 11
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "ble_scanner": {
+      "version": "0.2.18",
+      "elf_sha256": "04357edb95bb99cba873e28d50cabe9ccf291ee811ca42957d94d1cea0ed67d8",
+      "manifest_sha256": "5db9ee3b9fe80a3b76dfd0a75ad5c54f49031bdd2751287b9b68a91ab62369a9",
+      "receipt_sha256": "7ca8df7c18f776aebb47e721aea1c9c25f6c4523d436b5522156359133f0aa6e",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/ble_scanner",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.sensors",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hci",
+          "instance_id": 16
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "ble_touchpad": {
+      "version": "0.1.17",
+      "elf_sha256": "c54e2310c763695140cbc5be7553d80e2d7537082407bd1fe075429095f8ddec",
+      "manifest_sha256": "4302e97640baa49147f1047f345914f07696c114738e21c72f7f4618697dac4d",
+      "receipt_sha256": "a0b49715b6c75a684647d9f64e01bab420adaf743f0577c64c375e128bdc9dac",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/ble_touchpad",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hid",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "calculator": {
+      "version": "0.1.20",
+      "elf_sha256": "67916180c77fe2980ee003ab5f3df06c26abe26191b8fd237d57de24e7428221",
+      "manifest_sha256": "205e7404ecef0ef05ad4146075344b66bdf2ea02a42b674938ec6fbbf51faef9",
+      "receipt_sha256": "ac07d81ca32419d9767b414ce4255f777bab2e9d614751aacd5bb9b1a5b6cb1f",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/calculator",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "contexts": {
+      "version": "0.1.7",
+      "elf_sha256": "d7f601f4193edbe33c00823dfda66b6683690441b507b771d6badcd87e8be8ba",
+      "manifest_sha256": "4f7aa7b70381c1d357b73c038fcadaddf5f80f945f559ae71043856f43adb32b",
+      "receipt_sha256": "2e89cecc8ad43c04ab7233382eabf4676f4735f43e1febad008cb2e667712670",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-contexts-build-047/contexts",
+      "source": "05daef388270369e32aea73b0f51c5646d5e4f07",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "contexts.service",
+          "instance_id": 0
+        }
+      ],
+      "owner": "contexts"
+    },
+    "countdown": {
+      "version": "0.1.19",
+      "elf_sha256": "73f0a91ac13a9cc3045cbf1950393991a3d87968adab0004ee3bcc5c881d7824",
+      "manifest_sha256": "3f1a5edcfe3c75d4c59f2951dca56e2d17151699a6a577ab1534e8bf1d856941",
+      "receipt_sha256": "cfbc1a8ffa877286b0e095505a59a2273047e7d0b09305753f50940d1b4e34ef",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/countdown",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "default": {
+      "version": "0.3.21",
+      "elf_sha256": "786de6408982cc767ee861bbb44e9d44ba0689f72335a55c3593636ef1a288d6",
+      "manifest_sha256": "0b0fe1545180f5c1831df9f6c49bd733e6c59cc65ad16a6169252556a117791a",
+      "receipt_sha256": "90624bed053d8fe96ee7f59b6d9d749bd04dcb5f2ff554d14161ae50591a6127",
+      "receipt": "build-evidence.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/default",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 2,
+          "capability": "rtc.clock",
+          "instance_id": 8
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 5
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "x4.power",
+          "instance_id": 17
+        },
+        {
+          "api": 1,
+          "capability": "runtime.retained-wake",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.volume",
+          "instance_id": 9
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hci",
+          "instance_id": 16
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime-control",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.provider-promotion",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "contexts.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "host"
+    },
+    "file_browser": {
+      "version": "1.5.16",
+      "elf_sha256": "7a8c3bb652959a4a4036beeaea445a053a9fa541980d2cb3f579c17fb9e1f6cf",
+      "manifest_sha256": "e70635b93e24b868ee993bc2e6b4159603a68c94f5f8c2f29d922f04d9f7b0c4",
+      "receipt_sha256": "95f6241cd72b6b1a4dfd6f7e431c4faa5f89453fa6fff5dcd1fba0a1171ad45e",
+      "receipt": "file_browser-build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/file_browser",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.volume",
+          "instance_id": 9
+        },
+        {
+          "api": 1,
+          "capability": "file.open",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "ota_update": {
+      "version": "1.2.9",
+      "elf_sha256": "60255d582551c9f5047827714ea6ea0563d1e0ff76557c50f32150b1b6083b7b",
+      "manifest_sha256": "01780f5a046c5ceb9e6ee59c2b454f138a087526dcc351795bf98d4992511203",
+      "receipt_sha256": "792307a1a753ea740e1caa40ec70e3b734215741499eebc79db4259f22cfaaff",
+      "receipt": "build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/updates/ota_update",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "software.update.firmware",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "points_in_time": {
+      "version": "0.6.11",
+      "elf_sha256": "60c279ae6cbe1329dd5c1a14a50b33ec3e058a187131c32182b13175199b46f2",
+      "manifest_sha256": "3b976d425814ee9cbe65e27ec3c7543e361f7ab563765bf96abbe67ef76a3c36",
+      "receipt_sha256": "e1da680904d05dc1c8a68f2d91cd1b629dc45c4a3af3f870a144afbbe8f0a50c",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-productivity-build-047/points_in_time",
+      "source": "b06d2acc7bff43f417cf2b4db0cb2863fc460e1f",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 5
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 5
+        }
+      ],
+      "owner": "productivity"
+    },
+    "settings": {
+      "version": "1.3.23",
+      "elf_sha256": "cd365a14938353b90de26cecf943814c94a4f9ea501831e973660cb18c4a9ec1",
+      "manifest_sha256": "b7be5ee698a2959a5266b9e221de9eb08738f6311e462c9b47f7b47f52078473",
+      "receipt_sha256": "791c0cf4e3dca659e68e423e88f50a3b2fff616558a26a98a6754cd6590b8872",
+      "receipt": "settings-build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/settings",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 2,
+          "capability": "rtc.clock",
+          "instance_id": 8
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime-control",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "springboard": {
+      "version": "1.7.22",
+      "elf_sha256": "4d6d9b10ed4d0eedcf5fa2e0b6ea4cb3b92f5c56160997395d26f139fc33458a",
+      "manifest_sha256": "8783475610fb37fa00bbfabfa74792e2723e10d8e6daef13d931549ed62bbd1c",
+      "receipt_sha256": "6be31b2b4e0f3ac4cc726713d6c8ae7fc50f1b2f31102ee316aea3af079c917c",
+      "receipt": "springboard-build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/springboard",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "stopwatch": {
+      "version": "0.1.20",
+      "elf_sha256": "5a3d99756536fefd9129f83bb6789646760cf35a874e7a38d9865c1fa39259da",
+      "manifest_sha256": "e4684c4bc6e458688e82759b3e8f25b2329942a4355e5e16c53e28032450a3f3",
+      "receipt_sha256": "ddad1ef967969f6aecc37b847a72cbc3281c0e1846234c4a1c11b3c17102e402",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/stopwatch",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 2
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "timecard": {
+      "version": "0.2.11",
+      "elf_sha256": "ccb1ea4766b4c48cf17ac4b7cf8cd8ab9872af6a196b846afb8f11912d5a0830",
+      "manifest_sha256": "38dbcda87eae93ecd7be51136a8146b4c305ab0eae0e940c7bc0eb1f0ed853b0",
+      "receipt_sha256": "1a47f1c77cd94ca03b77624d1458829d097189c02978fa7806aeafd9a403e1c6",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-productivity-build-047/timecard",
+      "source": "b06d2acc7bff43f417cf2b4db0cb2863fc460e1f",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 1
+        }
+      ],
+      "owner": "productivity"
+    },
+    "usb_sd_transfer": {
+      "version": "0.1.4",
+      "elf_sha256": "4157dfee84192ee3b1c506223b7b735dda3aa65b893d188eba5e9db1643d6e40",
+      "manifest_sha256": "59a1e3cd582dd2e0eb46ad757c914ff5ab376fa44e87e03f9de611ce314a18d8",
+      "receipt_sha256": "a2a55011d7bf040382fbd3d4a36cb89d457672dc641e0c9f95e6e31580b05f02",
+      "receipt": "usb_sd_transfer-build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/usb_sd_transfer",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "usb.device.msc",
+          "instance_id": 0
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "waterfall": {
+      "version": "0.2.17",
+      "elf_sha256": "71e6c7e77ccb99a6ef12931733e5403b9edea99d10b4216616abbef1b2e61bd1",
+      "manifest_sha256": "e20bb523efc1ef58ac6d3804d08200ec7d980f36a340350b5ce3ade26ca4b08d",
+      "receipt_sha256": "e9c59b2f05ac37c2c80343e551ff867473612a35835769497ea3a8780ec2febc",
+      "receipt": "x4-native-app.json",
+      "directory": "/workspace/shared/x4-fast-utilities-build-047/waterfall",
+      "source": "bda1c2ec01d2c18e39f822fbcf6cc8ac3b12aa9e",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "radio.iq",
+          "instance_id": 0
+        },
+        {
+          "api": 2,
+          "capability": "storage.key-value",
+          "instance_id": 8
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "utilities"
+    },
+    "wifi_settings": {
+      "version": "1.1.19",
+      "elf_sha256": "d1ce43e7b0139b9f3628becc4b4aaab5de8afaf200890c0b6b2708c3f22abb4d",
+      "manifest_sha256": "25fa0da2bf6f41996aab1610bd18ac765f27e43791a8d33a8f7d7f5361eb9101",
+      "receipt_sha256": "4112f488a228238855830b2b7421b91dc987bda371833d955da1fc26cd53230c",
+      "receipt": "wifi_settings-build-record.json",
+      "directory": "/workspace/shared/x4-fast-system-build-047/wifi_settings",
+      "source": "09922405ee21639f845359386abaae4a258d2a95",
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "owner": "system"
+    },
+    "gameboy": {
+      "version": "1.3.23",
+      "elf_sha256": "951ab7ae7588beb97e7bdbace4a8655cba0cde3c9365488868eec483d7331d7a",
+      "manifest_sha256": "14e2279b4748b228467fb93e70d26cd66b28a74f2078ec9efb5ef792fb54ed89",
+      "receipt_sha256": "e5cadaa4e529a4f702917115eeb3ceb135af226039820bfc1cc232accc876944",
+      "receipt": "build.json",
+      "directory": "/workspace/shared/gameboy-header-load-1323-committed-target",
+      "source": "e429db588040c19d6ca152066c36a32a564afa0a",
+      "owner": "gameboy"
+    }
+  },
+  "omissions": [
+    "SD native1 throughput repair pending",
+    "Unified plain-text input pending",
+    "Home timeout/gesture and sleep overlay successor pending"
+  ],
+  "proofs": {
+    "points": "/workspace/shared/points611-repair-receipt.json",
+    "fast_intent": "/workspace/shared/interactive-paper-cadence-qualification/qualification.json",
+    "springboard": "/workspace/shared/springboard1722-receipt.json",
+    "settings": "/workspace/shared/x4-desk-sleep-settings-target/settings-build-record.json",
+    "loading": "/workspace/shared/runtime-resident-loading-0198-evidence.json",
+    "gameboy": "/workspace/shared/gameboy-header-load-1323-receipt.json"
+  }
+}

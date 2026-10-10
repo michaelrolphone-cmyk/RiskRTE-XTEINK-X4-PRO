@@ -1,0 +1,95 @@
+{
+  "schema": 1,
+  "service_version": "0.1.2",
+  "app_version": "0.1.3",
+  "app_source": "e25442fc1f0a2b452c1c671e7670f5af5ad4dae6",
+  "app_system": "45215c6c57ca8e48a424efd7e37e827205696a18",
+  "runtime_sdk": "c77e717571a80bc18009b9c3a98532fee32e6fd2",
+  "alarm_sdk": "637e13b0bce62ad49b756bec2468a6271d163fc7",
+  "service_sources": {
+    "utilities": "1e751d83c93dd5b4be5db9079bcf137a6efa4388",
+    "system-apps": "45215c6c57ca8e48a424efd7e37e827205696a18",
+    "drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+    "runtime": "317b74e363877cb6e5a90198211f897744e4a6d3"
+  },
+  "context_capability_owners": [
+    "default",
+    "waterfall",
+    "contexts"
+  ],
+  "source_mask": 2,
+  "audio_available": false,
+  "app_policy_rows": 17,
+  "live_grants": 16,
+  "manifest_requirements": 16,
+  "app_telemetry_broadcast": false,
+  "app_grants": [
+    {
+      "capability": "display.output",
+      "api": 1,
+      "instance_id": 3
+    },
+    {
+      "capability": "input.touch.raw",
+      "api": 1,
+      "instance_id": 4
+    },
+    {
+      "capability": "input.navigation",
+      "api": 1,
+      "instance_id": 6
+    },
+    {
+      "capability": "board.battery",
+      "api": 1,
+      "instance_id": 7
+    },
+    {
+      "capability": "runtime.realtime",
+      "api": 1,
+      "instance_id": 0
+    },
+    {
+      "capability": "storage.key-value",
+      "api": 1,
+      "instance_id": 1
+    },
+    {
+      "capability": "alarm.service",
+      "api": 2,
+      "instance_id": 0
+    },
+    {
+      "capability": "contexts.service",
+      "api": 1,
+      "instance_id": 0
+    },
+    {
+      "capability": "x4.power",
+      "api": 1,
+      "instance_id": 17
+    },
+    {
+      "capability": "storage.volume",
+      "api": 1,
+      "instance_id": 9
+    },
+    {
+      "capability": "net.wifi",
+      "api": 1,
+      "instance_id": 15
+    },
+    {
+      "capability": "bluetooth.hci",
+      "api": 1,
+      "instance_id": 16
+    }
+  ],
+  "sdk_sha256": {
+    "RiscRuntimeV1.h": "99a7266f31f88fd6e6e5b96858d97c4ebac822c9b01f93d7fa755917eccc6b2f",
+    "ContextsServiceV1.h": "ade2f40d01c7c384c6a71b4ee2a3b077c140ac6af06d7cc69350f02f7be6643d",
+    "RiscRealtimeV1.h": "639781f728841cda6d40c3033877436b9e5d59519a4b15e11a9bc99b2365395d",
+    "AlarmServiceV2.h": "d7e750a8093e1b5e698483254edc38533b7242a3446d0bca5866c9dfd6ad07a1",
+    "AlarmServiceV1.h": "c70c087550306c123255e1ace41aeb504809e16b0193e382ec8dfbd7cb5531f5"
+  }
+}

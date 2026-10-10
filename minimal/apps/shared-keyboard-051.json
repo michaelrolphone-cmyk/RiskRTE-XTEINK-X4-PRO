@@ -1,0 +1,179 @@
+{
+  "baseline": {
+    "bytes": 16777216,
+    "sha256": "35d25bae784b1a3f090ca4460ef2c0ba7f9ddbe2dd7792d3dec624f39a02d505"
+  },
+  "runtime_source": "615fb236b591bc6974a35ae23c7b2b785c0a5016",
+  "system_source": "c336b776c869029ecd9f096aa5e6497759581440",
+  "packaging_source": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
+  "native_candidate": {
+    "bytes": 28490,
+    "sha256": "030664e08c8b575af90f4f013ac4a0e28ab36d5a5b986514e30d249010c426a9"
+  },
+  "native_composition": "d63db121176f71d604bfbc231d3c4266ae5d9470c73e41da075c13b430c8b67a",
+  "clients": {
+    "points_in_time": {
+      "source_path": "/workspace/shared/x4-shared-keyboard-051/points-source",
+      "source": "53e0a82bca754a3d302c2cefd26cb596a8734bab",
+      "target": "/workspace/shared/x4-shared-keyboard-051/points-target/points_in_time",
+      "version": "0.6.12",
+      "elf": {
+        "bytes": 383276,
+        "sha256": "f43cfccce58958cd1019e0efe07b1b9ee519ee6f55f8510909dd75b133f6a685"
+      },
+      "manifest": {
+        "bytes": 865,
+        "sha256": "ef124be9a0fc698589de6b28809ce8b58d2bd7b1838c01b0b83a5ba2a24621c6"
+      },
+      "receipt": {
+        "bytes": 68232,
+        "sha256": "4db91aeec690e6b4168b553f75597b97e080b77c05f9f3b7794abacebf7648f2"
+      },
+      "preserved_flags": [
+        "-DPORTABLE_STAGE_LOGS",
+        "-DPORTABLE_NOVA_UI",
+        "-DPORTABLE_ALARM_CLIENT",
+        "-DALARM_SERVICE_TAGGED_V2",
+        "-DPORTABLE_NATIVE_CUSTODY_FENCE",
+        "-DPORTABLE_NATIVE_TIME_TOOLBAR",
+        "-DPORTABLE_INPUT_NAVIGATION",
+        "-DPORTABLE_DISPLAY_ROTATION=90",
+        "-DPORTABLE_HOME_APP=\"default.elf\"",
+        "-DPORTABLE_APP_LAUNCH_GUARD",
+        "-DPORTABLE_BLE_BROADCAST",
+        "-DPORTABLE_BLE_BROADCAST_DEFAULT_OFF",
+        "-DPORTABLE_PAPER_PREFERENCES",
+        "-DPORTABLE_UNPADDED_HOURS",
+        "-DALARM_NATIVE_UTC",
+        "-DPOINTS_RETURN_APP=\"springboard.elf\"",
+        "-DPORTABLE_RESIDENT_SHELL_CLIENT",
+        "-DPORTABLE_ALARM_TERMINAL_RETENTION",
+        "-DPORTABLE_RESIDENT_POLICY"
+      ]
+    },
+    "ble_scanner": {
+      "source_path": "/workspace/shared/x4-shared-keyboard-051/ble-source",
+      "source": "6ae146c4b4ea85bfa47c8408df49f0a3bc53cb5f",
+      "target": "/workspace/shared/x4-shared-keyboard-051/ble-target/ble_scanner",
+      "version": "0.2.19",
+      "elf": {
+        "bytes": 212548,
+        "sha256": "9153e2d7650314a5fa9e3ed7aca007bd035398e8cd8f219b7104eaecc736864a"
+      },
+      "manifest": {
+        "bytes": 925,
+        "sha256": "25c063a3a49766a84c865140625024e66fa020f13d4c7947e82a3fa77e0d3031"
+      },
+      "receipt": {
+        "bytes": 33884,
+        "sha256": "1f1f6c7a333962cfb1dd493b19ba6f4cedf69f9116bb66a70edc8673acdffbfd"
+      },
+      "preserved_flags": [
+        "-DPORTABLE_NOVA_UI",
+        "-DPORTABLE_ALARM_CLIENT",
+        "-DPORTABLE_DISPLAY_ROTATION=90",
+        "-DPORTABLE_INPUT_NAVIGATION",
+        "-DPORTABLE_HOME_APP=\"default.elf\"",
+        "-DPORTABLE_APP_OWNS_TOUCH_CHROME",
+        "-DPORTABLE_RADIO_SESSION",
+        "-DPORTABLE_RETURN_APP=\"springboard.elf\"",
+        "-DPORTABLE_STAGE_LOGS",
+        "-DALARM_SERVICE_TAGGED_V2",
+        "-DPORTABLE_NATIVE_CUSTODY_FENCE",
+        "-DPORTABLE_NATIVE_TIME_TOOLBAR",
+        "-DPORTABLE_BLE_BROADCAST",
+        "-DPORTABLE_BLE_BROADCAST_DEFAULT_OFF",
+        "-DPORTABLE_PAPER_PREFERENCES",
+        "-DPORTABLE_UNPADDED_HOURS",
+        "-DPORTABLE_BLE_FOREGROUND",
+        "-DPORTABLE_RESIDENT_SHELL_CLIENT",
+        "-DPORTABLE_ALARM_TERMINAL_RETENTION",
+        "-DPORTABLE_RESIDENT_POLICY"
+      ]
+    }
+  },
+  "providers": {
+    "ui-scene": {
+      "receipt": {
+        "bytes": 5764,
+        "sha256": "e6e80ce01ad71b6f1bc4f8f94fccd25ad5a110eabfdbd060f909fe5de45a00e3"
+      },
+      "manifest": {
+        "bytes": 593,
+        "sha256": "fab89afdb57c35c1244fccad57d593a02abeff8f555657d55e004a81480002fd"
+      },
+      "elf": {
+        "bytes": 33076,
+        "sha256": "de76387495076a9552ca242d70cbeac96c5ee20b5e434bc890aef42c4cbe7ec2"
+      },
+      "source_manifest": "Services/scene_host/manifest.json"
+    },
+    "ui-profile": {
+      "receipt": {
+        "bytes": 5495,
+        "sha256": "e3e92455481ca73fc1e27c564541fe47d31efa64ae944b2ec83d0c83235183d7"
+      },
+      "manifest": {
+        "bytes": 287,
+        "sha256": "f85d3c86848887ba49133eeb395825d867e83bdbda469758f98b641baaa2a218"
+      },
+      "elf": {
+        "bytes": 2284,
+        "sha256": "81793b9d445b495b6e324f03e445d4922abb48101b62ba35482046a3abafd341"
+      },
+      "source_manifest": "Services/scene_profile/portrait-monochrome.json"
+    },
+    "ui-text": {
+      "receipt": {
+        "bytes": 5800,
+        "sha256": "494af1d7f5854202f4d8a1fe45e72cb201c2087968c984a674e14cffd1177af3"
+      },
+      "manifest": {
+        "bytes": 321,
+        "sha256": "725441276d8077a58717d751c85522db101ead3f7fb8f096f7e0f256693f4195"
+      },
+      "elf": {
+        "bytes": 11224,
+        "sha256": "90f2fe73ab3d60d5509ac87fd36cb735240a04510d128aceaa5ba1cf212553d8"
+      },
+      "source_manifest": "Services/text_input/manifest.json"
+    }
+  },
+  "reservation": {
+    "checked_at": "2026-10-10T05:48:38.119313+00:00",
+    "product": "0.1.51",
+    "Points": "0.6.12",
+    "BLE": "0.2.19",
+    "Home": "0.3.22 preserved unchanged",
+    "new_providers": {
+      "text-input-host": "0.1.0",
+      "scene-host": "0.1.1",
+      "scene-profile-portrait-monochrome": "0.1.1"
+    },
+    "remote_refs": {
+      "x4-home-composition-050.refs": {
+        "sha256": "69fa159d8ffa888593ec0ef473e8b4cf6be9836a2a5144b93ebb227672e1c5e8",
+        "refs": 67
+      },
+      "points-shared-text-input.refs": {
+        "sha256": "95eaaef5d4442ff22695c57f15dd1e150824b7375ac74b01acbdedf41e792e86",
+        "refs": 26
+      },
+      "points-live.refs": {
+        "sha256": "070989529afce5ee4e259154d6429177b8b715361735ac7bdb40d403f9f373b3",
+        "refs": 39
+      },
+      "x4-ble-shared-text-preserve.refs": {
+        "sha256": "688d08de0ab8d2bc535502f65ee35f55763fc38951637ce6bfe641d5a06fe23f",
+        "refs": 150
+      },
+      "system-shared-text-host-current-20261010.refs": {
+        "sha256": "bec3be54cc34fdec863a5e103df80ef06bb695c8d04099ff203799433304c9f5",
+        "refs": 214
+      }
+    },
+    "PR_searches": "No all-state PR matches for product .1.51, Points .6.12 or Utilities .2.19",
+    "status": "locally reserved for this integration; no remote changes",
+    "native_version": "0.1.100 reserved separately by native worker"
+  }
+}

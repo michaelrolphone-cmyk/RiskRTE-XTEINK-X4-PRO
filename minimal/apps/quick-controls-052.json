@@ -1,0 +1,113 @@
+{
+  "baseline": {
+    "bytes": 16777216,
+    "sha256": "1e165f68cda50d3e5d789ec207f6a22ac7619445f9396bc30a92056ba71745dc"
+  },
+  "runtime_source": "615fb236b591bc6974a35ae23c7b2b785c0a5016",
+  "system_source": "a8459b94597baba3021d0c8283836008c846ded2",
+  "provider_source": "eff3e966f90141964fe5797ac15c3a8156d526ba",
+  "packaging_source": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
+  "native_candidate": {
+    "bytes": 28490,
+    "sha256": "030664e08c8b575af90f4f013ac4a0e28ab36d5a5b986514e30d249010c426a9"
+  },
+  "home": {
+    "elf": {
+      "bytes": 423420,
+      "sha256": "19e9a943f5df8e93d209e4d6b35a5d1d2965095df97635552850b1a35a2ba209"
+    },
+    "manifest": {
+      "bytes": 1261,
+      "sha256": "74bfcb1e49f70b8c6875b80aaa61d8f76414e4ecde82d0ae74ea5b6b6066f3c4"
+    },
+    "receipt": {
+      "bytes": 60039,
+      "sha256": "b60db675fa84ebf55aad72ac57d61d1c23725f55f1a839d321b9551c6409198b"
+    },
+    "preserved_flags": [
+      "-DPORTABLE_APP_OWNS_TOUCH_CHROME",
+      "-DPORTABLE_RTC_WALL_TIME",
+      "-DPORTABLE_DISPLAY_ROTATION=90",
+      "-DPAPER_CLOCK_LAUNCHER=\"springboard.elf\"",
+      "-DPORTABLE_PAPER_CROSSFADE",
+      "-DPORTABLE_BLE_BROADCAST",
+      "-DPORTABLE_BLE_BROADCAST_DEFAULT_OFF",
+      "-DPORTABLE_DESK_POINTS_FACE",
+      "-DPORTABLE_DESK_POINTS_SNAPSHOT",
+      "-DPORTABLE_DESK_LOCK_HOME",
+      "-DPORTABLE_INPUT_NAVIGATION",
+      "-DPORTABLE_APP_SLEEP_LOCAL",
+      "-DPORTABLE_CROWN_SLEEP_LOCAL",
+      "-DPORTABLE_DESK_CLOCK",
+      "-DPORTABLE_DESK_CLOCK_SPARSE_START",
+      "-DPORTABLE_CONTEXTS_CLIENT",
+      "-DPORTABLE_CONTEXTS_CLOCK_RF_ONLY",
+      "-DPORTABLE_DESK_WAKE_LIGHT",
+      "-DPORTABLE_ALARM_CLIENT",
+      "-DALARM_SERVICE_TAGGED_V2",
+      "-DPORTABLE_HOME_POINTS_NATIVE_UTC",
+      "-DALARM_NATIVE_UTC",
+      "-DPORTABLE_RESIDENT_SHELL_HOST",
+      "-DPORTABLE_ALARM_TERMINAL_RETENTION",
+      "-DPORTABLE_RESIDENT_POLICY",
+      "-DPORTABLE_RESIDENT_LEGACY_HANDOFF",
+      "-DPORTABLE_PAPER_TRANSITIONS",
+      "-DPORTABLE_QUICK_USB_TRANSFER",
+      "-DPORTABLE_QUICK_ACTIONS",
+      "-DPORTABLE_QUICK_RADIOS",
+      "-DPORTABLE_X4_IDLE_POLICY",
+      "-DPORTABLE_LOW_BATTERY",
+      "-DPORTABLE_APP_SLEEP_LOCAL",
+      "-DPORTABLE_RESIDENT_LOADING"
+    ]
+  },
+  "provider_baseline": {
+    "bytes": 1787,
+    "sha256": "a57e4dd11ae6e54557b855ab8c1fb1d89646e395b88edc192979b8729fac241e"
+  },
+  "provider_final_seal": {
+    "bytes": 6046,
+    "sha256": "b4d9470e753c2b6366135ff0cc785d9ac99d880a4ebe2fce28f7dd82e9a5aff5"
+  },
+  "providers": {
+    "light": {
+      "elf": {
+        "bytes": 8908,
+        "sha256": "ade1fb2960bffb0d6e56ec76dac4f505f29e04199e95ee914ce0ad94f63cbb35"
+      },
+      "manifest": {
+        "bytes": 709,
+        "sha256": "a07577b9445c3caf55dec38a2f626b4873fff29f36fd2f75025ce5596d1dedc2"
+      },
+      "receipt": {
+        "bytes": 8586,
+        "sha256": "c0275ab4ea9fabae4a4bc14d9b2e6a9b92ccf8323723e1464026e84d0d3becee"
+      }
+    },
+    "panel": {
+      "elf": {
+        "bytes": 77940,
+        "sha256": "d3826e4daf0e634ed0af95c1d28c943b9abb97006959959216e69957d86ab697"
+      },
+      "manifest": {
+        "bytes": 965,
+        "sha256": "1e8c1a439a6ad1d1cae2987def6f0e5ad15f791414f57c59ccd8120a52ec69bb"
+      },
+      "receipt": {
+        "bytes": 9782,
+        "sha256": "a6fbc140aac75375bf446ced07852ce74c3730670c21277ed92361d7230a7514"
+      }
+    }
+  },
+  "reservation": {
+    "checked_at": "2026-10-10T07:29:37.996011+00:00",
+    "product": "0.1.52",
+    "baseline_product": "0.1.51",
+    "status": "reserved locally; live 67 refs and all-state PR search show no 0.1.52 match",
+    "refs_sha256": "69fa159d8ffa888593ec0ef473e8b4cf6be9836a2a5144b93ebb227672e1c5e8",
+    "Home": "0.3.25 already reserved by source owner",
+    "frontlight": "0.1.6 already reserved by source owner",
+    "fast_display": "0.1.10 already reserved by source owner",
+    "native": "0.1.100 preserved exactly"
+  }
+}

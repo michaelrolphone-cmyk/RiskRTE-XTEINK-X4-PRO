@@ -1,0 +1,241 @@
+{
+  "base": "a5150a8042b7dce2468906ecc7ef7fbf5b302451",
+  "inputs": {
+    "system": "81f884b8a053cf917054fb1433c7850714cd0c48",
+    "runtime": "30dcec5ce6ce33223f2b203a2399283e1f758567",
+    "utilities": "637e13b0bce62ad49b756bec2468a6271d163fc7"
+  },
+  "compiler": "xtensa-esp32s3-elf-gcc (crosstool-NG esp-2021r2-patch5) 8.4.0",
+  "source_sha256": "ebe0e0a5041acc2a6f977e4fe55972129f398924a2525d0bc12467774c85bcc1",
+  "compatibility": [
+    {
+      "profile": "light",
+      "compiler": "cc",
+      "object_sha256": "0d101481e66fdf321e3f0c127dfccbd3a3edad1fb428d25f043575ca3c71094e",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "light",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "77e47a971c160dcfe15f817677558742ba1c1128df3ac9041098895900f25bc0",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "light-quick",
+      "compiler": "cc",
+      "object_sha256": "97019d5de255f7405f557f551c31ad3b43ed2a7241387a1eb69b645938cf3005",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "light-quick",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "9c67b233ce10769769ecb400829ab4dcf2ff4b2b8e377b1e4a1a9d31c5b12046",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "desk",
+      "compiler": "cc",
+      "object_sha256": "01651e503915c182607d4068b3adaf04fdea58912382d6b50a2619d537df99a6",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "desk",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "9a638daabcf3843a13bd522cc8edbaa2660e0b4e448bcfe01abadd900628def3",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "desk-quick",
+      "compiler": "cc",
+      "object_sha256": "977fb6469d64c0ba451795a512dad47abdc5023ec09c6fec11f9c6297d61b6ec",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "desk-quick",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "2add2e4c11d674475e1132dd86ae61a9eefd73342e1a899d7cc88cd45228dfdb",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "sparse",
+      "compiler": "cc",
+      "object_sha256": "dff532addb6cf3c8a0a07bbc6c6331905b9df9f88c7ffe43406bc9ada0caddc4",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "sparse",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "7c481088dda9fc45d866c637c1c724297ab9d811467b721707910e2f5464dd9c",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "sparse-quick",
+      "compiler": "cc",
+      "object_sha256": "2e01e29dd26c711cd6ef185d2afd9db1bd24c827266b054bbb7c4efa8302e499",
+      "preprocessed_identical": true
+    },
+    {
+      "profile": "sparse-quick",
+      "compiler": "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc",
+      "object_sha256": "381daade988f8f78d464dd1ec7812e46a8de20ae5a6e485ba1c63fe61294e01a",
+      "preprocessed_identical": true
+    }
+  ],
+  "targets": [
+    {
+      "profile": "light",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "918fb590fc6019d509a3137298610ac2d9b985a6d092798c5f32af07e6722591",
+      "v2_sha256": "1f99fce8315602de9547e117ae97853031cdc3975ea4d8884f9888c76befbf1b",
+      "v2_size": 88440,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    },
+    {
+      "profile": "light-quick",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "c1f0f8473f49dd741356b0f73ad30467a06caed96aff35fd2038184d8206007c",
+      "v2_sha256": "f596efa93f8a9a628a12b4948c798b5648d38e22bc168509a9c19699176cab37",
+      "v2_size": 125752,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    },
+    {
+      "profile": "desk",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "8349a50a8f725d55cd95b1d7b80903f87a5baa2baa67195af3ea65c6a3a3604a",
+      "v2_sha256": "e3af52a77505d6cf23be5ee8da66feb5256fd0771efeaf7dd52f572dedec620e",
+      "v2_size": 134528,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    },
+    {
+      "profile": "desk-quick",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "0c6a9801e46b4e00a60b9ed5f618955f7ca931b5c80b1bf810a798c3ae077045",
+      "v2_sha256": "0b8718fa515d8bf42c6bbb206b1b264e369135154847fa9ad2d851be1ffbe101",
+      "v2_size": 170784,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    },
+    {
+      "profile": "sparse",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "6788b7e68fcf9b815f8f2709859fc03bf14e9e8a83427a7ecdd43464ec4024f8",
+      "v2_sha256": "d4e92321aab5c6b98fe4797dd648dd0dcd3636d21aa178947fc37d0bac4e8864",
+      "v2_size": 178544,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    },
+    {
+      "profile": "sparse-quick",
+      "flag_off_elf_identical": true,
+      "flag_off_sha256": "9b39228f9a4e430e9b4362899faa92ec6b84c27ff9c4676fc494498ecd148e33",
+      "v2_sha256": "88784cb062ec3610e064041b183dc27b87bf12ced1da7d56210bc9aaab58d377",
+      "v2_size": 219632,
+      "imports": [
+        "free",
+        "malloc",
+        "memcmp",
+        "memcpy",
+        "memset",
+        "risc_runtime_get_api",
+        "snprintf",
+        "strcmp",
+        "strcpy"
+      ]
+    }
+  ],
+  "hardware": false,
+  "provider": {
+    "sha256": "54a29b1f675706fc299262eaf3d423135d23677d663130505c498769f318659b",
+    "size": 63616,
+    "api": 2,
+    "profile": "native-utc-visual-points"
+  },
+  "date_utc": "2026-10-07",
+  "host": {
+    "production_provider_and_client": {
+      "scenarios": 88,
+      "brightness_profiles": 2,
+      "normal": "passed",
+      "asan_ubsan": "passed",
+      "asan_options": "detect_leaks=0"
+    },
+    "legacy_flag_off": {
+      "light_cases": 28,
+      "desk_scenarios": 166,
+      "desk_profiles": 2,
+      "shared_app_processes": 45,
+      "shared_app_profiles": 2,
+      "sparse_scenarios": 110,
+      "sparse_profiles": 2,
+      "normal": "passed",
+      "asan_ubsan": "passed"
+    }
+  },
+  "source_files": {
+    "minimal/apps/portable_sleep.c": "ebe0e0a5041acc2a6f977e4fe55972129f398924a2525d0bc12467774c85bcc1",
+    "minimal/test/tagged_alarm_sleep_owner_test.c": "e28714ab087cb866cac36aa306e880d0158447fd292244736675b26178054d97",
+    "minimal/test/run_tagged_alarm_sleep_owner_test.sh": "220a2ca0b485bcfa08a6e6f807a404ca9846ffe714b6f7836ae9ad1d6e373f7b",
+    "minimal/test/test_tagged_alarm_sleep_target.py": "6e561e3d987ea50f43541f98538fb434ec29001ecf369dc99e675b8ffa065b42"
+  },
+  "production_utilities_inputs": {
+    "Services/alarm_service/service.c": "507b139f6da735a6f72b5741bb7cf267a2c061bbe98dc1b9eda6fd1c07b78432",
+    "lib/Alarm/include/AlarmServiceV1.h": "c70c087550306c123255e1ace41aeb504809e16b0193e382ec8dfbd7cb5531f5",
+    "lib/Alarm/include/AlarmServiceV2.h": "d7e750a8093e1b5e698483254edc38533b7242a3446d0bca5866c9dfd6ad07a1",
+    "test/native_apps/native_utc_alarm_service_test.c": "032c5f75bc6d7ce0685effd98bc9293aa0e75b34372d59189c9c6c7aae3e0936"
+  },
+  "reader_sdk": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "test_limits": [
+    "The host suite executes the actual Utilities provider and X4 client; time/storage dependencies, X4 hardware/Runtime, and shared Clock rendering are fixtures.",
+    "Malformed descriptors and returned/copied status retention are explicit callback fault injections.",
+    "Target tests compose and structurally validate actual Clock/adapter/client and provider ELFs; no target instruction execution or physical hardware qualification.",
+    "No product pin, provider implementation, manifest, BIN, installation or publication changes."
+  ]
+}

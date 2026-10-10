@@ -1,0 +1,338 @@
+{
+  "hardware": "not run",
+  "runtime_commit": "4bcadc6e19a1cde40673ec2defa38a083c43ce61",
+  "runtime_version": "0.1.58",
+  "reader_sdk_commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "system_fixture_commit": "4b72a54e18c114e23774d8579675efd6048de41e",
+  "sources": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "cba56ea92f35b6a8f9caa30497a2ff9cd9d215d177063d0970014acc25d27763",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "5251aef2a1221036ff7caea9bc7c5312e73d902ec017246e1e0aac0eabd46e90",
+    "minimal/drivers/x4pro_panel/driver.c": "3e8b181828f3d1d17a0a975d412251a83abcc2cf7083a8910b5006ddd3c6f275",
+    "minimal/drivers/x4pro_panel/manifest.json": "75d13bc37c2f1da9b951f25613fc4b09acdd0c2969e84a418f115bce871731b4",
+    "minimal/interfaces/RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6"
+  },
+  "checks": {
+    "provider_scenarios": 24,
+    "provider_asan_ubsan": "passed; LeakSanitizer disabled because executor ptrace is unsupported",
+    "provider_xtensa": "passed; 417 relative pointers verified; 64812 bytes; exports t5_driver_get only",
+    "fallback_provider_regressions": "passed",
+    "profile_materialization": "passed fallback SSD/UC and fast UC with/without sleep; no preflight hardware I/O",
+    "scheduler_cadence": "passed actual System adapter + Runtime scheduler + fast provider; app waits 1,8,20,50 ms; ASan/UBSan",
+    "completed_snapshot": "passed descriptor, padding, capacity/format, pointer overflow, aliases, owner/retained/frame lease, seed-only, queued/active, sleep/resume and no I/O checks"
+  },
+  "timing_limits": "Cadence models 20 MHz wire time and a 20 ms BUSY pulse, excluding SDK/CPU costs. Not hardware FPS or latency.",
+  "cadence": [
+    {
+      "app_wait_ms": 1,
+      "gpio_writes_per_ms": 0,
+      "frames": [
+        {
+          "full": {
+            "elapsed_ms": 104,
+            "transfer_ms": 55,
+            "bytes": 180000,
+            "gpio_writes": 18,
+            "native_exchanges": 369,
+            "provider_polls": 33,
+            "max_slice_ms": 7,
+            "max_slice_bytes": 16384,
+            "max_slice_writes": 7,
+            "partial": false,
+            "damage": [
+              0,
+              0,
+              800,
+              480
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 33,
+          "scheduler_wait_ms": 33,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 33,
+          "status_polls": 33,
+          "max_controller_gap_ms": 8,
+          "touch_samples": 33,
+          "max_touch_gap_ms": 8
+        },
+        {
+          "partial": {
+            "elapsed_ms": 23,
+            "transfer_ms": 2,
+            "bytes": 4000,
+            "gpio_writes": 35,
+            "native_exchanges": 42,
+            "provider_polls": 21,
+            "max_slice_ms": 2,
+            "max_slice_bytes": 4000,
+            "max_slice_writes": 34,
+            "partial": true,
+            "damage": [
+              0,
+              127,
+              800,
+              40
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 21,
+          "scheduler_wait_ms": 21,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 21,
+          "status_polls": 21,
+          "max_controller_gap_ms": 3,
+          "touch_samples": 21,
+          "max_touch_gap_ms": 3
+        }
+      ],
+      "idle": {
+        "scheduler_waits": 1,
+        "scheduler_wait_ms": 1,
+        "max_requested_wait_ms": 1
+      },
+      "adapter": "current"
+    },
+    {
+      "app_wait_ms": 8,
+      "gpio_writes_per_ms": 0,
+      "frames": [
+        {
+          "full": {
+            "elapsed_ms": 104,
+            "transfer_ms": 55,
+            "bytes": 180000,
+            "gpio_writes": 18,
+            "native_exchanges": 369,
+            "provider_polls": 33,
+            "max_slice_ms": 7,
+            "max_slice_bytes": 16384,
+            "max_slice_writes": 7,
+            "partial": false,
+            "damage": [
+              0,
+              0,
+              800,
+              480
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 33,
+          "scheduler_wait_ms": 33,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 10,
+          "status_polls": 10,
+          "max_controller_gap_ms": 15,
+          "touch_samples": 10,
+          "max_touch_gap_ms": 15
+        },
+        {
+          "partial": {
+            "elapsed_ms": 24,
+            "transfer_ms": 2,
+            "bytes": 4000,
+            "gpio_writes": 35,
+            "native_exchanges": 42,
+            "provider_polls": 22,
+            "max_slice_ms": 2,
+            "max_slice_bytes": 4000,
+            "max_slice_writes": 34,
+            "partial": true,
+            "damage": [
+              0,
+              127,
+              800,
+              40
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 22,
+          "scheduler_wait_ms": 22,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 3,
+          "status_polls": 3,
+          "max_controller_gap_ms": 8,
+          "touch_samples": 3,
+          "max_touch_gap_ms": 8
+        }
+      ],
+      "idle": {
+        "scheduler_waits": 1,
+        "scheduler_wait_ms": 8,
+        "max_requested_wait_ms": 8
+      },
+      "adapter": "current"
+    },
+    {
+      "app_wait_ms": 20,
+      "gpio_writes_per_ms": 0,
+      "frames": [
+        {
+          "full": {
+            "elapsed_ms": 112,
+            "transfer_ms": 55,
+            "bytes": 180000,
+            "gpio_writes": 18,
+            "native_exchanges": 369,
+            "provider_polls": 41,
+            "max_slice_ms": 7,
+            "max_slice_bytes": 16384,
+            "max_slice_writes": 7,
+            "partial": false,
+            "damage": [
+              0,
+              0,
+              800,
+              480
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 41,
+          "scheduler_wait_ms": 41,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 6,
+          "status_polls": 6,
+          "max_controller_gap_ms": 23,
+          "touch_samples": 6,
+          "max_touch_gap_ms": 23
+        },
+        {
+          "partial": {
+            "elapsed_ms": 40,
+            "transfer_ms": 2,
+            "bytes": 4000,
+            "gpio_writes": 35,
+            "native_exchanges": 42,
+            "provider_polls": 38,
+            "max_slice_ms": 2,
+            "max_slice_bytes": 4000,
+            "max_slice_writes": 34,
+            "partial": true,
+            "damage": [
+              0,
+              127,
+              800,
+              40
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 38,
+          "scheduler_wait_ms": 38,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 2,
+          "status_polls": 2,
+          "max_controller_gap_ms": 20,
+          "touch_samples": 2,
+          "max_touch_gap_ms": 20
+        }
+      ],
+      "idle": {
+        "scheduler_waits": 1,
+        "scheduler_wait_ms": 20,
+        "max_requested_wait_ms": 20
+      },
+      "adapter": "current"
+    },
+    {
+      "app_wait_ms": 50,
+      "gpio_writes_per_ms": 0,
+      "frames": [
+        {
+          "full": {
+            "elapsed_ms": 107,
+            "transfer_ms": 55,
+            "bytes": 180000,
+            "gpio_writes": 18,
+            "native_exchanges": 369,
+            "provider_polls": 36,
+            "max_slice_ms": 7,
+            "max_slice_bytes": 16384,
+            "max_slice_writes": 7,
+            "partial": false,
+            "damage": [
+              0,
+              0,
+              800,
+              480
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 36,
+          "scheduler_wait_ms": 36,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 3,
+          "status_polls": 3,
+          "max_controller_gap_ms": 50,
+          "touch_samples": 3,
+          "max_touch_gap_ms": 50
+        },
+        {
+          "partial": {
+            "elapsed_ms": 50,
+            "transfer_ms": 2,
+            "bytes": 4000,
+            "gpio_writes": 35,
+            "native_exchanges": 42,
+            "provider_polls": 48,
+            "max_slice_ms": 2,
+            "max_slice_bytes": 4000,
+            "max_slice_writes": 34,
+            "partial": true,
+            "damage": [
+              0,
+              127,
+              800,
+              40
+            ],
+            "state": 3,
+            "budget_ms": [
+              8,
+              8
+            ]
+          },
+          "scheduler_waits": 48,
+          "scheduler_wait_ms": 48,
+          "max_requested_wait_ms": 1,
+          "controller_polls": 1,
+          "status_polls": 1,
+          "max_controller_gap_ms": 50,
+          "touch_samples": 1,
+          "max_touch_gap_ms": 50
+        }
+      ],
+      "idle": {
+        "scheduler_waits": 1,
+        "scheduler_wait_ms": 50,
+        "max_requested_wait_ms": 50
+      },
+      "adapter": "current"
+    }
+  ]
+}

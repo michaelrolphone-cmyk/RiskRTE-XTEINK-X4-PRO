@@ -1,0 +1,123 @@
+{
+  "runtime": "/workspace/shared/runtime-keyboard-native-01100-source",
+  "native": "/workspace/shared/runtime-keyboard-native-01100-candidate",
+  "native_platform": "/workspace/shared/x4-home-composition-050",
+  "tools": "/workspace/shared/x4-home-packaging-tools-050",
+  "native_candidate": {
+    "path": "/workspace/shared/runtime-keyboard-native-01100-candidate/candidate.json",
+    "bytes": 28490,
+    "sha256": "030664e08c8b575af90f4f013ac4a0e28ab36d5a5b986514e30d249010c426a9"
+  },
+  "scope": "exact-.53-external-panel-only",
+  "baseline": {
+    "path": "/workspace/shared/x4-hardware-bugfix-image-053/assembled/X4-0.1.53-Hardware-Bugfixes-full-0x0.bin",
+    "bytes": 16777216,
+    "sha256": "17b7844cbb0c57e603519c48c1f2d1c7752a33f235c551d9a123f3d950506115"
+  },
+  "sources": {
+    "native": {
+      "path": "/workspace/shared/runtime-keyboard-native-01100-source",
+      "commit": "615fb236b591bc6974a35ae23c7b2b785c0a5016",
+      "tree": "676e2761c2a5292869de2bf1d78e1aadaf352617"
+    },
+    "native_platform": {
+      "path": "/workspace/shared/x4-home-composition-050",
+      "commit": "12e2d7a97a2edd6819cdb0d7c843c5efae675769",
+      "tree": "6ffbf18e48d1effcb6f3cc5d33daabb9d534ba75"
+    },
+    "packaging": {
+      "path": "/workspace/shared/x4-home-packaging-tools-050",
+      "commit": "5b9fd5735034e5c7d7731417d9664f4171b3b04a",
+      "tree": "70bb4b5a574486149d7fb56f2371539f412af744"
+    },
+    "panel": {
+      "path": "/workspace/shared/x4-panel-012-import",
+      "commit": "8fe836f1da706a8e718e68492e8d6abe0a11bec0",
+      "tree": "b932b203e5c21be5d9b52940cdde3fae61e2cffc"
+    }
+  },
+  "compiled_inputs": {
+    "/tmp/x4-panel012/minimal/drivers/x4pro_uc8279_fast/driver.c": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+    "/tmp/x4-panel012-proof/target-sdk/RiscDisplayOutputV1.h": "99b682ba34f07e7868dec8e78dfb816c067fdc184e647033bc6ed8d489b9c9a2",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/8.4.0/include/stdbool.h": "e623d179a58105d3c9213fd11384dd39cde9f1ecc06c09af9faeaa9cde3d3dde",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/8.4.0/include/stddef.h": "00d0ea9efd2c42822baefc048d5e99e136e5f3482fbeb610ec512867c6c5f391",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/lib/gcc/xtensa-esp32s3-elf/8.4.0/include/stdint.h": "86a7914ab7d6a18465a6fb9a7b54f945cad604fdbf3ca0d10e4e0254e0037911",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/stdint.h": "99fe201684856075ccd92704f63b702f6fa882b9dab61bd7a9bcce2588275861",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/machine/_default_types.h": "5d8f9f7ead7927e4b8b7ed00172e84f2ae82ea7f5f6ba3240ff813a9236771b3",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/features.h": "a0efa8fe696cb885fac7b307793fff00e40bdb1051ecf81306c1a17c1bddef0f",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/_newlib_version.h": "93a397574a25b9c143cee7fcb86d8fc9a0c9ba418e4710a30d2d19ba1e4120db",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/_intsup.h": "1af8abe244b43a3a5b5a85f6c834aa206930b6938e8109fbec430bc140b68df5",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/_stdint.h": "49f8328943afa2a83ed4a35fcb808ed08b8c9fcb55373c786fb1b1d3a21952d7",
+    "/tmp/x4-panel012-proof/target-sdk/RiscDisplayOutputPowerV1.h": "e9c7d3bd3ddf9bce128503aafb5669734db09424149f45b3a6f735cd5a7c8667",
+    "/tmp/x4-panel012/minimal/interfaces/RiscDisplayOutputFrontlightV1.h": "80add72493af301d89b521cd1987dbc3e17c618c5c56415ddf345aff50f4d18d",
+    "/tmp/x4-panel012/minimal/interfaces/RiscDisplayOutputSnapshotV1.h": "b835fd1a3600551d54efb2806cbe8dd3ecc512a538572dc853aaf11f4e2490b6",
+    "/tmp/x4-panel012/minimal/interfaces/RiscDisplayOutputMetricsV1.h": "5be17adbae2ec26a855894e0d6443ac29572002c21efe53b2a913a5a0f0c642d",
+    "/tmp/x4-panel012/minimal/interfaces/RiscDisplayOutputSettledV1.h": "18bfd89f3fa01d35e74f83c28ace60f16ca42fa0f678d7dc1fdc16e163fccc4f",
+    "/tmp/x4-panel012-proof/target-sdk/RiscPlatformClockV1.h": "41a12f6529f38731ee874f8bc166e1cf89fe376a1448fe5a4dd4c9abac90e5e2",
+    "/tmp/x4-panel012-proof/target-sdk/RiscProviderV2.h": "62478822fa8943ddfd1607f8923de52d7b5b6fc8a0db2df6ca07c65c95c62d41",
+    "/tmp/x4-panel012-proof/target-sdk/RiscStreamProviderV1.h": "0fe306e060321387c816bb70ec4370a501a423f4fe19a20c9be80aa1b98f3432",
+    "/tmp/x4-panel012-proof/target-sdk/GardenPlatformV1.h": "2e8e32f52554b706fafce1af27a5fbaf99187f67ecb55dc0cf333144b48ef9d2",
+    "/tmp/x4-panel012-proof/target-sdk/RiscLightSleepV1.h": "43cbd671265959ec2db7904bf6185e97a87c4cde9d389cdccf6fbb7c916f3b94",
+    "/tmp/x4-panel012-proof/target-sdk/RiscDeepSleepV1.h": "0949cf9591ef0f07b61c1306897287ea2eb1533755b5e569bfe1cb2c9b236161",
+    "/tmp/x4-panel012-proof/target-sdk/RiscTimedSleepV1.h": "475ba9bfaf6c7497ace7baeb93f2bd9a6abe1e3a91f62eed24862a88d60dbf34",
+    "/tmp/x4-panel012-proof/target-sdk/RiscWakeSetV1.h": "0b5a4914ac67d37b420e1ea19b591a71440f6e4c20149ca4324e1049517ba375",
+    "/tmp/x4-panel012-proof/target-sdk/RiscRadioScanV1.h": "696227eecfd124f941023673680e0a15917d5b03c8f769756ed12ec34f7ccc9b",
+    "/tmp/x4-panel012-proof/target-sdk/RiscHardwareConfigV1.h": "47fa4cd7d4f09f571a5aedc87376d2f57520ad7873f5556af0a932011633e240",
+    "/tmp/x4-panel012-proof/target-sdk/RiscProviderSyncV1.h": "c0981bde804b20c1b963323f91c4e9804c144c56535160bfd467be7e93028f45",
+    "/tmp/x4-panel012/minimal/interfaces/RiscFrontlightToneV1.h": "7c9956bdb5d0f7cccf91146b4bbb42b41745e9fa547fdf0a46850f30203f2872",
+    "/tmp/x4-panel012-proof/target-sdk/RiscFrontlightV1.h": "86272e0189dc5329d1ace67dfd64e2ee71768f1685e004faac6b4252bf6ba3f6",
+    "/tmp/x4-panel012/minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/string.h": "3dfccecfe9a38d9cb6d32c371c8269ca5c20e8103ea7f4547c82d38347220634",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/_ansi.h": "5c6403b471ee897c9a6c12e00a58617247804eb3ee72d7baeb7c08616090dd1d",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/newlib.h": "3ef7b3e450249c3146c88050f2a30281dadd6ec6592c05d488b6017ae715cac5",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/config.h": "19e01fbd1d5d99b06baa9575a6c3c99353ac720ca055a68dfe95a69becc6e153",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/machine/ieeefp.h": "d4a06e4410874187a345752942ada750c74c9d80849e1b0d081b98a9c570db4f",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/reent.h": "33391d61a83ebbfb122e80514fbf7ed4d770556d8e8d46e029addbbf6077cd79",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/_types.h": "1bf0428859ddd602938cd25864ba4ebcb7bac003893c1a89d6ff1f11cd04752f",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/machine/_types.h": "44544ecbbc10c8aa58ca2da6d0617ffeee5af847af24515ab108c8218d6d92c8",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/lock.h": "f5cad9196ce745967fd2673e085b5c03df7887d4d11d7544aff05ff6679be6b8",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/assert.h": "76d2c321e49e268077d5e6f14e3da71b8f1e28ced650fe3cd403261b3d09923f",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/cdefs.h": "d8db73988994274b0d28d8abddb8bc555a9687db55d1f54f680e0842e959d296",
+    "/workspace/scratch/c744abbbbd60/watch-build-tools/platformio-core/packages/toolchain-xtensa-esp32s3/xtensa-esp32s3-elf/sys-include/sys/string.h": "b7164ee36ccb0a08bc27c7e381ea417c97d8c3fd3157de62b75d2a6bf7a0a589",
+    "/tmp/x4-panel012/minimal/drivers/x4pro_uc8279_fast/manifest.json": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498"
+  },
+  "modules": {
+    "x4pro-uc8279-fast": {
+      "qualified": true,
+      "scope_accepted": true,
+      "elf": {
+        "path": "/workspace/shared/x4-panel-012-import-proof/targets/x4pro-uc8279-fast/driver.elf",
+        "bytes": 78712,
+        "sha256": "7504ebc1fd52835f2124d1bffa8978b5d7a88aa94f6916ece6cfdaccc16b452a"
+      },
+      "manifest": {
+        "path": "/workspace/shared/x4-panel-012-import-proof/targets/x4pro-uc8279-fast/manifest.json",
+        "bytes": 965,
+        "sha256": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498"
+      },
+      "build_receipt": {
+        "path": "/workspace/shared/x4-panel-012-import-proof/targets/x4pro-uc8279-fast/build.json",
+        "bytes": 9410,
+        "sha256": "481861d2c86d8427264b8b6e0c5403df023b7f6172e27c2959f787f5aab71686"
+      },
+      "qualification_receipts": [
+        {
+          "path": "/workspace/shared/x4-panel-012-import-proof/qualification.json",
+          "bytes": 3372,
+          "sha256": "a2d5f0674297dbc8d21c5c429a074b7f4085a590059f7ffab805ae8685a7def9"
+        },
+        {
+          "path": "/workspace/shared/x4-panel-012-import-proof/preservation.json",
+          "bytes": 936,
+          "sha256": "c0ffe1216c20a0f6b5af77ff7687e7181142349452dddfe82607de45698000e0"
+        }
+      ]
+    }
+  },
+  "inclusions": [
+    "Exact external panel 0.1.12, source SHA256 653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430"
+  ],
+  "excluded": [
+    "All other changes, including universal UI, native 0.1.106, crash spool and GameBoy work"
+  ]
+}

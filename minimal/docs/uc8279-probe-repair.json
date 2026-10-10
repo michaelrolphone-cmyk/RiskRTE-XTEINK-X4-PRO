@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "observed_failure": {
+    "product_commit": "f5014baa9e7a4e0f641bd087f0077bfbd93a0079",
+    "runtime_commit": "1c72b5742cbbf9d8b2d04e5b6274ad64c555521a",
+    "provider_id": "x4pro-uc8279-fast",
+    "provider_version": "0.1.1",
+    "provider_elf_sha256": "43dcf9f2c4600a15655fc152a8d45822aee82fbda2ec618d179e97871a8c608c",
+    "reply": "Repeated FLG00 and VER0000000000",
+    "primary_cause": "ambiguous-controller",
+    "secondary_cleanup": "hardware-quiesce-rejected"
+  },
+  "repair": {
+    "runtime_commit": "b69f87a576c339b8207d6fb0ef1f006aa7f121fc",
+    "runtime_version": "0.1.61",
+    "finding": "RX called the ROM output-routing function after selecting INPUT, which enabled pad output again. Pinned S3 output-disable already disconnects the output matrix.",
+    "change": "Omit redundant RX reconnect; retain native MOSI input route/pull-up and existing TX routing.",
+    "provider_source_changed": false,
+    "zero_ids_accepted": false,
+    "waveform_changed": false,
+    "bus_pin_gpio_scope_expanded": false
+  },
+  "checks": [
+    "Corrected SDK shim fails the delivered native implementation at the receive-input invariant",
+    "Corrected native implementation passes actual CpuPort/native SPI test normally and with ASan/UBSan",
+    "Repeated command/DC/RX1 and RX5 phases on SPI2/SPI3 preserve held CS and released input",
+    "Legacy SPI/radio, Watch profiles and sleep/SPI-clock tests pass",
+    "All-zero double probe remains rejected; primary diagnostic survives repeated failed quiescence"
+  ],
+  "hardware_confirmation": "Pending new physical test; no hardware access performed for this repair"
+}

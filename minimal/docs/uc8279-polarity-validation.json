@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "provider": "x4pro-uc8279-fast",
+  "version": "0.1.2",
+  "scope": "Inversion-only; no settling or UI change",
+  "baseline_product": "1e39f264cdca3f3acc6c9c2095363f2b7c51ee64",
+  "runtime": "7e576bcd",
+  "source_sha256": "dea4bd5823c2e46ef1bd2f3a9f2ff2671804939819f2c0cf93169c4397485327",
+  "elf": {
+    "bytes": 64812,
+    "sha256": "5f3129b6365e7f6f73c1948cd2246c5e5911824cc81736826b616eaf1a8e4583",
+    "relative_pointers_verified": 417,
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ]
+  },
+  "checks": {
+    "host_scenarios": 27,
+    "normal": "passed",
+    "asan_ubsan": "passed; leak detection disabled",
+    "typed_profile": "passed",
+    "target_provider": "passed",
+    "all_11_provider_build": "passed against clean delivered Runtime and Reader SDK",
+    "before_fix_reproduction": "Independent emitted-LUT and two-plane decoder fails visible-pixel assertion with delivered absolute bank",
+    "four_transition_coverage": "All OLD/NEW combinations and seven repeated/alternating full targets, DTM1 unchanged,48KB each",
+    "integrated_cadence_rerun": "Interrupted during compilation; no final result claimed"
+  },
+  "mapping_qualification": "Corroborated stock-source inference; physical polarity/contrast confirmation pending"
+}

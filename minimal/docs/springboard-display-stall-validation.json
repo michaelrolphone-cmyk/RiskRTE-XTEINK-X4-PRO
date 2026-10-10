@@ -1,0 +1,630 @@
+{
+  "schema": 1,
+  "hardware": "not run",
+  "frozen_product": "ed7d5cd5b9850dd30e20fb0ffb94a30259411a51",
+  "system": "899cd2350fa4fc7d64ed87304348ca3fd261668f",
+  "before_runtime": "76873fef",
+  "after_runtime": "faa8f62936a5889c65cce3f271758d9d95f21d7b",
+  "test_controls": 8,
+  "before_passed": 8,
+  "after_passed": 8,
+  "panel_production_changed": false,
+  "hardware_log_sha256": "2170965c32b678453bcb1a435574288d237b4436df1d9f32131be97ef91ec022",
+  "hardware_limit": "No provider last_error in supplied log: retained SPI deadline is reproduced, not physically proven; no flash or hardware testing.",
+  "commands": [
+    "python /workspace/shared/x4-springboard-display-regression/minimal/test/run_springboard_display_test.py --reader /workspace/shared/x4-full-trace-reader --system /workspace/shared/x4-usb-transfer-system --catalog /workspace/shared/x4-031-image/replacement-inputs/springboard/springboard-build-record.json --runtime /workspace/shared/x4-runtime-union-0179 --output /workspace/shared/x4-springboard-display-tests/before --expect-yield-service",
+    "python /workspace/shared/x4-springboard-display-regression/minimal/test/run_springboard_display_test.py --reader /workspace/shared/x4-full-trace-reader --system /workspace/shared/x4-usb-transfer-system --catalog /workspace/shared/x4-031-image/replacement-inputs/springboard/springboard-build-record.json --runtime /workspace/shared/x4-runtime-logging-repair-0181 --output /workspace/shared/x4-springboard-display-tests/after"
+  ],
+  "before": {
+    "hardware": "not run",
+    "expect_yield_service": true,
+    "sanitized": false,
+    "display_defines": [
+      "-DPORTABLE_NATIVE_TIME_TOOLBAR",
+      "-DPORTABLE_NATIVE_CUSTODY_FENCE",
+      "-DPORTABLE_INPUT_NAVIGATION",
+      "-DPORTABLE_PAPER_CROSSFADE",
+      "-DPORTABLE_PAPER_TRANSITIONS",
+      "-DPORTABLE_TOUCH_SCROLL",
+      "-DPORTABLE_APP_TOUCH_SCROLL",
+      "-DPORTABLE_SPRINGBOARD_TOUCH_SCROLL",
+      "-DPORTABLE_NOVA_UI",
+      "-DPORTABLE_STAGE_LOGS",
+      "-DPORTABLE_STAGE_DISPLAY_METRICS"
+    ],
+    "catalog": [
+      {
+        "display_name": "File Browser",
+        "file_name": "file_browser.elf",
+        "icon": "solid:f07c"
+      },
+      {
+        "display_name": "Bluetooth Scanner",
+        "file_name": "ble_scanner.elf",
+        "icon": "solid:f7c0"
+      },
+      {
+        "display_name": "Points in Time",
+        "file_name": "points_in_time.elf",
+        "icon": "solid:f017"
+      },
+      {
+        "display_name": "Settings",
+        "file_name": "settings.elf",
+        "icon": "solid:f013"
+      },
+      {
+        "display_name": "Calculator",
+        "file_name": "calculator.elf",
+        "icon": "solid:f1ec"
+      },
+      {
+        "display_name": "Stopwatch",
+        "file_name": "stopwatch.elf",
+        "icon": "solid:f2f2"
+      },
+      {
+        "display_name": "Countdown",
+        "file_name": "countdown.elf",
+        "icon": "solid:f254"
+      },
+      {
+        "display_name": "Timecard",
+        "file_name": "timecard.elf",
+        "icon": "solid:f274"
+      },
+      {
+        "display_name": "Battery",
+        "file_name": "battery.elf",
+        "icon": "solid:f240"
+      },
+      {
+        "display_name": "Alarms",
+        "file_name": "alarms.elf",
+        "icon": "solid:f0f3"
+      },
+      {
+        "display_name": "Wi-Fi",
+        "file_name": "wifi_settings.elf",
+        "icon": "solid:f1eb"
+      },
+      {
+        "display_name": "Bluetooth Touchpad",
+        "file_name": "ble_touchpad.elf",
+        "icon": "solid:f0ec"
+      },
+      {
+        "display_name": "Bluetooth Buttons",
+        "file_name": "ble_buttons.elf",
+        "icon": "solid:f11c"
+      },
+      {
+        "display_name": "RF Spectrogram",
+        "file_name": "waterfall.elf",
+        "icon": "solid:f550"
+      },
+      {
+        "display_name": "OTA Update",
+        "file_name": "ota_update.elf",
+        "icon": "solid:f019"
+      },
+      {
+        "display_name": "App Store",
+        "file_name": "app_store.elf",
+        "icon": "solid:f187"
+      },
+      {
+        "display_name": "Contexts",
+        "file_name": "contexts.elf",
+        "icon": "solid:f015"
+      },
+      {
+        "display_name": "USB Transfer",
+        "file_name": "usb_sd_transfer.elf",
+        "icon": "solid:f0ec"
+      }
+    ],
+    "runs": [
+      {
+        "case": "normal",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=108 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "slow-service",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=3994 stage=display-failed PORTABLE_APP error=display-status",
+        "provider": {
+          "state": 5,
+          "retained": true,
+          "presentation_fault": true,
+          "bytes": 32768,
+          "deadline_rejections": 1,
+          "slow_services": 2,
+          "poll_gaps": 0,
+          "refresh_ms": 0,
+          "assert_ms": 0,
+          "physical_busy_from": 0,
+          "physical_busy_until": 0,
+          "diagnostic": "v=0.1.6 cause=spi exchange retained probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=spi exchange retained budget=10000 elapsed=1235 xfer=32768/0ms refresh=0 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "slow-log",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 1,
+        "app_failure": "APP t_ms=3968 stage=display-failed PORTABLE_APP error=display-status",
+        "provider": {
+          "state": 5,
+          "retained": true,
+          "presentation_fault": true,
+          "bytes": 16384,
+          "deadline_rejections": 1,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 0,
+          "assert_ms": 0,
+          "physical_busy_from": 0,
+          "physical_busy_until": 0,
+          "diagnostic": "v=0.1.6 cause=spi exchange retained probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=spi exchange retained budget=10000 elapsed=1209 xfer=16384/0ms refresh=0 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "nonblocking-log",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=108 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "missed-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=2921 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 1,
+          "refresh_ms": 2780,
+          "assert_ms": 0,
+          "physical_busy_from": 2781,
+          "physical_busy_until": 2863,
+          "diagnostic": "v=0.1.6 cause=busy never asserted probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy never asserted budget=10000 elapsed=162 xfer=48000/21ms refresh=2780 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "observed-busy-gap",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 1,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=162 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "absent-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=2887 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 0,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2780,
+          "diagnostic": "v=0.1.6 cause=busy never asserted probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy never asserted budget=10000 elapsed=128 xfer=48000/21ms refresh=2780 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "stuck-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=6287 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=busy completion timeout probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy completion timeout budget=10000 elapsed=3528 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      }
+    ],
+    "source_sha256": {
+      "/workspace/shared/x4-runtime-union-0179/src/bootstrap/Json.cpp": "d5d129287d7093bef4ffa737d341995a9dae1968880fd7879987989ce4a635b0",
+      "/workspace/shared/x4-runtime-union-0179/src/bootstrap/Board.cpp": "f34dd2fe0a37aa0975774eb8fcbf7060093cd75535dcb133ca4812ddaa3451a5",
+      "/workspace/shared/x4-runtime-union-0179/src/bootstrap/Runtime.cpp": "014e6dad3eb9e7750923c4d5db43634c04cde61d62ab9c2eced080afa50b29f3",
+      "/workspace/shared/x4-runtime-union-0179/src/runtime/streams/AppStreamSessions.cpp": "517fdec0e58361d7373fb63ba55f753df0ac64630dfe78cdaf4ecc1c6c37866d",
+      "/workspace/shared/x4-runtime-union-0179/src/runtime/streams/ProviderQueueHost.cpp": "4f7c546c3a33422c7f8e43e5efd2ed4483122abf029aa37d56898a6f19bcbc96",
+      "/workspace/shared/x4-runtime-union-0179/src/runtime/drivers/ProviderGraphV2.cpp": "086c301ac30a1a00ebf8e772965482f0da6b529d0228084a6f0974e4a6c9dcf7",
+      "/workspace/shared/x4-runtime-union-0179/src/runtime/drivers/ProviderModuleV2.cpp": "9b25d03ab0ad3d47e612f825d10afbe306bee67038b4a30a4f9955e1f2c29bf2",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/adapter_bridge.c": "d7e3f9881359050f44868a29fbae1471669156fb9a2e49e0866a65ea958d3f4a",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/modules.c": "2b15da4f3344e8997625caab61ee233108f3ad1033fb49a138453040021b4d0e",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/panel_model.c": "b47d638f7397267205385a58d0fd9c2b30d964e7e6c5a12896d2ac2a3c124ed2",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/runtime_bridge.cpp": "441de3e85e48ade1a5d966ca0ccb673a12b3b09ac299c74714a72352ea3843b4",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/run_springboard_display_test.py": "d168b2f946bad44256a5b5138c97a27351f222727fcd2d78e7e2182932e7e15d",
+      "/workspace/shared/x4-usb-transfer-system/Apps/springboard.c": "14dc552b5ae9068222b002e9bbc5797af80108984684b103775b01bdca0f1c19",
+      "/workspace/shared/x4-usb-transfer-system/Apps/springboard_scroll.inc": "ebb2e5a1d51744afa6284c8f68818778f7f00179008b9545276998cee8b976ca",
+      "/workspace/shared/x4-usb-transfer-system/lib/PortableApps/src/adapter.c": "17b32c4f951b169530c3c536e57c7924d309d4e8c782d948f5251b5b0630f460",
+      "/workspace/shared/x4-springboard-display-regression/minimal/drivers/x4pro_uc8279_fast/driver.c": "26dd67f3e48811e7d676a1c6a5bf4b049f4ce0993b0dac9f673122f16062db10"
+    }
+  },
+  "after": {
+    "hardware": "not run",
+    "expect_yield_service": false,
+    "sanitized": false,
+    "display_defines": [
+      "-DPORTABLE_NATIVE_TIME_TOOLBAR",
+      "-DPORTABLE_NATIVE_CUSTODY_FENCE",
+      "-DPORTABLE_INPUT_NAVIGATION",
+      "-DPORTABLE_PAPER_CROSSFADE",
+      "-DPORTABLE_PAPER_TRANSITIONS",
+      "-DPORTABLE_TOUCH_SCROLL",
+      "-DPORTABLE_APP_TOUCH_SCROLL",
+      "-DPORTABLE_SPRINGBOARD_TOUCH_SCROLL",
+      "-DPORTABLE_NOVA_UI",
+      "-DPORTABLE_STAGE_LOGS",
+      "-DPORTABLE_STAGE_DISPLAY_METRICS"
+    ],
+    "catalog": [
+      {
+        "display_name": "File Browser",
+        "file_name": "file_browser.elf",
+        "icon": "solid:f07c"
+      },
+      {
+        "display_name": "Bluetooth Scanner",
+        "file_name": "ble_scanner.elf",
+        "icon": "solid:f7c0"
+      },
+      {
+        "display_name": "Points in Time",
+        "file_name": "points_in_time.elf",
+        "icon": "solid:f017"
+      },
+      {
+        "display_name": "Settings",
+        "file_name": "settings.elf",
+        "icon": "solid:f013"
+      },
+      {
+        "display_name": "Calculator",
+        "file_name": "calculator.elf",
+        "icon": "solid:f1ec"
+      },
+      {
+        "display_name": "Stopwatch",
+        "file_name": "stopwatch.elf",
+        "icon": "solid:f2f2"
+      },
+      {
+        "display_name": "Countdown",
+        "file_name": "countdown.elf",
+        "icon": "solid:f254"
+      },
+      {
+        "display_name": "Timecard",
+        "file_name": "timecard.elf",
+        "icon": "solid:f274"
+      },
+      {
+        "display_name": "Battery",
+        "file_name": "battery.elf",
+        "icon": "solid:f240"
+      },
+      {
+        "display_name": "Alarms",
+        "file_name": "alarms.elf",
+        "icon": "solid:f0f3"
+      },
+      {
+        "display_name": "Wi-Fi",
+        "file_name": "wifi_settings.elf",
+        "icon": "solid:f1eb"
+      },
+      {
+        "display_name": "Bluetooth Touchpad",
+        "file_name": "ble_touchpad.elf",
+        "icon": "solid:f0ec"
+      },
+      {
+        "display_name": "Bluetooth Buttons",
+        "file_name": "ble_buttons.elf",
+        "icon": "solid:f11c"
+      },
+      {
+        "display_name": "RF Spectrogram",
+        "file_name": "waterfall.elf",
+        "icon": "solid:f550"
+      },
+      {
+        "display_name": "OTA Update",
+        "file_name": "ota_update.elf",
+        "icon": "solid:f019"
+      },
+      {
+        "display_name": "App Store",
+        "file_name": "app_store.elf",
+        "icon": "solid:f187"
+      },
+      {
+        "display_name": "Contexts",
+        "file_name": "contexts.elf",
+        "icon": "solid:f015"
+      },
+      {
+        "display_name": "USB Transfer",
+        "file_name": "usb_sd_transfer.elf",
+        "icon": "solid:f0ec"
+      }
+    ],
+    "runs": [
+      {
+        "case": "normal",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=108 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "slow-service",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=108 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "slow-log",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 1,
+        "app_failure": "APP t_ms=3968 stage=display-failed PORTABLE_APP error=display-status",
+        "provider": {
+          "state": 5,
+          "retained": true,
+          "presentation_fault": true,
+          "bytes": 16384,
+          "deadline_rejections": 1,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 0,
+          "assert_ms": 0,
+          "physical_busy_from": 0,
+          "physical_busy_until": 0,
+          "diagnostic": "v=0.1.6 cause=spi exchange retained probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=spi exchange retained budget=10000 elapsed=1209 xfer=16384/0ms refresh=0 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "nonblocking-log",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=108 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "missed-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=2921 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 1,
+          "refresh_ms": 2780,
+          "assert_ms": 0,
+          "physical_busy_from": 2781,
+          "physical_busy_until": 2863,
+          "diagnostic": "v=0.1.6 cause=busy never asserted probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy never asserted budget=10000 elapsed=162 xfer=48000/21ms refresh=2780 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "observed-busy-gap",
+        "app_retained": false,
+        "completed_frames": 1,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "",
+        "provider": {
+          "state": 3,
+          "retained": false,
+          "presentation_fault": false,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 1,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=complete probe=flg:13 ver:0102680405 token=3 state=3 power=0 reason=complete budget=10000 elapsed=162 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=5/0/1 idle=1/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "absent-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=2887 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 0,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2780,
+          "diagnostic": "v=0.1.6 cause=busy never asserted probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy never asserted budget=10000 elapsed=128 xfer=48000/21ms refresh=2780 busy0=1 assert=0 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      },
+      {
+        "case": "stuck-busy",
+        "app_retained": true,
+        "completed_frames": 0,
+        "touch_logs": 1,
+        "slow_logs": 0,
+        "app_failure": "APP t_ms=6287 stage=display-failed PORTABLE_APP error=display-failed",
+        "provider": {
+          "state": 5,
+          "retained": false,
+          "presentation_fault": true,
+          "bytes": 48000,
+          "deadline_rejections": 0,
+          "slow_services": 0,
+          "poll_gaps": 0,
+          "refresh_ms": 2780,
+          "assert_ms": 2780,
+          "physical_busy_from": 2780,
+          "physical_busy_until": 2862,
+          "diagnostic": "v=0.1.6 cause=busy completion timeout probe=flg:13 ver:0102680405 token=3 state=5 power=0 reason=busy completion timeout budget=10000 elapsed=3528 xfer=48000/21ms refresh=2780 busy0=1 assert=2780 settle=0/110/110 idle=0/0/0 probe=flg:13 ver:0102680405"
+        }
+      }
+    ],
+    "source_sha256": {
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/bootstrap/Json.cpp": "d5d129287d7093bef4ffa737d341995a9dae1968880fd7879987989ce4a635b0",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/bootstrap/Board.cpp": "f34dd2fe0a37aa0975774eb8fcbf7060093cd75535dcb133ca4812ddaa3451a5",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/bootstrap/Runtime.cpp": "b0860c8fd1c8c086b01ef2ff88ad6e760d246924ffa6f669b947418f0bf12c83",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/runtime/streams/AppStreamSessions.cpp": "517fdec0e58361d7373fb63ba55f753df0ac64630dfe78cdaf4ecc1c6c37866d",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/runtime/streams/ProviderQueueHost.cpp": "4f7c546c3a33422c7f8e43e5efd2ed4483122abf029aa37d56898a6f19bcbc96",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/runtime/drivers/ProviderGraphV2.cpp": "086c301ac30a1a00ebf8e772965482f0da6b529d0228084a6f0974e4a6c9dcf7",
+      "/workspace/shared/x4-runtime-logging-repair-0181/src/runtime/drivers/ProviderModuleV2.cpp": "9b25d03ab0ad3d47e612f825d10afbe306bee67038b4a30a4f9955e1f2c29bf2",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/adapter_bridge.c": "d7e3f9881359050f44868a29fbae1471669156fb9a2e49e0866a65ea958d3f4a",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/modules.c": "2b15da4f3344e8997625caab61ee233108f3ad1033fb49a138453040021b4d0e",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/panel_model.c": "b47d638f7397267205385a58d0fd9c2b30d964e7e6c5a12896d2ac2a3c124ed2",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/springboard_display/runtime_bridge.cpp": "441de3e85e48ade1a5d966ca0ccb673a12b3b09ac299c74714a72352ea3843b4",
+      "/workspace/shared/x4-springboard-display-regression/minimal/test/run_springboard_display_test.py": "d168b2f946bad44256a5b5138c97a27351f222727fcd2d78e7e2182932e7e15d",
+      "/workspace/shared/x4-usb-transfer-system/Apps/springboard.c": "14dc552b5ae9068222b002e9bbc5797af80108984684b103775b01bdca0f1c19",
+      "/workspace/shared/x4-usb-transfer-system/Apps/springboard_scroll.inc": "ebb2e5a1d51744afa6284c8f68818778f7f00179008b9545276998cee8b976ca",
+      "/workspace/shared/x4-usb-transfer-system/lib/PortableApps/src/adapter.c": "17b32c4f951b169530c3c536e57c7924d309d4e8c782d948f5251b5b0630f460",
+      "/workspace/shared/x4-springboard-display-regression/minimal/drivers/x4pro_uc8279_fast/driver.c": "26dd67f3e48811e7d676a1c6a5bf4b049f4ce0993b0dac9f673122f16062db10"
+    }
+  }
+}

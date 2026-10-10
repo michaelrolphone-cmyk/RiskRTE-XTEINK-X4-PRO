@@ -1,0 +1,11 @@
+{
+  "checked_at_utc": "2026-10-10T10:33:47.331248+00:00",
+  "product": "0.1.54",
+  "owner": "fix_x4_transition_completion",
+  "scope": "Panel0.1.12 only over exact.53",
+  "live_refs": 67,
+  "live_refs_unchanged_from_prior_inventory": true,
+  "all_refs_sha256": "69fa159d8ffa888593ec0ef473e8b4cf6be9836a2a5144b93ebb227672e1c5e8",
+  "local_collision_check": "Only unfinished .54 diagnostic folders; integrator confirms no active composition/reservation",
+  "published": false
+}
