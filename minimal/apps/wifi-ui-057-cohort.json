@@ -1,0 +1,1582 @@
+{
+  "schema": 1,
+  "status": "proposed source cohort; native .2.2 union and versioned app target closures pending",
+  "product_version": "0.1.57",
+  "base_product": "0.1.55",
+  "base_image_sha256": "015f7e3f697081b14c1cccbc08c38fa50f2052b3097e8e290a41f27dfc1ae10e",
+  "source_base": "5cc9791e63102725a48a6a0c44e1c2ab0bb358e4",
+  "product_reservation_commit": "1a18e286b39cf7ee6a13b4d181e4d526b2d10ded",
+  "sources": {
+    "system_qualified": "ac1f1ead8251776692cdd357569a52ebca8a776e",
+    "utilities_qualified": "6f440f6cdd7e621012be8d5d6321b6a090101b5b",
+    "wifi_provider": "a304597bf26491483bb0a567569f0ca0267cdf9c",
+    "native_async_slice": "fc05d35827fc0d51be749c6797be4b3a4426ba23",
+    "native_product_union": "pending .2.2 owner",
+    "points_application_base": "ceed9a85ef21c7204ca5b89b46df13de001f69c1",
+    "contexts_application_base": "918c730a10c6a80b116a6a3aa01e891641eeadd5",
+    "gameboy": "a579dedd2a76956c7dcd654434cff9a556beb37c"
+  },
+  "native_build_options": {
+    "app_policy_rows": 18,
+    "app_requirement_rows": 17,
+    "app_image_cache": true,
+    "usb_phy": true,
+    "retained_wake_bytes": 512,
+    "failure_evidence": true,
+    "stage_logs": true
+  },
+  "modules": [
+    {
+      "id": "alarm-service",
+      "baseline_version": "0.4.8",
+      "proposed_version": "0.4.8",
+      "manifest": "alarm/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "storage.key-value.bound",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "platform.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.app-data.bound",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "alarms",
+      "baseline_version": "0.2.16",
+      "proposed_version": "0.2.17",
+      "manifest": "alarms.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "app_store",
+      "baseline_version": "1.2.10",
+      "proposed_version": "1.2.11",
+      "manifest": "app_store.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "net.wifi",
+          "api": 1
+        },
+        {
+          "capability": "software.update.apps",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-battery",
+      "baseline_version": "0.1.3",
+      "proposed_version": "0.1.3",
+      "manifest": "battery/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "i2c.bus",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "telemetry-battery",
+      "baseline_version": "0.1.0",
+      "proposed_version": "0.1.0",
+      "manifest": "battery-telem/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "board.battery",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "battery",
+      "baseline_version": "1.1.14",
+      "proposed_version": "1.1.15",
+      "manifest": "battery.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "twatch-ble",
+      "baseline_version": "0.3.0",
+      "proposed_version": "0.3.0",
+      "manifest": "ble/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.hci.controller",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble-telemetry",
+      "baseline_version": "0.1.0",
+      "proposed_version": "0.1.0",
+      "manifest": "ble-telem/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "bluetooth.hci",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "sensor.telemetry",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble_buttons",
+      "baseline_version": "0.1.20",
+      "proposed_version": "0.1.21",
+      "manifest": "ble_buttons.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "bluetooth.hid",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble_scanner",
+      "baseline_version": "0.2.20",
+      "proposed_version": "0.2.21",
+      "manifest": "ble_scanner.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "bluetooth.sensors",
+          "api": 1
+        },
+        {
+          "capability": "bluetooth.hci",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        },
+        {
+          "capability": "ui.text-input",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble_touchpad",
+      "baseline_version": "0.1.19",
+      "proposed_version": "0.1.20",
+      "manifest": "ble_touchpad.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "bluetooth.hid",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-board-power",
+      "baseline_version": "0.1.3",
+      "proposed_version": "0.1.3",
+      "manifest": "board/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "telemetry-broadcast",
+      "baseline_version": "0.1.0",
+      "proposed_version": "0.1.0",
+      "manifest": "broadcast/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "bluetooth.telemetry",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-power-buttons",
+      "baseline_version": "0.1.0",
+      "proposed_version": "0.1.0",
+      "manifest": "buttons/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "x4.power",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "calculator",
+      "baseline_version": "0.1.21",
+      "proposed_version": "0.1.22",
+      "manifest": "calculator.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "contexts-service",
+      "baseline_version": "0.1.2",
+      "proposed_version": "0.1.2",
+      "manifest": "contexts/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "radio.iq",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "contexts",
+      "baseline_version": "0.1.7",
+      "proposed_version": "0.1.8",
+      "manifest": "contexts.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "contexts.service",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "countdown",
+      "baseline_version": "0.1.20",
+      "proposed_version": "0.1.21",
+      "manifest": "countdown.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "paper_clock",
+      "baseline_version": "0.3.28",
+      "proposed_version": "0.3.29",
+      "manifest": "default.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "rtc.clock",
+          "api": 2
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "x4.power",
+          "api": 1
+        },
+        {
+          "capability": "runtime.retained-wake",
+          "api": 1
+        },
+        {
+          "capability": "storage.volume",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "net.wifi",
+          "api": 1
+        },
+        {
+          "capability": "bluetooth.hci",
+          "api": 1
+        },
+        {
+          "capability": "storage.app-data",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime-control",
+          "api": 1
+        },
+        {
+          "capability": "runtime.provider-promotion",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        },
+        {
+          "capability": "contexts.service",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "file_browser",
+      "baseline_version": "1.5.17",
+      "proposed_version": "1.5.18",
+      "manifest": "file_browser.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "storage.volume",
+          "api": 1
+        },
+        {
+          "capability": "file.open",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "gameboy",
+      "baseline_version": "1.3.24",
+      "proposed_version": "1.3.24",
+      "manifest": "gameboy.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "storage.volume",
+          "api": 1
+        },
+        {
+          "capability": "file.open",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble-hid",
+      "baseline_version": "0.1.4",
+      "proposed_version": "0.1.4",
+      "manifest": "hid/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "bluetooth.hci",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value.bound",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-i2c",
+      "baseline_version": "0.1.5",
+      "proposed_version": "0.1.5",
+      "manifest": "i2c/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.i2c.controller",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "board.power.ready",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "s3-radio-iq-v1",
+      "baseline_version": "0.2.0",
+      "proposed_version": "0.2.0",
+      "manifest": "iq/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.radio.iq.resource",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-frontlight",
+      "baseline_version": "0.1.6",
+      "proposed_version": "0.1.6",
+      "manifest": "light/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ota_update",
+      "baseline_version": "1.2.10",
+      "proposed_version": "1.2.11",
+      "manifest": "ota_update.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "net.wifi",
+          "api": 1
+        },
+        {
+          "capability": "software.update.firmware",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-uc8279-fast",
+      "baseline_version": "0.1.13",
+      "proposed_version": "0.1.13",
+      "manifest": "panel/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "board.power.ready",
+          "api": 1
+        },
+        {
+          "capability": "display.frontlight",
+          "api": 1
+        },
+        {
+          "capability": "spi.bus",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "points_in_time",
+      "baseline_version": "0.6.13",
+      "proposed_version": "0.6.14",
+      "manifest": "points_in_time.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        },
+        {
+          "capability": "storage.app-data",
+          "api": 1
+        },
+        {
+          "capability": "ui.text-input",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-power",
+      "baseline_version": "0.1.2",
+      "proposed_version": "0.1.2",
+      "manifest": "power/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "board.power.ready",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-rtc",
+      "baseline_version": "0.1.1",
+      "proposed_version": "0.1.1",
+      "manifest": "rtc/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "i2c.bus",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-sd",
+      "baseline_version": "0.2.14",
+      "proposed_version": "0.2.14",
+      "manifest": "sd/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "board.power.ready",
+          "api": 1
+        },
+        {
+          "capability": "platform.diagnostic-source",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "ble-sensors",
+      "baseline_version": "0.1.0",
+      "proposed_version": "0.1.0",
+      "manifest": "sensors/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "bluetooth.hci",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "settings",
+      "baseline_version": "1.3.24",
+      "proposed_version": "1.3.25",
+      "manifest": "settings.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "rtc.clock",
+          "api": 2
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime-control",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "springboard",
+      "baseline_version": "1.7.23",
+      "proposed_version": "1.7.24",
+      "manifest": "springboard.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "stopwatch",
+      "baseline_version": "0.1.21",
+      "proposed_version": "0.1.22",
+      "manifest": "stopwatch.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "timecard",
+      "baseline_version": "0.2.11",
+      "proposed_version": "0.2.12",
+      "manifest": "timecard.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        },
+        {
+          "capability": "storage.app-data",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "x4pro-gt911",
+      "baseline_version": "0.1.9",
+      "proposed_version": "0.1.9",
+      "manifest": "touch/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.gpio",
+          "api": 1
+        },
+        {
+          "capability": "platform.sync",
+          "api": 1
+        },
+        {
+          "capability": "i2c.bus",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "board.power.ready",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "scene-profile-portrait-monochrome",
+      "baseline_version": "0.1.1",
+      "proposed_version": "0.1.1",
+      "manifest": "ui-profile/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": []
+    },
+    {
+      "id": "scene-host",
+      "baseline_version": "0.1.4",
+      "proposed_version": "0.1.4",
+      "manifest": "ui-scene/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "api": 1,
+          "capability": "display.output"
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw"
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation"
+        },
+        {
+          "api": 1,
+          "capability": "platform.clock"
+        },
+        {
+          "api": 1,
+          "capability": "ui.presentation-profile"
+        }
+      ]
+    },
+    {
+      "id": "text-input-host",
+      "baseline_version": "0.1.2",
+      "proposed_version": "0.1.3",
+      "manifest": "ui-text/manifest.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "api": 1,
+          "capability": "ui.scene"
+        }
+      ]
+    },
+    {
+      "id": "software-update-apps",
+      "baseline_version": "0.1.4",
+      "proposed_version": "0.1.4",
+      "manifest": "upd-app/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.http-client",
+          "api": 1
+        },
+        {
+          "capability": "platform.bank-store",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "software-update-firmware",
+      "baseline_version": "0.1.5",
+      "proposed_version": "0.1.5",
+      "manifest": "upd-fw/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.http-client",
+          "api": 1
+        },
+        {
+          "capability": "platform.bank-store",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "usb-device-msc-esp32s3",
+      "baseline_version": "0.1.5",
+      "proposed_version": "0.1.5",
+      "manifest": "usb-msc/manifest.json",
+      "action": "preserve exact delivered .55 source/artifact binding",
+      "baseline_requires": [
+        {
+          "capability": "platform.usb.phy.resource",
+          "api": 1
+        },
+        {
+          "capability": "platform.clock",
+          "api": 1
+        },
+        {
+          "capability": "storage.volume",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "usb_sd_transfer",
+      "baseline_version": "0.1.6",
+      "proposed_version": "0.1.7",
+      "manifest": "usb_sd_transfer.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "usb.device.msc",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        }
+      ]
+    },
+    {
+      "id": "waterfall",
+      "baseline_version": "0.2.19",
+      "proposed_version": "0.2.20",
+      "manifest": "waterfall.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "radio.iq",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 2
+        },
+        {
+          "capability": "storage.app-data",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "wifi",
+      "baseline_version": "0.2.0",
+      "proposed_version": "0.2.1",
+      "manifest": "wifi/manifest.json",
+      "action": "rebuild qualified async provider source",
+      "baseline_requires": [
+        {
+          "capability": "hardware.device",
+          "api": 1
+        },
+        {
+          "capability": "platform.radio",
+          "api": 1
+        }
+      ]
+    },
+    {
+      "id": "wifi_settings",
+      "baseline_version": "1.1.20",
+      "proposed_version": "1.1.21",
+      "manifest": "wifi_settings.json",
+      "action": "rebuild changed compiled closure",
+      "baseline_requires": [
+        {
+          "capability": "display.output",
+          "api": 1
+        },
+        {
+          "capability": "input.touch.raw",
+          "api": 1
+        },
+        {
+          "capability": "net.wifi",
+          "api": 1
+        },
+        {
+          "capability": "storage.key-value",
+          "api": 1
+        },
+        {
+          "capability": "input.navigation",
+          "api": 1
+        },
+        {
+          "capability": "alarm.service",
+          "api": 2
+        },
+        {
+          "capability": "runtime.realtime",
+          "api": 1
+        },
+        {
+          "capability": "board.battery",
+          "api": 1
+        },
+        {
+          "capability": "telemetry.broadcast",
+          "api": 1
+        }
+      ]
+    }
+  ],
+  "graph_delta": {
+    "wifi_settings.json": {
+      "added_grant": {
+        "api": 1,
+        "capability": "ui.text-input",
+        "instance_id": 0
+      }
+    },
+    "board_json": "byte-identical .55",
+    "module_roster": "same47 modules/21apps/26providers",
+    "storage_namespaces": "preserve .55",
+    "endpoint_or_renderer_additions": []
+  },
+  "excluded": [
+    "unfinished WebDAV endpoint",
+    "isolated phase3 renderer",
+    "external temporal Contexts application/SDR/Home composition"
+  ],
+  "verification_required": [
+    "Exact source/build receipts and compiled consumer closure",
+    "Strict47ELF native admission",
+    "Normal and sanitizer full cohort admission",
+    "Deterministic dual boot-store readback and paired bank hashes",
+    "Unchanged module/source/flash bindings and no feature/grant removal"
+  ],
+  "source_lineage_note": "Productivity local recovered archive retained18 historical evidence PNGs omitted by the published recovery checkpoint; final metadata successor is based on exact remote ceed9a85. All production/build/test source bytes match the recovered baseline."
+}

@@ -1,0 +1,1334 @@
+{
+  "app_capabilities": [
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 2,
+          "capability": "rtc.clock",
+          "instance_id": 8
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 5
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "x4.power",
+          "instance_id": 17
+        },
+        {
+          "api": 1,
+          "capability": "runtime.retained-wake",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.volume",
+          "instance_id": 9
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hci",
+          "instance_id": 16
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime-control",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.provider-promotion",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "contexts.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 62
+        }
+      ],
+      "manifest": "default.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "springboard.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.volume",
+          "instance_id": 9
+        },
+        {
+          "api": 1,
+          "capability": "file.open",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "file_browser.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.sensors",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hci",
+          "instance_id": 16
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "ui.text-input",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "ble_scanner.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 5
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 5
+        },
+        {
+          "api": 1,
+          "capability": "ui.text-input",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "points_in_time.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 2,
+          "capability": "rtc.clock",
+          "instance_id": 8
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime-control",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "settings.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "calculator.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 2
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "stopwatch.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "countdown.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 1
+        }
+      ],
+      "manifest": "timecard.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "battery.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "alarms.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "ui.text-input",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "wifi_settings.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hid",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "ble_touchpad.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "bluetooth.hid",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 11
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "ble_buttons.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "radio.iq",
+          "instance_id": 0
+        },
+        {
+          "api": 2,
+          "capability": "storage.key-value",
+          "instance_id": 8
+        },
+        {
+          "api": 1,
+          "capability": "storage.app-data",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "waterfall.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "software.update.firmware",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "ota_update.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 1,
+          "capability": "net.wifi",
+          "instance_id": 15
+        },
+        {
+          "api": 1,
+          "capability": "software.update.apps",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "telemetry.broadcast",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "app_store.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "contexts.service",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "contexts.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "usb.device.msc",
+          "instance_id": 0
+        },
+        {
+          "api": 2,
+          "capability": "alarm.service",
+          "instance_id": 0
+        }
+      ],
+      "manifest": "usb_sd_transfer.json"
+    },
+    {
+      "grants": [
+        {
+          "api": 1,
+          "capability": "display.output",
+          "instance_id": 3
+        },
+        {
+          "api": 1,
+          "capability": "input.navigation",
+          "instance_id": 6
+        },
+        {
+          "api": 1,
+          "capability": "storage.volume",
+          "instance_id": 9
+        },
+        {
+          "api": 1,
+          "capability": "file.open",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "input.touch.raw",
+          "instance_id": 4
+        },
+        {
+          "api": 1,
+          "capability": "board.battery",
+          "instance_id": 7
+        },
+        {
+          "api": 1,
+          "capability": "runtime.realtime",
+          "instance_id": 0
+        },
+        {
+          "api": 1,
+          "capability": "storage.key-value",
+          "instance_id": 1
+        }
+      ],
+      "manifest": "gameboy.json"
+    }
+  ],
+  "board": "board.json",
+  "default_app": "default.elf",
+  "drivers": [
+    {
+      "instance_id": 1,
+      "manifest": "board/manifest.json"
+    },
+    {
+      "instance_id": 2,
+      "manifest": "i2c/manifest.json"
+    },
+    {
+      "instance_id": 3,
+      "manifest": "panel/manifest.json"
+    },
+    {
+      "instance_id": 4,
+      "manifest": "touch/manifest.json"
+    },
+    {
+      "instance_id": 5,
+      "manifest": "light/manifest.json"
+    },
+    {
+      "instance_id": 6,
+      "manifest": "buttons/manifest.json"
+    },
+    {
+      "instance_id": 7,
+      "manifest": "battery/manifest.json"
+    },
+    {
+      "instance_id": 8,
+      "manifest": "rtc/manifest.json"
+    },
+    {
+      "boot_start": "cold",
+      "instance_id": 9,
+      "manifest": "sd/manifest.json"
+    },
+    {
+      "instance_id": 17,
+      "manifest": "power/manifest.json"
+    },
+    {
+      "instance_id": 16,
+      "manifest": "ble/manifest.json"
+    },
+    {
+      "manifest": "sensors/manifest.json"
+    },
+    {
+      "instance_id": 15,
+      "manifest": "wifi/manifest.json"
+    },
+    {
+      "manifest": "iq/manifest.json"
+    },
+    {
+      "manifest": "contexts/manifest.json"
+    },
+    {
+      "key_value": [
+        {
+          "access": "read-write",
+          "key": "hid_ours",
+          "namespace": 10
+        },
+        {
+          "access": "read-write",
+          "key": "hid_peer",
+          "namespace": 10
+        },
+        {
+          "access": "read-write",
+          "key": "hid_ccc",
+          "namespace": 10
+        },
+        {
+          "access": "read-write",
+          "key": "hid_identity",
+          "namespace": 10
+        }
+      ],
+      "manifest": "hid/manifest.json"
+    },
+    {
+      "app_data": [
+        {
+          "access": "read",
+          "name": "points.catalog",
+          "namespace": 5
+        },
+        {
+          "access": "read-write",
+          "name": "points.ledger",
+          "namespace": 5
+        }
+      ],
+      "key_value": [
+        {
+          "access": "read",
+          "key": "alarm_utc_cfg",
+          "namespace": 3
+        },
+        {
+          "access": "read",
+          "key": "timer_utc_cfg",
+          "namespace": 3
+        },
+        {
+          "access": "read-write",
+          "key": "alarm_utc_occ",
+          "namespace": 4
+        },
+        {
+          "access": "read-write",
+          "key": "timer_utc_occ",
+          "namespace": 4
+        },
+        {
+          "access": "read",
+          "key": "alert_mode",
+          "namespace": 1
+        },
+        {
+          "access": "read",
+          "key": "points_utc_cfg",
+          "namespace": 5
+        },
+        {
+          "access": "read-write",
+          "key": "points_utc_occ",
+          "namespace": 4
+        },
+        {
+          "access": "read",
+          "key": "alert_dnd",
+          "namespace": 1
+        },
+        {
+          "access": "read",
+          "key": "time_zone",
+          "namespace": 1
+        },
+        {
+          "access": "read",
+          "key": "points_utc_meta",
+          "namespace": 5
+        }
+      ],
+      "manifest": "alarm/manifest.json"
+    },
+    {
+      "manifest": "upd-fw/manifest.json"
+    },
+    {
+      "manifest": "upd-app/manifest.json"
+    },
+    {
+      "manifest": "battery-telem/manifest.json"
+    },
+    {
+      "manifest": "ble-telem/manifest.json"
+    },
+    {
+      "manifest": "broadcast/manifest.json"
+    },
+    {
+      "manifest": "usb-msc/manifest.json"
+    },
+    {
+      "manifest": "ui-scene/manifest.json"
+    },
+    {
+      "manifest": "ui-profile/manifest.json"
+    },
+    {
+      "manifest": "ui-text/manifest.json"
+    }
+  ],
+  "provider_activation": "demand-retained",
+  "resident_shell": {
+    "api": 1,
+    "foreground": [
+      "alarms.elf",
+      "app_store.elf",
+      "battery.elf",
+      "ble_buttons.elf",
+      "ble_scanner.elf",
+      "ble_touchpad.elf",
+      "calculator.elf",
+      "contexts.elf",
+      "countdown.elf",
+      "file_browser.elf",
+      "ota_update.elf",
+      "points_in_time.elf",
+      "settings.elf",
+      "springboard.elf",
+      "stopwatch.elf",
+      "timecard.elf",
+      "usb_sd_transfer.elf",
+      "waterfall.elf",
+      "wifi_settings.elf"
+    ],
+    "host": "default.elf",
+    "legacy": [
+      "gameboy.elf"
+    ]
+  }
+}

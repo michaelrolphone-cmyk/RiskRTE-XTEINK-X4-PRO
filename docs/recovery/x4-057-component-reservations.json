@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "product": "xteink-x4-pro",
+  "product_version": "0.1.57",
+  "date_utc": "2026-10-10T15:14:00Z",
+  "system_source": "ac1f1ead8251776692cdd357569a52ebca8a776e",
+  "utilities_source": "6f440f6cdd7e621012be8d5d6321b6a090101b5b",
+  "system": {
+    "paper_clock": "0.3.29",
+    "springboard": "1.7.24",
+    "settings": "1.3.25",
+    "file_browser": "1.5.18",
+    "wifi_settings": "1.1.21",
+    "ota_update": "1.2.11",
+    "app_store": "1.2.11",
+    "usb_sd_transfer": "0.1.7"
+  },
+  "utilities": {
+    "alarms": "0.2.17",
+    "battery": "1.1.15",
+    "calculator": "0.1.22",
+    "stopwatch": "0.1.22",
+    "countdown": "0.1.21",
+    "ble_scanner": "0.2.21",
+    "ble_touchpad": "0.1.20",
+    "ble_buttons": "0.1.21",
+    "waterfall": "0.2.20"
+  },
+  "other_shared_consumers": {
+    "points_in_time": "0.6.14",
+    "timecard": "0.2.12",
+    "contexts": "0.1.8"
+  },
+  "providers": {
+    "text-input-host": "0.1.3",
+    "net.wifi": "0.2.1"
+  },
+  "unchanged": {
+    "gameboy": "1.3.24",
+    "x4pro-uc8279-fast": "0.1.13"
+  },
+  "external_lineages_not_selected": {
+    "paper_clock": [
+      "0.4.0",
+      "0.4.1"
+    ],
+    "contexts": [
+      "0.3.0",
+      "0.3.1"
+    ],
+    "waterfall": [
+      "0.3.0",
+      "0.3.1"
+    ],
+    "alarms": [
+      "0.3.0"
+    ]
+  },
+  "policy": "Unique compatible patch-line successors of delivered .55 packages, with preserved features; higher-version external candidates remain separate.",
+  "live_checks": {
+    "system_refs": 102,
+    "utilities_refs": 71,
+    "productivity_refs": 18,
+    "candidate_pr_matches": "No package collisions; Runtime0.1.8 string in an old PR is not a Contexts app reservation."
+  }
+}
