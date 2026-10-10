@@ -75,7 +75,7 @@ text = test.read_text()
 if text.count("fast_lut_frames==2") != 6:
     raise SystemExit(f"unexpected 0.1.13 two-frame assertion count: {text.count('fast_lut_frames==2')}")
 text = text.replace("fast_lut_frames==2", "fast_lut_frames==4")
-if text.count("fast_lut_frames==1u") != 1:
+if text.count("fast_lut_frames==1u") != 3:
     raise SystemExit(f"unexpected broad one-frame assertion count: {text.count('fast_lut_frames==1u')}")
 text = text.replace("fast_lut_frames==1u", "fast_lut_frames==2u")
 test.write_text(text)
