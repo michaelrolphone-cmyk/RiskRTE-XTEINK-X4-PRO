@@ -1,0 +1,12 @@
+{
+  "schema": "riscrte.prototype.component-sources",
+  "schema_version": 1,
+  "version": "0.1.0",
+  "purpose": "Optional declarative Alarms components; not a native product lock",
+  "runtime": {"repository": "michaelrolphone-cmyk/RiscRTE", "commit": "b70cb87bdead507b9bc826f445935c5ad2b08bad"},
+  "system": {"repository": "michaelrolphone-cmyk/RiscRTE-System-Apps", "commit": "320465b83b4d54d2c1461318f9c04fc5436cdbf8"},
+  "utilities": {"repository": "michaelrolphone-cmyk/RiscRTE-Utilities", "commit": "83438e4218561c2869cbbc71a7cc3abdae581968"},
+  "alarms_version": "0.3.0",
+  "provider_version": "0.1.0",
+  "native_product_image_qualified": false
+}
