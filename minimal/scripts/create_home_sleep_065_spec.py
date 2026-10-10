@@ -37,8 +37,12 @@ for name in ('portable_sleep.c','portable_idle_sleep.c'):
 for name in ('default','springboard'):
  cmd=json.loads((B/f'components-065/apps-{name}-command.json').read_text());assert '--raster-snapshot' in cmd
 path=Path('/root/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc');dependencies[str(path)]=record(path)['sha256']
+compiler=str(path)
+for path in (Path(compiler.removesuffix('gcc')+'objcopy'),B/'build-sources/watch/watchsrc/scripts/compact_current_elf.py'):
+ dependencies[str(path)]=record(path)['sha256']
 names=['home-raster-065.log','home-transition-065/evidence.json','sleep-idle-065/evidence.json','sleep-policy-065.log','springboard-motion-065/evidence.json','raster-rows-065.log','panel-012-test-065.log','cadence-panel012-065.log','idle-panel012-065.log','lists-tests-065.log','scene-components-065.log','apps-build-065.log','scene-build-065.log','lists-build-065.log','panel-build-065.log']
 qualifications=[record(B/name) for name in names]
 spec={'x4_source':sources['x4']['commit'],'sources':sources,'runtime':str(B/'integration-runtime-064'),'tools':str(B/'build-sources/watch/watchsrc'),'native':str(B/'native-064'),'native_platform':str(B/'native-platform-064'),'native_candidate':record(B/'native-064/candidate.json'),'baseline':record(B/'firmware-064/X4-0.1.64-Render-Latency-Contexts-Lists-Panel-0.1.13-full-0x0.bin'),'baseline_custody':record(B/'firmware-064/build-custody.json'),'apps':apps,'providers':providers,'compiled_inputs':dependencies,'qualifications':qualifications,'mkspiffs_sha256':previous['mkspiffs_sha256'],'source_public_mapping':json.loads((ROOT/'minimal/home-sleep-065-sources.json').read_text()),'panel_source':json.loads((ROOT/'minimal/panel-012-selection-065.json').read_text())}
+spec['compiler']=compiler
 (B/'assembly-spec-065.json').write_text(json.dumps(spec,indent=2)+'\n')
 print('Pinned .65:',len(dependencies),'compiled inputs;',len(qualifications),'qualifications')

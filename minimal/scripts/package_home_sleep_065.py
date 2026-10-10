@@ -30,6 +30,7 @@ def build(a):
  sys.path[:0]=[str(tools/'scripts'),str(runtime/'scripts'),str(ROOT/'minimal/recovery_tools')]
  from read_only_spiffs import read_image
  from current_bootfs import build as pack
+ from compact_current_elf import compact
  from paired_bank_images import initial_bank_state,initial_otadata,parse_record
  from native_binary_exports import exports as bin_exports,reference_tables
  from elftools.elf.elffile import ELFFile
@@ -45,7 +46,7 @@ def build(a):
  # Only the explicitly selected executables/manifests change in this private test image.
  files=dict(frozen)
  require(set(spec['apps'])==APPS and set(spec['providers'])==PROVIDERS,'Wrong replacement scope')
- receipts={}
+ receipts={};compactions={}
  for directory,rows in ((False,spec['apps']),(True,spec['providers'])):
   for name,row in rows.items():
    blob=artifact(row['elf']);manifest=json.loads(artifact(row['manifest']));receipt=json.loads(artifact(row['receipt']))
@@ -55,6 +56,10 @@ def build(a):
    require(manifest['version']==row['version'],'Version mismatch: '+name)
    elf_name=name+'/driver.elf' if directory else name+'.elf'
    meta_name=name+'/manifest.json' if directory else name+'.json'
+   if directory:
+    dest=a.output/'compacted'/elf_name;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(blob)
+    compactions[name]=compact(dest,spec['compiler'],debug_path=a.output/'debug-originals'/elf_name)
+    blob=dest.read_bytes()
    files[elf_name]=blob;files[meta_name]=encoded(manifest);receipts[elf_name]=receipt
  require(json.loads(files['panel/manifest.json'])['version']=='0.1.12','Wrong selected panel')
  require(spec['panel_source']['commit']=='c081eebddad9ac61740b758e3fa74e5c92e325b1','Wrong panel source')
@@ -120,6 +125,7 @@ def build(a):
  name='X4-0.1.65-Home-Sleep-Lists-Panel-0.1.12-full-0x0.bin'
  (a.output/name).write_bytes(image);(a.output/'bootfs.bin').write_bytes(fs)
  report={'schema':'x4.home-sleep-render-fixes','schema_version':1,'product_version':'0.1.65','source':source,'inputs':spec,'native_proof':native_proof,'native_export_count':len(names),'native_exports':exports_proof,'cohort':cohort,'image':{'name':name,'bytes':len(image),'sha256':sha(image),'flash_offset':0},'build_receipts':receipts,'strict_admission':strict,'cohort_admission':admissions,'store_generator':capacity,'store_files':digest_inventory(files),'panel_source':spec['panel_source'],'lists_catalog_metadata':lists_catalog,'changed_store_paths':sorted(n for n in files if files[n]!=frozen.get(n)),'preserved_regions':[{'offset':lo,'bytes':hi-lo,'sha256':sha(raw[lo:hi])} for lo,hi in regions],'paired_sha_crc_verified':True,'hardware_tested':False,'first_install_warning':'Full 16 MiB image at 0x0 overwrites internal settings, Bluetooth bonds and AppData. Back up first. Removable SD contents are not included.'}
+ report['provider_compaction']=compactions
  (a.output/'build-custody.json').write_bytes(encoded(report));print(json.dumps(report['image']))
 
 if __name__=='__main__':

@@ -34,6 +34,9 @@ receipts, compiled inputs, test evidence and reused native composition.
 `package_home_sleep_065.py` verifies all 49 ELFs and the complete cohort in normal
 and sanitized admission, independently reads SPIFFS through both implementations,
 and verifies paired bank hashes/CRC and unchanged native/boot/AppData regions.
+The two replaced providers use the existing `loader-metadata-v3` compactor,
+with complete code/data, symbol, program-header and relocation equivalence
+checked against their retained original ELFs. This preserves bootfs free space.
 
 Deliver the full 16 MiB firmware directly as a `.bin` at offset `0x0`. It is a
 private development test, with no ZIP delivery or release publication. Hardware
