@@ -1,0 +1,220 @@
+name: Apply X4 panel 0.1.15 mode-1 waveform
+
+on:
+  push:
+    branches:
+      - recovery/x4-sd-state-0214-20261010
+    paths:
+      - .github/workflows/apply-x4-panel-015.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: recovery/x4-sd-state-0214-20261010
+          fetch-depth: 0
+
+      - name: Adopt laboratory mode 1 in the firmware driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import datetime
+          import hashlib
+          import json
+
+          def replace_once(path: Path, old: str, new: str) -> None:
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one occurrence, found {count}: {old[:100]!r}")
+              path.write_text(text.replace(old, new, 1))
+
+          driver = Path('minimal/drivers/x4pro_uc8279_fast/driver.c')
+          replace_once(
+              driver,
+              '#define X4PRO_DIRECTIONAL_PHASE_FRAMES 1u\n',
+              '#define X4PRO_DIRECTIONAL_PHASE_FRAMES 2u\n'
+              '#define X4PRO_DIRECTIONAL_POWER_VDH 0x3Au\n'
+              '#define X4PRO_DIRECTIONAL_POWER_VDL 0x3Au\n'
+              '#define X4PRO_DIRECTIONAL_POWER_VDHR 0x03u\n'
+          )
+          replace_once(
+              driver,
+              'static void reg1(uint8_t cmd, uint8_t value) { write_register(cmd, &value, 1u); }\n',
+              'static void reg1(uint8_t cmd, uint8_t value) { write_register(cmd, &value, 1u); }\n'
+              'static void write_mode1_power_profile(void) {\n'
+              '    /* Hardware-selected X4LAB v0.1.9 mode 1: symmetric +/-14 V\n'
+              '     * source rails, 3 V VDHR, and factory VCOM (no 0x82 write). */\n'
+              '    const uint8_t power[] = {0x07u, 0x17u, X4PRO_DIRECTIONAL_POWER_VDH,\n'
+              '        X4PRO_DIRECTIONAL_POWER_VDL, X4PRO_DIRECTIONAL_POWER_VDHR};\n'
+              '    write_register(0x01u, power, sizeof(power));\n'
+              '}\n'
+          )
+          replace_once(
+              driver,
+              '    if (!sample_now(&now) || now > UINT64_MAX - 500u || !uc_ready_for("uc reset busy timeout", now + 500u)) return false;\n'
+              '    command(0x00); data1(0x37); data1(0x4D);\n',
+              '    if (!sample_now(&now) || now > UINT64_MAX - 500u || !uc_ready_for("uc reset busy timeout", now + 500u)) return false;\n'
+              '    write_mode1_power_profile();\n'
+              '    if (io_failed) return false;\n'
+              '    command(0x00); data1(0x37); data1(0x4D);\n'
+          )
+          replace_once(
+              driver,
+              '    /* Two complementary phases preserve the two-frame active budget while\n'
+              '     * maximizing source-to-VCOM field only for the selected transition:\n',
+              '    /* Hardware-selected X4LAB v0.1.9 mode 1 uses two complementary\n'
+              '     * phases with two scan frames per direction (2+2) at symmetric\n'
+              '     * +/-14 V, maximizing source-to-VCOM field only for the selected\n'
+              '     * transition:\n'
+          )
+          replace_once(
+              driver,
+              '            screen_powered = true;\n'
+              '            /* PON may restore MTP defaults. Close any pre-PON partial\n',
+              '            screen_powered = true;\n'
+              '            /* PON may restore MTP defaults, including source rails.\n'
+              '             * Reassert the selected mode-1 +/-14 V profile before DRF. */\n'
+              '            write_mode1_power_profile();\n'
+              '            if (io_failed) goto failed;\n'
+              '            /* Close any pre-PON partial\n'
+          )
+
+          manifest = Path('minimal/drivers/x4pro_uc8279_fast/manifest.json')
+          replace_once(manifest, '"version": "0.1.14"', '"version": "0.1.15"')
+
+          profile_test = Path('minimal/test/uc8279_fast_profile_test.py')
+          replace_once(profile_test, "manifest['version']=='0.1.14'", "manifest['version']=='0.1.15'")
+
+          test = Path('minimal/test/uc8279_fast_test.c')
+          replace_once(
+              test,
+              ' case 0x00:case 0x02:case 0x03:case 0x04:case 0x07:\n',
+              ' case 0x00:case 0x01:case 0x02:case 0x03:case 0x04:case 0x07:\n'
+          )
+          replace_once(
+              test,
+              '  memset(regs[0x00],0,sizeof(regs[0x00])); memset(regs[0x30],0,sizeof(regs[0x30]));\n',
+              '  memset(regs[0x00],0,sizeof(regs[0x00])); memset(regs[0x01],0,sizeof(regs[0x01]));\n'
+              '  memset(regs[0x30],0,sizeof(regs[0x30]));\n'
+          )
+          replace_once(
+              test,
+              '   assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);\n'
+              '   const bool directional=regs[0x20][1]==0x41u&&regs[0x20][2]==0x81u;\n'
+              '   if(directional){\n'
+              '    const uint8_t high=0x41u,low=0x81u;\n',
+              '   assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);\n'
+              '   assert(regs[0x01][0]==0x07u&&regs[0x01][1]==0x17u&&\n'
+              '          regs[0x01][2]==0x3Au&&regs[0x01][3]==0x3Au&&regs[0x01][4]==0x03u);\n'
+              '   const bool directional=regs[0x20][1]==0x42u&&regs[0x20][2]==0x82u;\n'
+              '   if(directional){\n'
+              '    const uint8_t high=0x42u,low=0x82u;\n'
+          )
+          replace_once(
+              test,
+              ' if(cmd==0x61){const uint8_t tres[]={0x03,0x20,0x02,0x58};assert(data_index<sizeof(tres)&&value==tres[data_index]);}\n'
+              ' if(cmd==0x65)assert(data_index<4&&value==0);\n',
+              ' if(cmd==0x01){const uint8_t power[]={0x07,0x17,0x3A,0x3A,0x03};assert(data_index<sizeof(power)&&value==power[data_index]);}\n'
+              ' if(cmd==0x61){const uint8_t tres[]={0x03,0x20,0x02,0x58};assert(data_index<sizeof(tres)&&value==tres[data_index]);}\n'
+              ' if(cmd==0x65)assert(data_index<4&&value==0);\n'
+          )
+
+          readme = Path('minimal/drivers/x4pro_uc8279_fast/README.md')
+          replace_once(readme, '# X4 UC8279 fast provider 0.1.14\n', '# X4 UC8279 fast provider 0.1.15\n')
+          marker = '## Complementary directional overdrive (0.1.14)\n'
+          text = readme.read_text()
+          if text.count(marker) != 1:
+              raise SystemExit('README 0.1.14 section marker missing')
+          section = '''## Hardware-selected mode 1 waveform (0.1.15)\n\nVersion 0.1.15 adopts the best overall result from the X4LAB v0.1.9\ndirectional-balance run: mode 1, complementary directional `2+2` at\nsymmetric +/-14 V with factory VCOM. For active changed windows no taller than\n160 rows, each white-to-black and black-to-white phase now occupies two scan\nframes (`0x42`/`0x82`) instead of one (`0x41`/`0x81`). The driver explicitly\nprograms POWER_SETTING `{07,17,3A,3A,03}` after reset and again after every PON;\nit does not write VCOM DC, preserving the factory reference.\n\nThe hardware comparison found this profile produced the cleanest overall black\nand white block motion. The symmetric +/-15 V control improved white clearing\nbut left a solid gray rectangle behind the moving black target, so maximum\nrails are not adopted. Changed-byte windows, truthful DTM1/DTM2 ordering, the\nfour-frame endpoint redraw, complete plane reconciliation, and POF behavior are\nunchanged. Broad 480-row motion still uses the existing one-frame absolute bank.\n\n'''
+          readme.write_text(text.replace(marker, section + marker, 1))
+          readme_text = readme.read_text()
+          readme_text = readme_text.replace(
+              'Registers 0x20, 0x21 and 0x24 encode high then low (`0x41,0x81`), register\n0x22 holds low for both phases (`0x81,0x81`), and register 0x23 holds high for\nboth (`0x41,0x41`).',
+              'Registers 0x20, 0x21 and 0x24 encode high then low (`0x42,0x82`), register\n0x22 holds low for both two-frame phases (`0x82,0x82`), and register 0x23 holds\nhigh for both (`0x42,0x42`).'
+          )
+          readme.write_text(readme_text)
+
+          workflow = Path('.github/workflows/x4-fast-display.yml')
+          text = workflow.read_text()
+          replacements = {
+              'uc8279-complementary-directional-overdrive-0.1.14.json': 'uc8279-mode1-2plus2-0.1.15.json',
+              '\"version\": \"0.1.14\"': '\"version\": \"0.1.15\"',
+              "grep -q 'table\\[1\\] = high; table\\[2\\] = low' minimal/drivers/x4pro_uc8279_fast/driver.c":
+                  "grep -q '#define X4PRO_DIRECTIONAL_PHASE_FRAMES 2u' minimal/drivers/x4pro_uc8279_fast/driver.c\n          grep -q 'X4PRO_DIRECTIONAL_POWER_VDH 0x3Au' minimal/drivers/x4pro_uc8279_fast/driver.c\n          grep -q 'table\\[1\\] = high; table\\[2\\] = low' minimal/drivers/x4pro_uc8279_fast/driver.c",
+              'build/x4-uc8279-fast-0.1.14': 'build/x4-uc8279-fast-0.1.15',
+              'x4-uc8279-fast-0.1.14-': 'x4-uc8279-fast-0.1.15-',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'workflow expected text missing: {old}')
+              text = text.replace(old, new)
+          workflow.write_text(text)
+
+          validation_path = Path('minimal/validation/uc8279-mode1-2plus2-0.1.15.json')
+          files = [driver, manifest, readme, test, profile_test, workflow]
+          validation = {
+              'schema': 'x4.uc8279.mode1-2plus2-validation',
+              'schema_version': 1,
+              'created_at_utc': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              'baseline': {
+                  'branch': 'recovery/x4-sd-state-0214-20261010',
+                  'commit': '879ebef75b47f723655253ec04428f7a48e487b2',
+                  'driver_version': '0.1.14'
+              },
+              'candidate': {'driver_version': '0.1.15'},
+              'hardware_source': {
+                  'repository': 'michaelrolphone-cmyk/T5S3-Reader',
+                  'commit': '002880584caa0763484c4e058a64790def28307a',
+                  'pull_request': 474,
+                  'mode': 1,
+                  'profile': 'complementary directional 2+2, 200 Hz, symmetric +/-14 V, factory VCOM',
+                  'observation': 'best overall clean and sharp black/white block motion; +/-15 V left a solid gray black-target trail'
+              },
+              'implementation': {
+                  'scope': 'DEFAULT/LOW_LATENCY effective windows up to 160 rows',
+                  'phase_frames_per_direction': 2,
+                  'power_setting_hex': '07 17 3A 3A 03',
+                  'vcom': 'factory; no VCOM-DC write',
+                  'unchanged': [
+                      'changed-byte horizontal windows',
+                      '40/80/160/480 row quantization',
+                      'truthful DTM1 OLD then DTM2 NEW',
+                      'broad 480-row one-frame absolute motion',
+                      'four-frame final-target endpoint redraw',
+                      'complete DTM1/DTM2 reconciliation and POF'
+                  ]
+              },
+              'software_validation': {
+                  'status': 'pending exact-head GitHub Actions qualification',
+                  'workflow': '.github/workflows/x4-fast-display.yml'
+              },
+              'integrated_driver_hardware_tested': False,
+              'files_sha256': {
+                  str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in files
+              }
+          }
+          validation_path.write_text(json.dumps(validation, indent=2) + '\n')
+          PY
+
+          rm .github/workflows/apply-x4-panel-015.yml
+          git diff --check
+          python3 -m json.tool minimal/drivers/x4pro_uc8279_fast/manifest.json >/dev/null
+          python3 -m json.tool minimal/validation/uc8279-mode1-2plus2-0.1.15.json >/dev/null
+          grep -q '#define X4PRO_DIRECTIONAL_PHASE_FRAMES 2u' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'X4PRO_DIRECTIONAL_POWER_VDH 0x3Au' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q '"version": "0.1.15"' minimal/drivers/x4pro_uc8279_fast/manifest.json
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(x4): adopt lab mode 1 2+2 waveform'
+          git push origin HEAD:recovery/x4-sd-state-0214-20261010
