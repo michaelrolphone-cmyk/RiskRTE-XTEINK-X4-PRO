@@ -34,7 +34,6 @@ jobs:
           echo '7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a  minimal/drivers/x4pro_uc8279_fast/README.md' | sha256sum -c -
           echo '69acfc1e01b45c71788ddc49b5cd5323cebbe99340d021d0c81d7a322844d9d8  minimal/validation/uc8279-endpoint-redraw-0.1.12.json' | sha256sum -c -
           grep -q '"version": "0.1.12"' minimal/drivers/x4pro_uc8279_fast/manifest.json
-          grep -q 'four-frame full-visible absolute redraw' minimal/drivers/x4pro_uc8279_fast/README.md
 
           rm -rf .github/x4-012-overlay .github/x4-012-overlay-xz
           rm -f .github/workflows/x4-uc8279-012-apply.yml
