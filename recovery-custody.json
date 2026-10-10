@@ -12,5 +12,15 @@
     "minimal/drivers/x4pro_sd/driver.c": "57b50acf86d413929fb4b53edaa970d366f907495ca83b1d707870142c33673d",
     "minimal/drivers/x4pro_sd/BootLog.h": "be49f4c78f5c6054f79cabe82c951b95d984b28e8740e61f71896541c93fc6a0",
     "minimal/drivers/x4pro_sd/Export.h": "cba8ca234c8e58c8138f175296f6ac21c1b2fac06b8fa79cbb863a8faaa41c7a"
+  },
+  "final_product_build": "pending source-complete freeze and clean rebuild; existing product binaries invalid",
+  "probe_recovery": {
+    "original_body_sha256": "1334c975e8b9dfaee5cfa8571ebb21512dbba6ece06892e06420c56f671eee16",
+    "path_change_only": "old temporary driver/fixture includes rebound to repository-relative paths",
+    "files": {
+      "minimal/test/crash_report_sd_integration.c": "c9c9c2d21f355fff066cf8aae446c0921a04833b703a7b35d6fde152e6ab3860",
+      "minimal/scripts/test_crash_report_sd_integration.py": "b46f88aa648f071fb7ae732bc5efcb7316eed2556838077e837b996f22a2d0b4"
+    },
+    "fresh_source_checks": "seven cases normal and ASan/UBSan; no hardware"
   }
 }
