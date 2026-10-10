@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 using namespace RiscCpu;
+[[maybe_unused]] static garden_gpio_v1& gpioBase(garden_gpio_v1& api){return api;}
+template<class Api> static auto& gpioBase(Api& api){return api.base;}
 extern "C" const risc_driver_v2* board_get(uint32_t);
 extern "C" const risc_driver_v2* power_get(uint32_t);
 uint64_t native_sleep_test_output_mask=native_sleep_test_gpio_mask;
@@ -70,7 +72,7 @@ int main(int argc,char**argv){
  Port port(hardware());active=&port;
  RiscBoot::Runtime runtime({owner,[](risc_runtime_health_v1*){return true;},[](uint32_t){},[](const char*){return true;},bind});
  assert(runtime.prepare(profile)&&!io);
- auto gpio=[&](uint64_t id)->garden_gpio_v1*{for(auto&g:port.gpios_)if(g.instance==id)return &g.api;return nullptr;};
+ auto gpio=[&](uint64_t id)->garden_gpio_v1*{for(auto&g:port.gpios_)if(g.instance==id)return &gpioBase(g.api);return nullptr;};
  auto sync=[&](uint64_t id)->risc_provider_sync_api_v1*{for(auto&s:port.syncs_)if(s.instance==id)return &s.api;return nullptr;};
  boardDriver=board_get(2);powerDriver=power_get(2);boardApi=static_cast<const x4_power_ready_api_v1*>(boardDriver->capability);powerApi=x4_power_deep(static_cast<const x4_power_v1*>(powerDriver->capability));assert(powerApi);
  const risc_provider_dependency_v1 boardDeps[]={{"hardware.device",1,&runtime.board().device(1)->hardware},{"platform.gpio",1,gpio(1)},{"platform.sync",1,sync(1)}};

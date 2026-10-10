@@ -113,6 +113,11 @@ bool retire(void* context, uint64_t token) {
     assert(!"Retirement must use a current exact scoped token");
     return false;
 }
+// CPU Runtime revisions expose either the base GPIO table or its tagged
+// SDMMC suffix. Exercise the real base prefix without requiring the suffix.
+[[maybe_unused]] static garden_gpio_v1& gpioBase(garden_gpio_v1& api) { return api; }
+template<class Api> static auto& gpioBase(Api& api) { return api.base; }
+
 struct Fixture {
     Port port{hardware()};
     risc_hw_gpio_bank_v1 config{};
@@ -125,11 +130,11 @@ struct Fixture {
         auto& g = port.gpios_[0];
         g.port = &port; g.instance = 1;
         g.input = g.output = (uint64_t(1) << 8) | (uint64_t(1) << 9);
-        g.api.base.api_version = 1; g.api.base.struct_size = sizeof(g.api); g.api.base.context = &g;
-        g.api.base.claim = Port::gpioClaim; g.api.base.write = Port::gpioWrite;
-        g.api.base.read = Port::gpioRead; g.api.base.pwm = Port::gpioPwm;
-        g.api.base.release = Port::gpioRelease; g.api.base.deep_sleep_hold = Port::gpioDeepSleepHold;
-        g.api.base.retire_held_output = retire;
+        gpioBase(g.api).api_version = 1; gpioBase(g.api).struct_size = sizeof(g.api); gpioBase(g.api).context = &g;
+        gpioBase(g.api).claim = Port::gpioClaim; gpioBase(g.api).write = Port::gpioWrite;
+        gpioBase(g.api).read = Port::gpioRead; gpioBase(g.api).pwm = Port::gpioPwm;
+        gpioBase(g.api).release = Port::gpioRelease; gpioBase(g.api).deep_sleep_hold = Port::gpioDeepSleepHold;
+        gpioBase(g.api).retire_held_output = retire;
         port.gpioCount_ = 1;
         auto& s = port.syncs_[0];
         s.port = &port; s.instance = 1;
@@ -178,7 +183,7 @@ void lifecycle() {
     assert(frontlight->set_level(nullptr, 0, 1));
     assert(model.io == initialIo && model.retires == 2);
     // Retired generations cannot perform operations or release the held pad.
-    auto& api = f.port.gpios_[0].api.base;
+    auto& api = gpioBase(f.port.gpios_[0].api);
     for (const auto& pad : model.pads) {
         assert(!api.write(api.context, pad.retiredToken, true));
         assert(!api.release(api.context, pad.retiredToken));

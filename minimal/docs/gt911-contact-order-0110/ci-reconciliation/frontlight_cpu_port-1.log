@@ -1,0 +1,7 @@
+Canonical SDK headers: 78
+Frontlight + CpuPort: start/off custody, fresh same-scope LOW relight PASS
+Frontlight + CpuPort: tone endpoints, off/restore, exact LOW custody and refused retirement PASS
+Frontlight + CpuPort: start retirement refusal GPIO8 retains exact token, fences calls, retries PASS
+Frontlight + CpuPort: off retirement refusal GPIO8 retains exact token, fences calls, retries PASS
+Frontlight + CpuPort: start retirement refusal GPIO9 retains exact token, fences calls, retries PASS
+Frontlight + CpuPort: off retirement refusal GPIO9 retains exact token, fences calls, retries PASS
