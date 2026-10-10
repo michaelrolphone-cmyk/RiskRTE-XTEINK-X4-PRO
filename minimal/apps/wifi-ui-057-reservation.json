@@ -1,0 +1,203 @@
+{
+  "schema": 1,
+  "product": "xteink-x4-pro",
+  "reserved_version": "0.1.57",
+  "date_utc": "2026-10-10T15:08:00Z",
+  "base_public_commit": "5cc9791e63102725a48a6a0c44e1c2ab0bb358e4",
+  "base_image_sha256": "015f7e3f697081b14c1cccbc08c38fa50f2052b3097e8e290a41f27dfc1ae10e",
+  "branch": "integrate/x4-wifi-ui-057",
+  "known_external_claim": {
+    "version": "0.1.56",
+    "pr": "https://github.com/michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO/pull/23"
+  },
+  "live_branch_product_versions": [
+    {
+      "ref": "checkpoint/x4-026",
+      "version": "0.1.26",
+      "blob": "b1382e26483e55ceb565f5685ae7d4058b18ff08",
+      "error": false
+    },
+    {
+      "ref": "checkpoint/x4-032",
+      "version": "0.1.32",
+      "blob": "8885e9f53a1cfa1b075d3c4ca033c524740b2df9",
+      "error": false
+    },
+    {
+      "ref": "checkpoint/x4-recovered-test-055",
+      "version": "0.1.55",
+      "blob": "04cee28494ce00080e5f889acacd0cda75e2d9c5",
+      "error": false
+    },
+    {
+      "ref": "codex/x4-clock-sleep-wake",
+      "version": "0.1.0",
+      "blob": "b766e9cbecb355f24ff31bcb9c0bd7b48149a91f",
+      "error": false
+    },
+    {
+      "ref": "codex/x4-provisioning-profile",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "codex/x4-sd-sleep-recovery",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "diagnostics/x4-stage-timing-20261007",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "experiment/x4-gpio-high-before-mux-035",
+      "version": "0.1.43",
+      "blob": "32dd10e526d848cda195d6ca0196b705d1f8ab0f",
+      "error": false
+    },
+    {
+      "ref": "feat/declarative-alarms",
+      "version": "0.1.46",
+      "blob": "d6b6760d76049ae44de60c0fd8e243c9a9b4968c",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-clock-deep-entry",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-deep-board-keepalive",
+      "version": "0.1.7",
+      "blob": "18b76614fd394f440b15fcc94d51c7b9b884404a",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-desk-clock-client",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-desk-clock-integration",
+      "version": "0.1.7",
+      "blob": "18b76614fd394f440b15fcc94d51c7b9b884404a",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-generic-provisioning-026",
+      "version": "0.1.26",
+      "blob": "b1382e26483e55ceb565f5685ae7d4058b18ff08",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-minimal-runtime",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-panel-sleep-lifecycle",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-sparse-clock-integration",
+      "version": "0.1.33",
+      "blob": "b7ad896f00e4ec8e9c6a8b5e72eba3ad3693b522",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-sparse-sleep-client",
+      "version": "0.1.7",
+      "blob": "18b76614fd394f440b15fcc94d51c7b9b884404a",
+      "error": false
+    },
+    {
+      "ref": "feat/x4-touch-sleep-recovery",
+      "version": "0.1.6",
+      "blob": "a42f6fbdbf7a1815f9c70f0a434f1d64f8d823f9",
+      "error": false
+    },
+    {
+      "ref": "fix/first-boot-board-power",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "fix/x4-offline-boot-log-0130",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "fix/x4-usb-preparation-034",
+      "version": "0.1.34",
+      "blob": "a7db60e53f8d9df1dc479095d84b2b0b69a144e5",
+      "error": false
+    },
+    {
+      "ref": "integrate/x4-failure-evidence-045",
+      "version": "0.1.45",
+      "blob": "4b9798c782b6f7f7d04227c38c8c0a7428ab700a",
+      "error": false
+    },
+    {
+      "ref": "integrate/x4-resident-loader-repair-046",
+      "version": "0.1.46",
+      "blob": "d6b6760d76049ae44de60c0fd8e243c9a9b4968c",
+      "error": false
+    },
+    {
+      "ref": "integrate/x4-resident-shell-044",
+      "version": "0.1.44",
+      "blob": "89ec35faa52780ecbf6b81c9ba308b241321103d",
+      "error": false
+    },
+    {
+      "ref": "integration/x4-temporal-current-20261010",
+      "version": "0.1.50",
+      "blob": "bb74def036ae5345bfa6e002340c6bff7324cd81",
+      "error": false
+    },
+    {
+      "ref": "main",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "migrate/x4-platform",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "perf/uc8279-cooperative-present",
+      "version": null,
+      "error": true
+    },
+    {
+      "ref": "recovered/gt911-019-source-20261010",
+      "version": "0.1.55",
+      "blob": "04cee28494ce00080e5f889acacd0cda75e2d9c5",
+      "error": false
+    },
+    {
+      "ref": "recovery/ssd-bounded-poll-20261010",
+      "version": "0.1.55",
+      "blob": "04cee28494ce00080e5f889acacd0cda75e2d9c5",
+      "error": false
+    },
+    {
+      "ref": "recovery/x4-sd-state-0214-20261010",
+      "version": "0.1.46",
+      "blob": "d6b6760d76049ae44de60c0fd8e243c9a9b4968c",
+      "error": false
+    }
+  ],
+  "version_pr_search_057": [],
+  "scope": "Stable completed System/Utilities union with Wi-Fi provider0.2.1 and coordinated native0.2.2 after source seal; preserve delivered .55 component roster and panel0.1.13; exclude unfinished endpoint and renderer."
+}
