@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Actual fast0.1.14 provider and production Light idle helper, host only."""
+"""Actual fast0.1.12 provider and production Light idle helper, host only."""
 import argparse,hashlib,json,os,shutil,subprocess
 from pathlib import Path
 r=Path(__file__).resolve().parents[2];p=argparse.ArgumentParser(description=__doc__)
@@ -9,7 +9,7 @@ shutil.copytree(a.candidate/'idle-sdk/include',include,dirs_exist_ok=True)
 # One canonical directory prevents pragma-once prefix/suffix duplication.
 for path in a.provider_sdk.glob('*.h'):
  if path.name not in ('RiscStorageVolumeV1.h','RiscTouchV1.h','RiscTouchPowerV1.h'):shutil.copyfile(path,include/path.name)
-assert json.loads((r/'minimal/drivers/x4pro_uc8279_fast/manifest.json').read_text())['version']=='0.1.14'
+assert json.loads((r/'minimal/drivers/x4pro_uc8279_fast/manifest.json').read_text())['version']=='0.1.12'
 for san in (False,True):
  flags=['-std=c11','-O1','-g','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-DTEST_X4_IDLE_POLICY','-DPORTABLE_X4_IDLE_POLICY','-DPORTABLE_ALARM_CLIENT','-DALARM_SERVICE_TAGGED_V2']
  if san:flags+=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer','-no-pie']

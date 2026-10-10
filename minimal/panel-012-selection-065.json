@@ -1,0 +1,9 @@
+{
+  "commit": "c081eebddad9ac61740b758e3fa74e5c92e325b1",
+  "version": "0.1.12",
+  "files": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a"
+  }
+}
