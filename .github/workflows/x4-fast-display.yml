@@ -1,4 +1,5 @@
 name: X4 UC8279 fast-display qualification
+# Qualification target: restored 0.1.13 lifecycle with 4-frame localized absolute drive.
 
 on:
   push:
