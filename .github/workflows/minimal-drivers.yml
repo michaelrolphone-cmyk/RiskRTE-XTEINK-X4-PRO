@@ -55,6 +55,8 @@ jobs:
           for driver in board_power i2c panel frontlight buttons rtc sd battery gt911; do
             bash minimal/test/run_${driver}_test.sh
           done
+          SANITIZE=0 bash minimal/test/run_uc8279_fast_test.sh
+          SANITIZE=1 bash minimal/test/run_uc8279_fast_test.sh
           bash minimal/test/run_power_test.sh
           bash minimal/test/run_power_navigation_test.sh
           bash minimal/test/run_clock_sleep_test.sh

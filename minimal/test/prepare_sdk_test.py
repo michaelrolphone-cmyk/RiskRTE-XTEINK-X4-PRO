@@ -17,8 +17,8 @@ class SdkTest(unittest.TestCase):
    result=module.prepare(runtime,reader,root/'sdk')
    self.assertEqual(result['Shared.h']['origins'],['runtime/driver','reader/driver'])
    self.assertEqual({p.name for p in (root/'sdk').glob('*.h')},
-                    {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h'})
-   for name in ('RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h'):
+                    {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h','RiscStorageVolumeStateV1.h'})
+   for name in ('RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h','RiscStorageVolumeStateV1.h'):
     self.assertEqual(result[name]['origins'],['x4/interfaces'])
     self.assertEqual((root/'sdk'/name).read_bytes(),(ROOT/'interfaces'/name).read_bytes())
    with self.assertRaises(ValueError):module.prepare(runtime,reader,root/'sdk')
