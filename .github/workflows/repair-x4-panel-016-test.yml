@@ -29,7 +29,8 @@ jobs:
           grep -q 'nominal_refresh_millihz==9000' minimal/test/uc8279_fast_test.c
           grep -q 'fast_lut_frames==4' minimal/test/uc8279_fast_test.c
           grep -q 'fast_lut_frames==2u' minimal/test/uc8279_fast_test.c
-          test "$(wc -l < minimal/test/uc8279_fast_test.c)" -gt 700
+          grep -q 'test_snapshot' minimal/test/uc8279_fast_test.c
+          grep -q 'test_retained' minimal/test/uc8279_fast_test.c
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
