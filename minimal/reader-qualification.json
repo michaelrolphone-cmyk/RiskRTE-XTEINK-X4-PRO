@@ -2,8 +2,8 @@
   "schema": 1,
   "scope": "Source, host and target-build qualification; no device action",
   "reader_elf": {
-    "bytes": 1851664,
-    "sha256": "d2e1347d67dd1f0ef8d0c568c4a3c7affae899e6d45e7a5c244b4ba482e1c126",
+    "bytes": 1851676,
+    "sha256": "704c4319f67bbd73147755288f03b3e944048bef920d646a4a348990db892b9a",
     "mapped_relocations": 10636,
     "imports": [
       "__errno",
@@ -40,8 +40,8 @@
     ],
     "source_trees": {
       "runtime": "0da9576286e4567c84d08de489e66efceb3b1ddc",
-      "system": "0d6221118f39146c814d174f35d1e9c008b8f81b",
-      "productivity": "898deca1d9ea3205be6bc256ff88384397490022"
+      "system": "f063cc974087150691c377d2561c4898a10526a7",
+      "productivity": "2abc908b5ad78ac0a123c01ed912c7755da4c80e"
     },
     "tracked_source_dirty": {
       "runtime": false,
@@ -87,7 +87,7 @@
       "reader": {
         "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
         "native_elf_sha256": "088e1e279e5410e88a50a4473a99b962152cb9c73703d9f7c937b415b5685c96",
-        "app_elf_sha256": "d2e1347d67dd1f0ef8d0c568c4a3c7affae899e6d45e7a5c244b4ba482e1c126",
+        "app_elf_sha256": "704c4319f67bbd73147755288f03b3e944048bef920d646a4a348990db892b9a",
         "imports": [
           "__errno",
           "calloc",
@@ -164,7 +164,7 @@
       "scene": {
         "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
         "native_elf_sha256": "088e1e279e5410e88a50a4473a99b962152cb9c73703d9f7c937b415b5685c96",
-        "app_elf_sha256": "17071a4820ceab5cde60d30bc2f5127a943617538ab1fb4e91d17c0165099be4",
+        "app_elf_sha256": "729746da59698a76f73bbcca2f2617879856afd7193a396c311becb4d840d1ec",
         "imports": [
           "free",
           "malloc",
@@ -227,7 +227,7 @@
   },
   "x4_capacity": {
     "schema": 1,
-    "store_payload_bytes": 6701971,
+    "store_payload_bytes": 6704743,
     "store_partition_bytes": 5308416,
     "payload_fits_before_filesystem_overhead": false,
     "app_policies": 23,
@@ -235,12 +235,13 @@
     "native_runtime_required": "0.2.4 with Reader shared capabilities",
     "complete_flash_image": false,
     "hardware_qualified": false,
-    "native_admission": "separate matching-candidate verification required"
+    "native_admission": "Reader, current scene and storage provider modules admitted; complete cohort is not packaged because it does not fit",
+    "baseline_product": "X4 0.1.65"
   },
   "qualification_logs": {
     "qualification.log": {
-      "sha256": "921e51966e625a00f0e313621b986bc83965103c1bc85a5b1010527ccb92939d",
-      "tail": "/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample.epub Portable Reader 0%  \u00b7  CH 1  \u00b7  1 / 56\n/Books/sample-ncx.epub toc 1 spine 0 anchor start\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Deserialization failed: Parameters do not match\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample-ncx.epub Portable Reader 0%  \u00b7  CH 1  \u00b7  1 / 129\n/Books/sample.txt sample 0%  \u00b7  CH 1  \u00b7  1 / 206\n/Books/sample.md sample 0%  \u00b7  CH 1  \u00b7  1 / 139\nReader open, pagination, layout anchors, bookmark persistence, library and short I/O tests passed\n"
+      "sha256": "c35d797009aed0e0e1ecea9c3d0ba5a181fa49b68e8996db7be7e2a8cba5e022",
+      "tail": "/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample.epub Portable Reader 0%  |  CH 1  |  1 / 56\n/Books/sample-ncx.epub toc 1 spine 0 anchor start\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Deserialization failed: Parameters do not match\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample-ncx.epub Portable Reader 0%  |  CH 1  |  1 / 129\n/Books/sample.txt sample 0%  |  CH 1  |  1 / 206\n/Books/sample.md sample 0%  |  CH 1  |  1 / 139\nReader open, pagination, layout anchors, bookmark persistence, library and short I/O tests passed\n"
     },
     "memory-tests.log": {
       "sha256": "136c3b0f7778252ab1b594195474a86f881b9bab9283a049cb58bea53ea9f061",
@@ -276,15 +277,31 @@
     },
     "system": {
       "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
-      "commit": "3728db2e991048442a19f9d460191cc38c221b15"
+      "commit": "7bc645832c5b394b25924076a5f519e69951663e"
     },
     "productivity": {
       "repository": "michaelrolphone-cmyk/RiscRTE-Productivity",
-      "commit": "72030539a8d1d7597d8b503218b39461a64fa29e"
+      "commit": "bccfcfc22bc856574eb741d8112389abedd528ee"
     },
     "x4": {
       "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
-      "commit": "65b00dc23f0acbaf07d008213cb7cd068c290b0b"
+      "commit": "e7ca2a7e8fc1d0ac5b4024214ffa6b301c541c1a"
     }
+  },
+  "scene_version": "0.3.1",
+  "native_build_source": {
+    "commit": "8e89385d9a3b5db4e5638f7a0b6fe84606a28b29",
+    "repository": "michaelrolphone-cmyk/RiscRTE",
+    "source_date_epoch": 1791670074,
+    "tree": "0da9576286e4567c84d08de489e66efceb3b1ddc",
+    "version": "0.2.4",
+    "public_commit": "536e01a36461d2e66bdfa735186c1d02267b3fb7",
+    "public_tree_equal": true
+  },
+  "draft_reviews": {
+    "runtime": "https://github.com/michaelrolphone-cmyk/RiscRTE/pull/65",
+    "drivers": "https://github.com/michaelrolphone-cmyk/RiscRTE-Drivers/pull/23",
+    "system": "https://github.com/michaelrolphone-cmyk/RiscRTE-System-Apps/pull/95",
+    "reader": "https://github.com/michaelrolphone-cmyk/RiscRTE-Productivity/pull/20"
   }
 }
