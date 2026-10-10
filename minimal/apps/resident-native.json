@@ -1,0 +1,55 @@
+{
+  "schema": "x4.resident-native-selection",
+  "schema_version": 1,
+  "baseline_product": "0.1.46",
+  "runtime_source": "da3fa1a3ab177bc96af61298849a40ea9ca314f3",
+  "runtime_version": "0.1.98",
+  "environment": "esp32s3-16mb-appdata-iq-stage",
+  "build_options": {
+    "app_image_cache": true,
+    "app_policy_rows": 17,
+    "usb_phy": true,
+    "retained_wake_bytes": 512,
+    "failure_evidence": true
+  },
+  "boot_flash_selection": "dio-opi-80mhz",
+  "preserved_assets": {
+    "bootloader.bin": {
+      "bytes": 14032,
+      "sha256": "1033730a6df733f53a7a347353c1c5450547f76e98e0746da633079310a563b9"
+    },
+    "partitions.bin": {
+      "bytes": 3072,
+      "sha256": "475bd8da863027242a38a6401d45ee2251084037e92b19631f6468ad5ae5efc9"
+    },
+    "appdata.bin": {
+      "bytes": 524288,
+      "sha256": "5f03c248f2de31c4da9ae8d9bc2033df064cee5e37694a9982f70fbb2f1d2ef0"
+    }
+  },
+  "preserved_flash": {
+    "flash_mode": "dio",
+    "memory_type": "dio_opi",
+    "frequency_hz": 80000000,
+    "flash_bytes": 16777216,
+    "preserved_sdk_settings": {
+      "CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE": "1",
+      "CONFIG_ESP32S3_BROWNOUT_DET": "1",
+      "CONFIG_ESP32S3_BROWNOUT_DET_LVL": "7",
+      "CONFIG_ESP32S3_DEFAULT_CPU_FREQ_MHZ": "240",
+      "CONFIG_SPIRAM_BOOT_INIT": "1",
+      "CONFIG_SPIRAM_MODE_OCT": "1",
+      "CONFIG_SPIRAM_SPEED_80M": "1"
+    },
+    "sdk_pinned_files": {
+      "tools/sdk/esp32s3/bin/bootloader_dio_80m.elf": "787c681f6796924f7c9953d46ea45953001e1ad6a780c30e137bbdf8d21a1426",
+      "tools/sdk/esp32s3/dio_opi/include/sdkconfig.h": "f44a16b672d073fa7de730e2472d4d96feb251652440805a92d697b7a2e6b18b",
+      "tools/sdk/esp32s3/dio_opi/libspi_flash.a": "30e4e8bacc903085e8c39250f3a1015edce6650f09c954e6ac45a238a151409d"
+    }
+  },
+  "preserved_startup_source_sha256": {
+    "minimal/native/X4BootRecord.h": "e6f2f4463c5cdb788bb45ab06176193f12f5704f6b464a936d2a91d65a00ae15",
+    "minimal/native/X4EarlyBoot.cpp": "683c5bb42e42124e18eb6d75bbabffa5929a19f47f664a45d437dceacadefc7f",
+    "minimal/native/X4Gpio1Handoff.h": "66dc807b9f56b49a14d240ad637213a000c0718679754439301c288c2745c2d9"
+  }
+}

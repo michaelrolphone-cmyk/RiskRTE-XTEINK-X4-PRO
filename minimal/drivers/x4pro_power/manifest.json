@@ -1,0 +1,47 @@
+{
+  "type": "driver",
+  "id": "x4pro-power",
+  "version": "0.1.2",
+  "driver_abi": 2,
+  "architecture": "xtensa-esp32s3",
+  "file_name": "driver.elf",
+  "requires": [
+    {
+      "capability": "hardware.device",
+      "api": 1
+    },
+    {
+      "capability": "platform.gpio",
+      "api": 1
+    },
+    {
+      "capability": "platform.sync",
+      "api": 1
+    },
+    {
+      "capability": "platform.clock",
+      "api": 1
+    },
+    {
+      "capability": "board.power.ready",
+      "api": 1
+    }
+  ],
+  "provides": [
+    {
+      "capability": "x4.power",
+      "api": 1
+    }
+  ],
+  "hardware_compatibility": [
+    {
+      "compatible": "xteink,x4-pro-power-key",
+      "revisions": [
+        "unspecified"
+      ],
+      "config_type": "gpio.bank",
+      "config_version": 1
+    }
+  ],
+  "physical_verification": "pending"
+}

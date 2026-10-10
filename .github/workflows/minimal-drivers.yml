@@ -1,0 +1,77 @@
+name: Typed minimal X4 drivers
+on: [push, pull_request, workflow_dispatch]
+env:
+  PLATFORMIO_SETTING_ENABLE_TELEMETRY: "No"
+jobs:
+  host-target:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE-System-Apps
+          ref: a78723d2eefa9f865049c0e492b62c276d61d1ee
+          path: .shared/apps
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Host lifecycle and wire simulations
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+          RISCRTE_APPS_ROOT: ${{ github.workspace }}/.shared/apps
+          RISCRTE_DESK_SDK_ROOT: ${{ github.workspace }}/.shared/reader
+          SANITIZE: '1'
+        run: |
+          bash .shared/reader/test/run_display_power_contract_test.sh
+          bash .shared/reader/test/run_touch_power_test.sh
+          bash .shared/reader/test/storage_volume/run_sleep_extension_test.sh
+          bash minimal/test/run_bootlog_test.sh
+          python3 minimal/test/boot_logging_profile_test.py
+          python3 minimal/test/prepare_sdk_test.py
+          python3 minimal/test/bundle_identity_test.py
+          python3 minimal/test/app_bundle_grants_test.py
+          python3 minimal/test/sparse_app_grants_test.py
+          python3 minimal/test/sparse_clock_profile_test.py
+          python3 minimal/test/settings_power_profile_test.py
+          python3 minimal/test/desk_clock_bundle_test.py
+          python3 minimal/test/provisioning_profile_test.py
+          bash minimal/test/run_native_gpio_readback_test.sh
+          bash minimal/test/run_board_keepalive_cpu_test.sh
+          bash minimal/test/run_frontlight_cpu_port_test.sh
+          for driver in board_power i2c panel frontlight buttons rtc sd battery gt911; do
+            bash minimal/test/run_${driver}_test.sh
+          done
+          bash minimal/test/run_power_test.sh
+          bash minimal/test/run_power_navigation_test.sh
+          bash minimal/test/run_clock_sleep_test.sh
+          bash minimal/test/run_desk_clock_sleep_test.sh
+          bash minimal/test/run_desk_clock_typed_app_test.sh
+          python3 minimal/test/sleep_profile_test.py
+          bash minimal/test/run_profile_test.sh
+      - name: Install pinned target compiler
+        run: pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+      - name: Build and validate ordinary Xtensa providers
+        run: >-
+          python3 minimal/scripts/build_drivers.py
+          --runtime .shared/runtime --reader .shared/reader
+          --source-lock minimal/test/ordinary-driver-sources.lock.json
+          --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc"
+          --output build/minimal-drivers --sleep
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-typed-drivers-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/minimal-drivers

@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "system_apps": "038951b5ac38f0123b7c5b507ff62f0b58a517eb",
+  "utilities": "c0de37886a6ad568fda1520423622fadbd60b7d3",
+  "drivers": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+  "telemetry-battery": "0.1.0",
+  "ble-telemetry": "0.1.0",
+  "telemetry-broadcast": "0.1.0",
+  "default": "off",
+  "hardware_verified": false,
+  "publication": "blocked inherited System ancestry; local integration only"
+}

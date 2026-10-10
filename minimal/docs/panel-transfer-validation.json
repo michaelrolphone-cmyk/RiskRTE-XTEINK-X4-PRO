@@ -1,0 +1,802 @@
+{
+  "schema": "x4.panel-transfer-validation.v1",
+  "panel_version": "0.1.22",
+  "source_base": "d8f5a572dec1e7ca4be51ead19a1f09381311fdc",
+  "system_baseline": "c1ff014792c9ecbc195c402e9b4c3e2c3c9d34d3",
+  "system_async": "4b72a54e18c114e23774d8579675efd6048de41e",
+  "runtime_normal": "2abc312217fadb04ac0d9c994ecb38edc15edf6a",
+  "runtime_sanitized": "e6714b8e677d6a275a396ca8fd08fd0c44e744e2",
+  "reader_sdk": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "source_sha256": {
+    "minimal/drivers/x4pro_panel/driver.c": "3e8b181828f3d1d17a0a975d412251a83abcc2cf7083a8910b5006ddd3c6f275",
+    "minimal/interfaces/RiscDisplayOutputMetricsV1.h": "5be17adbae2ec26a855894e0d6443ac29572002c21efe53b2a913a5a0f0c642d"
+  },
+  "provider_scenarios": {
+    "normal": 69,
+    "asan_ubsan": 69
+  },
+  "sdk_composition": "pass; canonical metrics header and divergence rejection",
+  "target": {
+    "architecture": "xtensa-esp32s3",
+    "bytes": 69496,
+    "sha256": "10ab802a15572c32ad06bde898795138af74766a78c45a3cdb94700a037aabb0",
+    "relative_pointers": 419,
+    "exports": [
+      "t5_driver_get"
+    ],
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ]
+  },
+  "cadence": {
+    "normal_runs": 24,
+    "sanitized_runs": 24,
+    "same_observations": true,
+    "same_wire_and_payload_before_after": true,
+    "full_gpio_writes": 2880357,
+    "partial_gpio_writes": 2880789,
+    "payload_bytes_per_frame": 120000,
+    "partial_effective_rect": [
+      344,
+      127,
+      16,
+      5
+    ],
+    "provider_budget_ms": [
+      8,
+      8
+    ],
+    "max_bytes_per_poll": 512,
+    "gpio_costs": "0, 1000 or 500 writes per simulated millisecond; fixture assumptions only",
+    "runs": [
+      {
+        "adapter": "current",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 241,
+            "controller_polls": 241,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 1
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 241,
+            "controller_polls": 241,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 1
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 31,
+            "controller_polls": 31,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 8
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 248,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 248,
+            "status_polls": 31,
+            "controller_polls": 31,
+            "scheduler_wait_ms": 248,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 8
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 13,
+            "controller_polls": 13,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 20
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 260,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 260,
+            "status_polls": 13,
+            "controller_polls": 13,
+            "scheduler_wait_ms": 260,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 20
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 251,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 251,
+            "status_polls": 6,
+            "controller_polls": 6,
+            "scheduler_wait_ms": 251,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 50
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 250,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 250,
+            "status_polls": 5,
+            "controller_polls": 5,
+            "scheduler_wait_ms": 250,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 50
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 367,
+            "controller_polls": 367,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3247,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 367,
+            "controller_polls": 367,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 361,
+            "controller_polls": 361,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 368,
+            "status_polls": 361,
+            "controller_polls": 361,
+            "scheduler_wait_ms": 368,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3262,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 381,
+            "status_polls": 122,
+            "controller_polls": 122,
+            "scheduler_wait_ms": 381,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 27
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3260,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 380,
+            "status_polls": 121,
+            "controller_polls": 121,
+            "scheduler_wait_ms": 380,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 27
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3295,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 414,
+            "status_polls": 62,
+            "controller_polls": 62,
+            "scheduler_wait_ms": 414,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 54
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3290,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 410,
+            "status_polls": 61,
+            "controller_polls": 61,
+            "scheduler_wait_ms": 410,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 54
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 727,
+            "controller_polls": 727,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 727,
+            "controller_polls": 727,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 721,
+            "controller_polls": 721,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 721,
+            "controller_polls": 721,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 9
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6502,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 741,
+            "status_polls": 242,
+            "controller_polls": 242,
+            "scheduler_wait_ms": 741,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 27
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6500,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 739,
+            "status_polls": 241,
+            "controller_polls": 241,
+            "scheduler_wait_ms": 739,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 27
+          }
+        ]
+      },
+      {
+        "adapter": "current",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6535,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 774,
+            "status_polls": 122,
+            "controller_polls": 122,
+            "scheduler_wait_ms": 774,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 54
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6530,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 769,
+            "status_polls": 121,
+            "controller_polls": 121,
+            "scheduler_wait_ms": 769,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 54
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 0,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 241,
+            "transfer_ms": 234,
+            "payload_polls": 235,
+            "provider_polls": 241,
+            "status_polls": 242,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 241,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3247,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3247,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3247,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 1000,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 3248,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 3247,
+            "transfer_ms": 3240,
+            "payload_polls": 361,
+            "provider_polls": 367,
+            "status_polls": 368,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 367,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 1,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 8,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 20,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      },
+      {
+        "adapter": "baseline",
+        "app_wait_ms": 50,
+        "gpio_writes_per_ms": 500,
+        "frames": [
+          {
+            "mode": "full",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          },
+          {
+            "mode": "partial",
+            "elapsed_ms": 6488,
+            "transfer_ms": 6480,
+            "payload_polls": 721,
+            "provider_polls": 727,
+            "status_polls": 728,
+            "controller_polls": 0,
+            "scheduler_wait_ms": 727,
+            "max_requested_wait_ms": 1,
+            "max_controller_gap_ms": 0
+          }
+        ]
+      }
+    ]
+  },
+  "hardware": "not run; no timing, current, pixel visibility, waveform quality or diagnostic counter-overhead qualification",
+  "scope": "No SPI authority, transfer payload, window sequence, waveform, Runtime scheduling, release, publication or device changes."
+}

@@ -1,0 +1,71 @@
+{
+  "date_utc": "2026-10-07",
+  "baseline_x4": "f6c12e00e54a85fb2c09517ffad77c67c5b1851b",
+  "inputs": {
+    "reader_sdk": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+    "runtime": "7e79a8f06c1ee3b71214408c2477d9aaca985834",
+    "shared_legacy": "3bcc9b3accbd8169f0441a6874114127a69507d0",
+    "sparse_adapter_header_sha256": "f60734e5052f3d1797e603ebd44e877cf2fcaeefdfdffa480b60cb911749ffc1"
+  },
+  "source_sha256": {
+    "minimal/apps/portable_sleep.c": "d14af989b35fa2297c801194d5a37170ff3a190b3b448b54f551b5bdb9667996",
+    "minimal/test/sparse_desk_clock_sleep_test.c": "7faad1045c3860254bdc922e91ba81dee2d680a54f62aa73784507d2bbff79f1",
+    "minimal/test/run_sparse_desk_clock_sleep_test.sh": "329ae679e332f6afb2fc700c627836fc56f2e4996b80d1804df05e26f48e7bca",
+    "minimal/test/run_sparse_desk_clock_compatibility_test.sh": "7e3c002b4c48951596226052ae06e439202411710f6f69304a05ae91b841eece"
+  },
+  "tests": {
+    "sparse_actual_client": {
+      "scenarios": 110,
+      "profiles": 2,
+      "normal": "pass",
+      "asan_ubsan": "pass"
+    },
+    "legacy_client": {
+      "scenarios": 166,
+      "profiles": 2,
+      "normal": "pass",
+      "asan_ubsan": "pass"
+    },
+    "legacy_actual_app_composition": {
+      "processes": 45,
+      "profiles": 2,
+      "normal": "pass",
+      "asan_ubsan": "pass"
+    },
+    "legacy_light": {
+      "cases": 28,
+      "normal": "pass",
+      "asan_ubsan": "pass"
+    }
+  },
+  "compatibility": {
+    "baseline": "f6c12e00e54a85fb2c09517ffad77c67c5b1851b",
+    "prior_profiles": 4,
+    "preprocessed_identical": true,
+    "objects_identical": true,
+    "sparse_compile_profiles": 2,
+    "receipt_lines": [
+      "cc (Debian 14.2.0-19) 14.2.0",
+      "Unchanged desk=0 quick=0 object: 0d101481e66fdf321e3f0c127dfccbd3a3edad1fb428d25f043575ca3c71094e",
+      "Unchanged desk=0 quick=1 object: 97019d5de255f7405f557f551c31ad3b43ed2a7241387a1eb69b645938cf3005",
+      "Unchanged desk=1 quick=0 object: 93b531807b45a18614a1219f6663af33449c1586807ea405db3a1cc4407725d0",
+      "Unchanged desk=1 quick=1 object: 97ddc336e79e663caad699a93daca59e9a2bd84c9399fead5e00ba84bc434cdd",
+      "Sparse compile quick=0 object: c833d9b5ff72fedac909bbcd6ea25a4ff29c9f1e7621ec65025dd102813cf788",
+      "Sparse compile quick=1 object: 1c3750739fead41f16cbfc350dc129d05d225876909e9fe3c3525bed6cd2ed9c",
+      "xtensa-esp32s3-elf-gcc (crosstool-NG esp-2021r2-patch5) 8.4.0",
+      "Unchanged desk=0 quick=0 object: 77e47a971c160dcfe15f817677558742ba1c1128df3ac9041098895900f25bc0",
+      "Unchanged desk=0 quick=1 object: 9c67b233ce10769769ecb400829ab4dcf2ff4b2b8e377b1e4a1a9d31c5b12046",
+      "Unchanged desk=1 quick=0 object: b536ae945acf280f52db8629789e4067383e4f688369ac23e70bcaa8c76a241a",
+      "Unchanged desk=1 quick=1 object: ff953a152f9507c40922ffd8144cb05ac81fad4087177fe384c55ed432da5f2b",
+      "Sparse compile quick=0 object: dc346e1b2d3e134b321df1d6160d92a39b2d3003bf5aff1ca413f1c734b87c69",
+      "Sparse compile quick=1 object: 9fb4c741eb10bd966c6c3b323e77a5ac63735b7af18ca792d621d878dc82dbdc",
+      "Host + pinned Xtensa: 4 unchanged preprocess/object profiles and 2 sparse compiles each PASS"
+    ]
+  },
+  "limitations": [
+    "Sparse suite links the real client but uses a deterministic shared-loop fixture and provider/Runtime fixtures.",
+    "Legacy composition links the real app/adapter/client with provider/Runtime fixtures.",
+    "No real-provider/hardware qualification, full target bundle or flashing.",
+    "Sparse adapter remains a separate integration input; header hash identifies tested API."
+  ]
+}

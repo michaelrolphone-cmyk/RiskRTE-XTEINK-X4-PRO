@@ -1,0 +1,43 @@
+{
+  "baseline": "b7806deb9ed73c30d624d665942a0c374d75ee0f",
+  "runtime": "7fa39e01d7214a4a341032a15ab467a58ae22cec",
+  "reader": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+  "provider": "x4pro-panel",
+  "version": "0.1.21",
+  "normal_cases": 68,
+  "asan_ubsan_cases": 68,
+  "ordinary_damage_before": "full, E5=0x1e",
+  "ordinary_damage_after": "partial, E5=0x5a",
+  "preserved": [
+    "explicit clean waveform",
+    "explicit seed precedence",
+    "unsubmitted lease isolation",
+    "unrefreshed pixels outside damage",
+    "timeout invalidation",
+    "power preparation and resume invalidation",
+    "SSD1677 behavior",
+    "cooperative slice and BUSY handshake"
+  ],
+  "visible_bytes": 48000,
+  "controller_plane_bytes": 60000,
+  "planes_per_frame": 2,
+  "target_elf_bytes": 64792,
+  "target_elf_sha256": "0575e466403e5ee808bbcd633fdd0b99251cb0d3648a5c9c804455b8a1197e1e",
+  "imports": [
+    "memcpy",
+    "memset",
+    "strcmp"
+  ],
+  "exports": [
+    "t5_driver_get"
+  ],
+  "hardware": "not run",
+  "publication": "none",
+  "source_sha256": {
+    "minimal/drivers/x4pro_panel/driver.c": "cbefda05a2581334c677077127b0e651b6d901caab273aaddf426dc472780118",
+    "minimal/drivers/x4pro_panel/manifest.json": "e421aa1b0b8f96a448376e59ed64b1a5ba52e1884f7989a02b811bd92a11731a",
+    "minimal/test/panel_test.c": "5a00f220cb479cbe09d4e06a9c03e7526fb5cb56c7bb38f2fa32791045dc784e",
+    "minimal/test/run_panel_test.sh": "ce164e1d9da311355eeec203177a7f9f718cd0d32b11c056e6e4823e4d9ae385",
+    "minimal/test/run_panel_target_test.sh": "dc5a5765404c392c219521dba22ef9fc0578d4a5248cc300c7db8067ff501b3d"
+  }
+}
