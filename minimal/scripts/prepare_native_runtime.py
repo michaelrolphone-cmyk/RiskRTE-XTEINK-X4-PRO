@@ -79,11 +79,11 @@ def validate_build_options(options):
     require(isinstance(options, dict) and required <= set(options) and
             set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'app_requirement_rows'},
             'Invalid native build options')
-    require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17, 18),
-            'App policy rows must be 16, 17 or 18')
+    require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17, 18, 24),
+            'App policy rows must be 16, 17, 18 or 24')
     require('app_requirement_rows' not in options or
-            (type(options['app_requirement_rows']) is int and options['app_requirement_rows'] == 17),
-            'App requirement rows must be an explicit 17-row opt-in')
+            (type(options['app_requirement_rows']) is int and options['app_requirement_rows'] in (17, 24)),
+            'App requirement rows must be an explicit 17- or 24-row opt-in')
     require(options.get('app_requirement_rows', 16) <= options['app_policy_rows'],
             'App requirement rows exceed policy rows')
     require(type(options['app_image_cache']) is bool, 'App image cache must be boolean')
@@ -395,12 +395,12 @@ def runtime_options_proof(blobs, record):
     rows = options['app_policy_rows']
     requirements = options.get('app_requirement_rows', 16)
     marker = ('RISC_APP_POLICY_ROWS:' + str(rows)).encode() + b'\0'
-    requirement_marker = b'RISC_APP_REQUIREMENT_ROWS:17\0'
+    requirement_marker = ('RISC_APP_REQUIREMENT_ROWS:' + str(requirements)).encode() + b'\0'
     for name in ('firmware.bin', 'firmware.elf'):
         require(set(re.findall(rb'RISC_APP_POLICY_ROWS:[^\x00]*\x00', blobs[name])) == {marker},
                 'Compiled app policy row mismatch: ' + name)
         require(set(re.findall(rb'RISC_APP_REQUIREMENT_ROWS:[^\x00]*\x00', blobs[name])) ==
-                ({requirement_marker} if requirements == 17 else set()),
+                ({requirement_marker} if requirements > 16 else set()),
                 'Compiled app requirement row mismatch: ' + name)
     elf = ELFFile(io.BytesIO(blobs['firmware.elf']))
     symbols = {s.name: s for s in elf.get_section_by_name('.symtab').iter_symbols()}
@@ -408,7 +408,7 @@ def runtime_options_proof(blobs, record):
     require(policy is not None and policy['st_info']['bind'] == 'STB_GLOBAL' and
             elf_symbol_bytes(elf, policy) == marker, 'Missing compiled policy-row symbol')
     requirement = symbols.get('risc_app_requirement_rows')
-    if requirements == 17:
+    if requirements > 16:
         require(requirement is not None and requirement['st_info']['bind'] == 'STB_GLOBAL' and
                 requirement['st_info']['type'] == 'STT_OBJECT' and
                 elf_symbol_bytes(elf, requirement) == requirement_marker and
@@ -478,7 +478,7 @@ def runtime_options_proof(blobs, record):
             'app_policy': {'rows': rows, 'live_app_grants': 16, 'manifest_requirements': requirements,
                            'marker': marker[:-1].decode(), 'symbol': 'risc_app_policy_rows'},
             'app_image_cache': cache, 'hardware_qualified': False}
-    if requirements == 17:
+    if requirements > 16:
         result['app_policy'].update(requirement_marker=requirement_marker[:-1].decode(),
                                     requirement_symbol='risc_app_requirement_rows')
     if usb is not None:
@@ -701,10 +701,10 @@ def main():
     prepare.add_argument('--output', type=Path, required=True)
     prepare.add_argument('--runtime-commit')
     prepare.add_argument('--environment', choices=ENVIRONMENTS, default=ENVIRONMENTS[0])
-    prepare.add_argument('--app-policy-rows', type=int, choices=(16, 17, 18), default=16,
+    prepare.add_argument('--app-policy-rows', type=int, choices=(16, 17, 18, 24), default=16,
                          help='Immutable app policy rows; live grants remain 16')
-    prepare.add_argument('--app-requirement-rows', type=int, choices=(17,),
-                         help='Explicitly enable 17 manifest requirements; absent selection remains 16')
+    prepare.add_argument('--app-requirement-rows', type=int, choices=(17, 24),
+                         help='Explicitly enable 17 or 24 manifest requirements; absent selection remains 16')
     prepare.add_argument('--app-image-cache', action='store_true',
                          help='Explicitly enable the Runtime app image cache and qualified pressure retry paths')
     prepare.add_argument('--boot-flash-dio', action='store_true',
