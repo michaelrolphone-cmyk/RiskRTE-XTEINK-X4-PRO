@@ -54,8 +54,8 @@ void panel_cadence_reset_metrics(void){
 void panel_cadence_report(const char*label){
     const risc_display_present_metrics_v1 m=snapshot();assert(m.state==PRESENT_COMPLETE&&m.valid_times==63);
     assert(m.bytes_sent==payload-measured_payload&&m.gpio_write_calls==gpio_writes-measured_writes-measured_settle_writes);
-    printf("\"%s\":{\"elapsed_ms\":%llu,\"transfer_ms\":%llu,\"bytes\":%u,\"gpio_writes\":%u,\"native_exchanges\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"max_slice_writes\":%u,\"partial\":%s,\"damage\":[%d,%d,%u,%u],\"state\":%u,\"budget_ms\":[%u,%u]}",
-        label,(unsigned long long)(tick-measured_at),(unsigned long long)(m.transfer_end_ms-m.transfer_start_ms),m.bytes_sent,m.gpio_write_calls,exchanges-measured_exchanges,measured_polls,max_slice_ms,max_slice_bytes,max_slice_writes,partial_update?"true":"false",update_area.x,update_area.y,update_area.width,update_area.height,m.state,min_budget,max_budget);
+    printf("\"%s\":{\"elapsed_ms\":%llu,\"transfer_ms\":%llu,\"bytes\":%u,\"gpio_writes\":%u,\"native_exchanges\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"max_slice_writes\":%u,\"partial\":%s,\"directional\":%s,\"absolute\":%s,\"lut_frames\":%u,\"damage\":[%d,%d,%u,%u],\"state\":%u,\"budget_ms\":[%u,%u]}",
+        label,(unsigned long long)(tick-measured_at),(unsigned long long)(m.transfer_end_ms-m.transfer_start_ms),m.bytes_sent,m.gpio_write_calls,exchanges-measured_exchanges,measured_polls,max_slice_ms,max_slice_bytes,max_slice_writes,partial_update?"true":"false",directional_overdrive?"true":"false",absolute_update?"true":"false",fast_lut_frames,update_area.x,update_area.y,update_area.width,update_area.height,m.state,min_budget,max_budget);
 }
 void panel_cadence_stop(void){assert(t5_driver_get(2)->quiesce());}
 static risc_display_present_metrics_v1 completed_metrics;

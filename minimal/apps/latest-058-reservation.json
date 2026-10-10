@@ -1,0 +1,164 @@
+{
+  "product": "X4",
+  "version": "0.1.58",
+  "baseline": "0.1.57",
+  "baseline_sha256": "0e78e51b4d77e590f6f80035e54b5462e119f77115d55806c60d870d3783a9a7",
+  "branch": "integrate/x4-latest-058",
+  "live_ref_sha256": "164aa80b20bc26d240ec5607949b3f9702664f6506df85fafc5a26f656d0d50e",
+  "live_versions": [
+    {
+      "ref": "refs/remotes/live/checkpoint/x4-026",
+      "commit": "c89fb777b9332e7be46e5ae13872858cab9a3934",
+      "version": "0.1.26"
+    },
+    {
+      "ref": "refs/remotes/live/checkpoint/x4-032",
+      "commit": "ec2c984659c761143c8d3373bae5bf802b80d32e",
+      "version": "0.1.32"
+    },
+    {
+      "ref": "refs/remotes/live/checkpoint/x4-recovered-test-055",
+      "commit": "5cc9791e63102725a48a6a0c44e1c2ab0bb358e4",
+      "version": "0.1.55"
+    },
+    {
+      "ref": "refs/remotes/live/codex/raster-provider-progress-20261010",
+      "commit": "610e4ca3e25639e26812e0269c5d276ef443e525",
+      "version": "0.1.55"
+    },
+    {
+      "ref": "refs/remotes/live/codex/x4-clock-sleep-wake",
+      "commit": "a32324865d182f5e3fa7edeacdd809f53dfc96b8",
+      "version": "0.1.0"
+    },
+    {
+      "ref": "refs/remotes/live/codex/x4-sd-sleep-recovery",
+      "commit": "10132268a126ad3b14a9e6464404aa001df9c176",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/diagnostics/x4-stage-timing-20261007",
+      "commit": "b2bfb0fdf3278cdf686ff5bb80872f519b47ccea",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/experiment/x4-gpio-high-before-mux-035",
+      "commit": "a7a37915eb732205df0caf44c69b754cb94b025d",
+      "version": "0.1.43"
+    },
+    {
+      "ref": "refs/remotes/live/feat/declarative-alarms",
+      "commit": "241ece9c107d7de0d9aa3be8ff99709c9d485d66",
+      "version": "0.1.46"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-clock-deep-entry",
+      "commit": "cf0120d78453fb9985b6334b0e7d2a8c53432e49",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-deep-board-keepalive",
+      "commit": "a676c4b7834fc59c1e241f88c73d699cc39cb61f",
+      "version": "0.1.7"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-desk-clock-client",
+      "commit": "c8a4f951abccd2e88660468958621612c82083c3",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-desk-clock-integration",
+      "commit": "f6c12e00e54a85fb2c09517ffad77c67c5b1851b",
+      "version": "0.1.7"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-generic-provisioning-026",
+      "commit": "b7cc7ef8f7df02691b76d4edc8e901c8a15859aa",
+      "version": "0.1.26"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-minimal-runtime",
+      "commit": "f190c1192ce3cee97c0ede01cf9d57654df6508d",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-panel-sleep-lifecycle",
+      "commit": "585edb3aa68c83e7c077de4819ddc65dbf0739ae",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-sparse-clock-integration",
+      "commit": "f600431fe98cf64e34ca19c88ee747aa4b124b6c",
+      "version": "0.1.33"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-sparse-sleep-client",
+      "commit": "1cc18a9c998a3d041cf25364fb15c98449fe99d3",
+      "version": "0.1.7"
+    },
+    {
+      "ref": "refs/remotes/live/feat/x4-touch-sleep-recovery",
+      "commit": "cc89c6d871a2f36195e1babef0a1d3e83865e332",
+      "version": "0.1.6"
+    },
+    {
+      "ref": "refs/remotes/live/fix/gt911-contact-before-motion-0110",
+      "commit": "27868a67820ac3bc7ede1bcef9cab1ab0432b9ff",
+      "version": "0.1.55"
+    },
+    {
+      "ref": "refs/remotes/live/fix/x4-usb-preparation-034",
+      "commit": "4af0904dda965b71b1217394581685feba84e4e7",
+      "version": "0.1.34"
+    },
+    {
+      "ref": "refs/remotes/live/integrate/x4-failure-evidence-045",
+      "commit": "ce3b21e5bc1676b36d5cfd2c7182913b729613d1",
+      "version": "0.1.45"
+    },
+    {
+      "ref": "refs/remotes/live/integrate/x4-resident-loader-repair-046",
+      "commit": "c081eebddad9ac61740b758e3fa74e5c92e325b1",
+      "version": "0.1.46"
+    },
+    {
+      "ref": "refs/remotes/live/integrate/x4-resident-shell-044",
+      "commit": "cd83611a76591569f29397903e93190c2a1bdf43",
+      "version": "0.1.44"
+    },
+    {
+      "ref": "refs/remotes/live/integrate/x4-wifi-ui-057",
+      "commit": "e74cdf0588271f6c82af290c17ce07231acaf437",
+      "version": "0.1.57"
+    },
+    {
+      "ref": "refs/remotes/live/integration/x4-temporal-current-20261010",
+      "commit": "4ac862c55b3c9712fdb4aeed733d2f54eeee9690",
+      "version": "0.1.50"
+    },
+    {
+      "ref": "refs/remotes/live/recovered/gt911-019-source-20261010",
+      "commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "version": "0.1.55"
+    },
+    {
+      "ref": "refs/remotes/live/recovery/ssd-bounded-poll-20261010",
+      "commit": "cbf4bfd34372bf87ccf60429e062a6e96d043aca",
+      "version": "0.1.55"
+    },
+    {
+      "ref": "refs/remotes/live/recovery/x4-sd-state-0214-20261010",
+      "commit": "879ebef75b47f723655253ec04428f7a48e487b2",
+      "version": "0.1.46"
+    }
+  ],
+  "pr_search_058_matches": 0,
+  "modules": {
+    "x4pro-uc8279-fast": "0.1.14",
+    "x4pro-gt911": "0.1.10",
+    "ble_buttons": "0.1.22"
+  },
+  "native": "0.2.2",
+  "preserved_module_count": 44,
+  "total_module_count": 47
+}
