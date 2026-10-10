@@ -3,11 +3,12 @@
  * 05d811ae3a75b0711540484ccdbee32464042dd6, 20 MHz modes 4/6/7/9. */
 #include "RiscDisplayOutputV1.h"
 #include "RiscDisplayOutputPowerV1.h"
-#include "../../interfaces/RiscDisplayOutputSnapshotV1.h"
+#include "../../interfaces/RiscDisplayOutputFrontlightV1.h"
+#include "../../interfaces/RiscDisplayOutputSettledV1.h"
 #include "RiscPlatformClockV1.h"
 #include <GardenPlatformV1.h>
 #include <RiscProviderSyncV1.h>
-#include <RiscFrontlightV1.h>
+#include "../../interfaces/RiscFrontlightToneV1.h"
 #include "../x4pro_board_power/PowerReadyV1.h"
 #include <string.h>
 #include <stddef.h>
@@ -15,6 +16,7 @@
 
 #define X4PRO_PANEL_WIDTH 800u
 #define X4PRO_PANEL_HEIGHT 480u
+#define X4PRO_FINAL_TARGET_FRAMES 4u
 /* Role indices are local; physical pads come only from the typed device. */
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
@@ -98,13 +100,16 @@ static uint64_t async_deadline, async_last_poll_ms;
 /* Settling owns only the resident controller image, never a caller's frame.
  * A new submission can queue while its last BUSY pulse is being drained. */
 enum { SETTLE_NONE, SETTLE_WAIT, SETTLE_READY, SETTLE_WINDOW, SETTLE_REFRESH,
-       SETTLE_ASSERT, SETTLE_DONE, SETTLE_CLOSE, SETTLE_SYNC_OLD,
+       SETTLE_ASSERT, SETTLE_DONE, SETTLE_CLOSE, SETTLE_FINAL_NEW,
+       SETTLE_FINAL_SETUP, SETTLE_FINAL_REFRESH, SETTLE_FINAL_ASSERT,
+       SETTLE_FINAL_DONE, SETTLE_FINAL_CLOSE, SETTLE_SYNC_OLD,
        SETTLE_SYNC_NEW, SETTLE_POF, SETTLE_POF_ASSERT, SETTLE_POF_DONE };
 static uint8_t settle_stage;
 static bool settle_stop, settle_coverage_valid;
 static risc_display_rect_v1 settle_area;
 static uint64_t settle_until, settle_phase_deadline, settle_refresh_ms;
 static uint32_t settle_refreshes, settle_completed, settle_sync_offset;
+static uint8_t settle_setup_step;
 static uint64_t settle_power_ms;
 static bool started, held, pins_ready;
 /* 0 awake, 1 POF sent, 2 POF observed, 3 DSLP sent, 4 retired, 5 resuming. */
@@ -290,19 +295,22 @@ static risc_display_rect_v1 tested_window(uint32_t top, uint32_t bottom) {
     if (top > 480u - height) top = 480u - height;
     return (risc_display_rect_v1){0, (int32_t)top, X4PRO_PANEL_WIDTH, height};
 }
-static void absolute_lut_table(unsigned i) {
+static void write_a2_lut_table(unsigned i, uint8_t frames, bool absolute) {
     uint8_t table[42];
-    const uint8_t frames = fast_lut_frames ? fast_lut_frames : 1u;
+    if (!frames) frames = 1u;
     memset(table, 0, sizeof(table)); table[0] = table[5] = table[6] = 1u;
     /* X4 wire {OLD,NEW}:00->24,01->22,10->23,11->21. Absolute
      * refresh follows NEW only. Differential refresh leaves 00/11 idle and
      * drives only black->white and white->black transitions. */
     if (i == 0u) table[1] = frames;
-    else if (absolute_update) table[1] = (uint8_t)((i <= 2u ? 0x80u : 0x40u) | frames);
+    else if (absolute) table[1] = (uint8_t)((i <= 2u ? 0x80u : 0x40u) | frames);
     else if (i == 2u) table[1] = (uint8_t)(0x80u | frames);
     else if (i == 3u) table[1] = (uint8_t)(0x40u | frames);
     else table[1] = frames;
     write_register((uint8_t)(0x20u + i), table, sizeof(table));
+}
+static void absolute_lut_table(unsigned i) {
+    write_a2_lut_table(i, fast_lut_frames ? fast_lut_frames : 1u, absolute_update);
 }
 static bool begin_plane(uint8_t cmd) {
     command(cmd); panel_pin_level(X4PRO_PIN_EPD_DC, true); async_offset = 0;
@@ -311,6 +319,15 @@ static bool begin_plane(uint8_t cmd) {
 static bool settle_begin_plane(uint8_t cmd) {
     command(cmd); panel_pin_level(X4PRO_PIN_EPD_DC, true); settle_sync_offset = 0;
     return !io_failed;
+}
+static bool settle_begin_final_target(void) {
+    /* The final target is already in previous_frame. Upload it across the
+     * complete 800x600 controller RAM before the full-visible endpoint pulse;
+     * hidden rows remain explicitly white. No blank or inverse image is ever
+     * presented to the glass. */
+    if (!screen_powered || !settle_begin_plane(0x13)) return false;
+    settle_stage = SETTLE_FINAL_NEW;
+    return true;
 }
 static bool settle_sync_chunk(uint32_t *work) {
     const uint32_t total = 60000u;
@@ -378,8 +395,8 @@ static bool arm_settle(void) {
     settle_area = tested_window(top, bottom); settle_coverage_valid = true;
     settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
-    settle_sync_offset = 0; settle_power_ms = 0;
-    settle_stage = absolute_update && !settle_update ? SETTLE_READY : SETTLE_WAIT;
+    settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
+    settle_stage = absolute_update ? SETTLE_READY : SETTLE_WAIT;
     return true;
 }
 static void poll_settle_locked(uint32_t budget_ms) {
@@ -397,15 +414,13 @@ static void poll_settle_locked(uint32_t budget_ms) {
             else if (!expired) break;
             else {
                 if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("idle sync busy active"); goto failed; }
-                if (!settle_begin_plane(0x10)) goto failed;
-                settle_stage = SETTLE_SYNC_OLD;
+                if (!settle_begin_final_target()) goto failed;
             }
         } else if (settle_stage == SETTLE_READY) {
             if (cancel) settle_stage = SETTLE_NONE;
             else if (expired) {
                 if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("idle sync busy active"); goto failed; }
-                if (!settle_begin_plane(0x10)) goto failed;
-                settle_stage = SETTLE_SYNC_OLD;
+                if (!settle_begin_final_target()) goto failed;
             } else {
                 if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("settle busy already active"); goto failed; }
                 command(0x91); settle_stage = SETTLE_WINDOW;
@@ -442,11 +457,77 @@ static void poll_settle_locked(uint32_t budget_ms) {
             command(0x92);
             if (cancel) settle_stage = SETTLE_NONE;
             else if (expired) {
-                if (!settle_begin_plane(0x10)) goto failed;
-                settle_stage = SETTLE_SYNC_OLD;
+                if (!settle_begin_final_target()) goto failed;
             } else settle_stage = SETTLE_READY;
             if (io_failed) goto failed;
             break;
+        } else if (settle_stage == SETTLE_FINAL_NEW) {
+            if (cancel) settle_stage = SETTLE_NONE;
+            else {
+                if (!settle_sync_chunk(&work)) goto failed;
+                if (settle_sync_offset == 60000u) {
+                    settle_setup_step = 0;
+                    settle_stage = SETTLE_FINAL_SETUP;
+                }
+            }
+        } else if (settle_stage == SETTLE_FINAL_SETUP) {
+            if (cancel) {
+                if (settle_setup_step >= 2u) command(0x92);
+                settle_stage = SETTLE_NONE;
+            } else {
+                const unsigned finish = 14u;
+                switch (settle_setup_step) {
+                case 0: reg1(0x30, 0x0F); break;
+                case 1: command(0x91); break;
+                case 2: {
+                    const risc_display_rect_v1 full = {0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
+                    window_for(&full); break;
+                }
+                case 3: { const uint8_t psr[] = {0x37, 0x4D}; write_register(0x00, psr, sizeof(psr)); break; }
+                case 4: reg1(0x03, 0x20); break;
+                case 5: reg1(0xE1, 0x02); break;
+                case 6: reg1(0x50, 0xD7); break;
+                case 7: reg1(0xE0, 0x02); break;
+                case 8: reg1(0xE5, 0x5A); break;
+                default:
+                    if (settle_setup_step < finish)
+                        write_a2_lut_table(settle_setup_step - 9u, X4PRO_FINAL_TARGET_FRAMES, true);
+                    break;
+                }
+                if (settle_setup_step++ == finish) settle_stage = SETTLE_FINAL_REFRESH;
+            }
+        } else if (settle_stage == SETTLE_FINAL_REFRESH) {
+            if (cancel) { command(0x92); settle_stage = SETTLE_NONE; }
+            else {
+                if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("final target busy already active"); goto failed; }
+                if (!sample_now(&settle_refresh_ms)) goto failed;
+                if (settle_refresh_ms > UINT64_MAX - 3500u) { set_reason("final target clock overflow"); goto failed; }
+                command(0x12); ++settle_refreshes;
+                if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) {
+                    settle_phase_deadline = settle_refresh_ms + 100u; settle_stage = SETTLE_FINAL_ASSERT;
+                } else {
+                    settle_phase_deadline = settle_refresh_ms + 3500u; settle_stage = SETTLE_FINAL_DONE;
+                }
+            }
+        } else if (settle_stage == SETTLE_FINAL_ASSERT) {
+            if (now >= settle_phase_deadline) { set_reason("final target busy never asserted"); goto failed; }
+            if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
+            settle_phase_deadline = settle_refresh_ms + 3500u; settle_stage = SETTLE_FINAL_DONE;
+        } else if (settle_stage == SETTLE_FINAL_DONE) {
+            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!complete) {
+                if (now >= settle_phase_deadline) { set_reason("final target completion timeout"); goto failed; }
+                break;
+            }
+            ++settle_completed; settle_stage = SETTLE_FINAL_CLOSE;
+        } else if (settle_stage == SETTLE_FINAL_CLOSE) {
+            command(0x92);
+            if (cancel) settle_stage = SETTLE_NONE;
+            else {
+                if (!settle_begin_plane(0x10)) goto failed;
+                settle_stage = SETTLE_SYNC_OLD;
+            }
         } else if (settle_stage == SETTLE_SYNC_OLD) {
             if (!settle_sync_chunk(&work)) goto failed;
             if (settle_sync_offset == 60000u) {
@@ -759,17 +840,11 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     fast_update = completed_history && (intent == RISC_DISPLAY_PRESENT_DEFAULT || intent == RISC_DISPLAY_PRESENT_LOW_LATENCY);
     absolute_update = settle_update = false; fast_lut_frames = 1u; sync_full = false;
     if (fast_update) {
-        const uint64_t submitted_now = now_ms();
-        if (intent == RISC_DISPLAY_PRESENT_LOW_LATENCY) {
-            const bool burst_ok = dtm1_synced ||
-                (absolute_frames < 16u && absolute_started_ms != UINT64_MAX &&
-                 submitted_now != UINT64_MAX && submitted_now >= absolute_started_ms &&
-                 submitted_now - absolute_started_ms < 2000u);
-            absolute_update = true; settle_update = !burst_ok;
-        } else if (!dtm1_synced) {
-            absolute_update = true; settle_update = true;
-        }
-        if (settle_update) fast_lut_frames = 2u;
+        /* Hardware 0.1.52/0.1.53 testing showed that one-frame differential
+         * DEFAULT updates were visibly under-driven. Restore the known-working
+         * absolute motion path for both interactive intents. DTM1 is reconciled
+         * only after the target-ending full-frame redraw. */
+        absolute_update = true;
     }
     partial_update = count && (fast_update || quality_partial);
     update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
@@ -910,6 +985,32 @@ static bool set_brightness(void *c, uint16_t level, uint16_t maximum) {
     if (!enter()) return false;
     const bool ok = set_brightness_impl(c, level, maximum); return leave() && ok;
 }
+/* Forward only to the admitted frontlight dependency; tone never acquires a
+ * frame or advances display work. A failed callback may have changed output,
+ * so do not retry it or issue rollback/cleanup writes. */
+static bool set_tone(void *context, uint16_t warm, uint16_t maximum) {
+    (void)context;
+    if (!maximum || warm > maximum || !enter()) return false;
+    const risc_frontlight_api_v1_tone *tone = risc_frontlight_tone(frontlight);
+    const bool ok = started && !shutdown_stage && tone &&
+        tone->set_tone(frontlight->context, warm, maximum);
+    return leave() && ok;
+}
+static int32_t get_tone(void *context, uint16_t *warm, uint16_t *maximum) {
+    (void)context;
+    if (!warm || !maximum || warm == maximum || !enter()) return RISC_DISPLAY_TONE_FAILED;
+    int32_t result = RISC_DISPLAY_TONE_FAILED;
+    uint16_t value = 0, limit = 0;
+    if (started && !shutdown_stage) {
+        const risc_frontlight_api_v1_tone *tone = risc_frontlight_tone(frontlight);
+        if (!tone) result = RISC_DISPLAY_TONE_UNAVAILABLE;
+        else if (tone->get_tone(frontlight->context, &value, &limit) && limit && value <= limit)
+            result = RISC_DISPLAY_TONE_OK;
+    }
+    if (!leave()) return RISC_DISPLAY_TONE_FAILED;
+    if (result == RISC_DISPLAY_TONE_OK) { *warm = value; *maximum = limit; }
+    return result;
+}
 static bool seed_previous(void *c, risc_display_frame_v1 id) {
     if (!enter()) return false;
     const bool ok = seed_previous_impl(c, id); return leave() && ok;
@@ -928,7 +1029,30 @@ static bool present_metrics(void *context, risc_display_present_metrics_v1 *out)
     copy.busy_assert_ms = busy_assert_ms; copy.busy_done_ms = busy_done_ms;
     *out = copy; return true;
 }
-static const risc_display_output_api_v1_snapshot api;
+/* Explicit final-image preparation only. Normal rendering never calls this
+ * and retains its exact shipped cadence. No panel I/O occurs in this callback. */
+static bool request_settle(void *context, risc_display_present_token_v1 token) {
+    (void)context;
+    if (!enter()) return false;
+    const bool valid = started && !shutdown_stage && !presentation_fault && !held &&
+        token && token == pending_token && present_state == PRESENT_COMPLETE &&
+        completed_history && !previous_seeded;
+    if (valid && absolute_update && settle_stage == SETTLE_WAIT) settle_stage = SETTLE_READY;
+    return leave() && valid;
+}
+static int32_t settled_status(void *context, risc_display_present_token_v1 token) {
+    (void)context;
+    if (!enter()) return RISC_DISPLAY_SETTLED_FAILED;
+    int32_t result = RISC_DISPLAY_SETTLED_FAILED;
+    if (started && !shutdown_stage && !presentation_fault && token && token == pending_token) {
+        if (present_state == PRESENT_QUEUED || present_state == PRESENT_ACTIVE)
+            result = RISC_DISPLAY_SETTLED_PENDING;
+        else if (present_state == PRESENT_COMPLETE && completed_history && !previous_seeded)
+            result = held || settle_stage ? RISC_DISPLAY_SETTLED_PENDING : RISC_DISPLAY_SETTLED_COMPLETE;
+    }
+    return leave() ? result : RISC_DISPLAY_SETTLED_FAILED;
+}
+static const risc_display_output_api_v1_settled api;
 static bool overlaps(uintptr_t first, uintptr_t end, const void *storage, size_t size) {
     const uintptr_t address = (uintptr_t)storage;
     return first < address + size && address < end;
@@ -959,13 +1083,15 @@ static bool copy_completed(void *context, uint32_t format, void *pixels,
         memcpy((uint8_t *)pixels + y * stride_bytes, previous_frame + y * 100u, 100u);
     return true;
 }
-static const risc_display_output_api_v1_snapshot api = {
-    {{{{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
+static const risc_display_output_api_v1_settled api = {
+    {{{{{{ RISC_DISPLAY_OUTPUT_API_V1, sizeof(api), 0, get_info, acquire, release, submit,
        present_status, wait_present, set_brightness },
      RISC_DISPLAY_HISTORY_TAG, 1u, seed_previous},
     RISC_DISPLAY_POWER_TAG, 1u, power_prepare, power_resume},
     RISC_DISPLAY_METRICS_TAG, RISC_DISPLAY_METRICS_VERSION, present_metrics},
-    RISC_DISPLAY_SNAPSHOT_TAG, RISC_DISPLAY_SNAPSHOT_VERSION, copy_completed
+    RISC_DISPLAY_SNAPSHOT_TAG, RISC_DISPLAY_SNAPSHOT_VERSION, copy_completed},
+    RISC_DISPLAY_FRONTLIGHT_TAG, RISC_DISPLAY_FRONTLIGHT_VERSION, set_tone, get_tone},
+    RISC_DISPLAY_SETTLED_TAG, RISC_DISPLAY_SETTLED_VERSION, settled_status, request_settle
 };
 /* Typed lifecycle. */
 static bool valid_configuration(const risc_hardware_device_v1 *h, int *expected) {
@@ -1041,7 +1167,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     absolute_frames = 0; absolute_started_ms = UINT64_MAX;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
     settle_until = settle_phase_deadline = settle_refresh_ms = 0;
-    settle_refreshes = settle_completed = settle_sync_offset = 0; settle_power_ms = 0;
+    settle_refreshes = settle_completed = settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
     present_state = PRESENT_NONE; pending_token = 0; last_sample_ms = now;
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
@@ -1064,7 +1190,8 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
 /* Each operation has a total owner-admission deadline, at most 1500 ms and
  * 150 ten-ms readiness polls. Single commands are finite (at most 6 bytes),
  * completed before deadline sampling so retries never replay partial POF/DSLP.
- * No pixels are sent and no display refresh is triggered by this lifecycle. */
+ * A pending fast-frame settle is finalized physically before POF; an already
+ * settled or quality frame adds no display work to this lifecycle. */
 static int32_t power_checkpoint(uint64_t deadline) {
     uint64_t now = 0;
     if (retained || io_failed) return RISC_DISPLAY_POWER_RETAINED;
@@ -1098,9 +1225,12 @@ static int32_t power_ready(uint64_t deadline) {
     return RISC_DISPLAY_POWER_TIMEOUT;
 }
 static int32_t drain_settle_for_power(uint64_t deadline) {
-    settle_stop = true;
-    /* Power/teardown callers need not retry BUSY. Cancel unstarted repeats and
-     * drain just the current pulse within their existing total deadline. */
+    /* Never expose a weak fast frame by cancelling directly into POF. Force the
+     * quiet interval expired, drain any already-started resident pulse, then run
+     * the same full-frame absolute endpoint redraw and dual-plane reconciliation
+     * used by normal idle finalization. */
+    settle_stop = false;
+    settle_until = 0;
     for (unsigned checks = 0; settle_stage; ++checks) {
         int32_t result = power_checkpoint(deadline);
         if (result) return result;
@@ -1224,7 +1354,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     absolute_frames = 0; absolute_started_ms = UINT64_MAX;
     async_stage = UC_ASYNC_NONE; transfer_started = false;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
-    settle_sync_offset = 0; settle_power_ms = 0;
+    settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
     return RISC_DISPLAY_POWER_OK;
 }
 #undef RESUME_SEND
@@ -1313,7 +1443,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.9 cause=");
+    append(destination, capacity, &used, "v=0.1.12 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

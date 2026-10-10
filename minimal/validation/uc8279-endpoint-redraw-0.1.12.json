@@ -1,0 +1,39 @@
+{
+  "schema": "x4.uc8279.endpoint-redraw-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T09:55:03.382493+00:00",
+  "baseline": {
+    "product": "0.1.53",
+    "image": "X4-0.1.53-Hardware-Bugfixes-full-0x0.bin",
+    "image_sha256": "17b7844cbb0c57e603519c48c1f2d1c7752a33f235c551d9a123f3d950506115",
+    "driver_version": "0.1.11",
+    "driver_source_sha256": "0e2404913f3fdd1ee4aa4313869e0cb9c899465c3d150a1b63547ba1e7d9b6d3",
+    "driver_manifest_sha256": "5a6977cfeb218ac8672190da38646ecf818b3960183233da567d363c38751343",
+    "source_commit_record": "152874b11549efdfcf21fdb8e3e7e7c48276f209",
+    "source_tree_record": "ccc251bfaf2d206de617e2566c944f7f5f68d748"
+  },
+  "candidate": {
+    "driver_version": "0.1.12",
+    "driver_source_sha256": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+    "driver_manifest_sha256": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498",
+    "readme_sha256": "7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a"
+  },
+  "changes": [
+    "restore one-frame absolute A2 for DEFAULT and LOW_LATENCY active motion",
+    "retain the existing 2.3-second resident final-target settling period",
+    "upload the exact final framebuffer across complete DTM2 RAM with hidden rows white",
+    "perform one four-frame full-visible absolute target redraw without blank, black-fill, or inverse frames",
+    "synchronize complete DTM1 and DTM2 only after the physical endpoint redraw",
+    "issue POF only after endpoint BUSY completion and complete plane reconciliation",
+    "force the same endpoint sequence when sleep/power preparation drains a pending settle",
+    "retain PON profile replay, strict fault invalidation, frontlight tone, and token-bound settled status"
+  ],
+  "software_validation": {
+    "provider_cases_normal": 60,
+    "provider_cases_asan_ubsan": 60,
+    "profile_test": "pass",
+    "compiler": "host C11; target build intentionally deferred to product builder",
+    "hardware_tested": false
+  },
+  "scope": "driver source, manifest, documentation, exact provider regressions and idle-policy version assertions; no product image built"
+}
