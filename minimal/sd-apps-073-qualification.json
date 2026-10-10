@@ -1,0 +1,127 @@
+{
+  "version": "0.1.73",
+  "image": {
+    "bytes": 16777216,
+    "flash_offset": 0,
+    "name": "X4-0.1.73-SD-Apps-Panel-0.1.12-full-0x0.bin",
+    "sha256": "01246f28f9672e9c38c240565983b5b35fabb3b6403ed56dc335baf9d10685e4"
+  },
+  "sd_bundle": {
+    "bytes": 4505104,
+    "name": "X4-0.1.73-SD-Apps.zip",
+    "sha256": "59271bc76abe4ee8aafa360ea4731b25accced2c73ef92683b01139677745469"
+  },
+  "core_apps": [
+    "alarms",
+    "app_store",
+    "battery",
+    "default",
+    "file_browser",
+    "ota_update",
+    "settings",
+    "springboard",
+    "usb_sd_transfer",
+    "wifi_settings"
+  ],
+  "external_apps": [
+    "ble_buttons.elf",
+    "ble_scanner.elf",
+    "ble_touchpad.elf",
+    "calculator.elf",
+    "contexts.elf",
+    "countdown.elf",
+    "ebook_reader.elf",
+    "gameboy.elf",
+    "hollow_trail.elf",
+    "lists.elf",
+    "model_viewer.elf",
+    "points_in_time.elf",
+    "stopwatch.elf",
+    "timecard.elf",
+    "waterfall.elf"
+  ],
+  "panel_elf_unchanged": true,
+  "paired_sha_crc_verified": true,
+  "hardware_tested": false,
+  "full_flash_overwrites_internal_data": true,
+  "publication": {
+    "status": "Published draft pull requests; no merge, release or device action",
+    "mapping_reason": "Published commits have exactly the locally compiled source trees; commit metadata differs.",
+    "sources": [
+      {
+        "repository": "michaelrolphone-cmyk/RiscRTE",
+        "local_commit": "87d31e39f0b0d11fd9d3801ede87c76bd467040a",
+        "published_build_commit": "7071f0c25e223f24670bed409a5f8b6f291c8042",
+        "tree": "03add2558ecd81dce7029af952115841dcaf3de4",
+        "branch": "integrate/x4-sd-apps-073",
+        "pr": 66
+      },
+      {
+        "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
+        "local_commit": "461e744325515aacc3d2964f9b0cedc42b8ee3b6",
+        "published_build_commit": "c08dcba451d1ba6d427dc1ade2914ac9db4aecee",
+        "tree": "78bdbbe6ec1347ae0a0be59ccb8c4e15d40ba44a",
+        "branch": "integrate/x4-sd-apps-073",
+        "pr": 96
+      },
+      {
+        "repository": "michaelrolphone-cmyk/RiscRTE-Drivers",
+        "local_commit": "88e7e6f2fc35ca572a0dc8b340649eafcf71930a",
+        "published_build_commit": "ce31eefe0ebe62d373c9b0fb24d6f7059d2995d9",
+        "tree": "3768cffc333eb23fcbc5b12e34d98aa56ebdd42a",
+        "branch": "integrate/x4-sd-apps-073",
+        "pr": 24
+      },
+      {
+        "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+        "local_commit": "e778508bc6d1e056f3f8bde92efbbdb3b1e40731",
+        "published_build_commit": "d948246db2dc36ed56224365a1de4495ebf54b96",
+        "tree": "ef740a2fa24a0379c74f4817e64bfcbe434d6ac7",
+        "branch": "integrate/x4-sd-apps-073",
+        "pr": 28
+      }
+    ]
+  },
+  "native_firmware_sha256": "fc1fe5f1286668136156949932605a792c7dea048dc403f3f04d676ded14ab36",
+  "native_runtime": "0.2.5",
+  "provider_versions": {
+    "panel": "0.1.12",
+    "storage": "0.2.15",
+    "scene": "0.3.2"
+  },
+  "module_admission_count": 52,
+  "cohort_admission": [
+    {
+      "cohort_validated": true,
+      "elf_count": 37,
+      "hardware_calls": 0,
+      "prepared": true,
+      "sanitized": false,
+      "storage_calls": 0
+    },
+    {
+      "cohort_validated": true,
+      "elf_count": 37,
+      "hardware_calls": 0,
+      "prepared": true,
+      "sanitized": true,
+      "storage_calls": 0
+    }
+  ],
+  "capacity": {
+    "payload_bytes": 2885276,
+    "file_count": 92,
+    "empty_blocks": 515
+  },
+  "tests": {
+    "sd-runtime-core-073.log": "9ba5bfa5b2aa699d5577ba4476c7d5717d1275f4fea3edb2c7546479ddf8f1c8",
+    "sd-runtime-073.log": "907fbb81f4b8a7050bf8c749ddd42b50cc619e0075693670065ced87b9a3ee58",
+    "sd-runtime-san-073.log": "907fbb81f4b8a7050bf8c749ddd42b50cc619e0075693670065ced87b9a3ee58",
+    "sd-cache-regression-073.log": "b963508e4a0e32067635495f1e5757b2480ec8c49045fc4a3665e222113c35f2",
+    "sd-loader-snapshot-073.log": "669dfcdc4a6521b1495047df41c4296d773bb18850d410d91d68cf1b23810cff",
+    "sd-cohort-regression-073.log": "6e8fc2c110e069564862531c8ceadd3fff3ef05e9d1dc832eff32e599d8b7fa6",
+    "sd-reader-tests-073.log": "2e467b20c5440310d13f07a871b8d6633bfe10a89af5310e082677969808b5fb",
+    "sd-scene-test-073.log": "c2995bbc6ef543c9c6a148530ec7c4e9a1822de2edadee28249df18ac20ff2cf",
+    "sd-storage-test-073.log": "3376fd667634259f0927bbb0dab144c7f02cb503ed3aac76f5e1e71a1b49906e"
+  }
+}
