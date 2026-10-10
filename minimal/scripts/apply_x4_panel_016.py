@@ -72,7 +72,7 @@ replace_once(profile_test, "manifest['version']=='0.1.13'", "manifest['version']
 
 test = Path("minimal/test/uc8279_fast_test.c")
 text = test.read_text()
-if text.count("fast_lut_frames==2") != 5:
+if text.count("fast_lut_frames==2") != 6:
     raise SystemExit(f"unexpected 0.1.13 two-frame assertion count: {text.count('fast_lut_frames==2')}")
 text = text.replace("fast_lut_frames==2", "fast_lut_frames==4")
 if text.count("fast_lut_frames==1u") != 1:
