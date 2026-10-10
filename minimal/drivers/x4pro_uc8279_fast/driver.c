@@ -1,6 +1,6 @@
-/* UC8279 ZHX native-SPI fast provider. The separate x4pro-panel remains
- * the fallback. Protocol source: X4 lab 0.1.5 at
- * 05d811ae3a75b0711540484ccdbee32464042dd6, 20 MHz modes 1/2/4/6/7/9. */
+/* UC8279 ZHX native-SPI absolute-A2 provider. The separate x4pro-panel
+ * provider remains the fallback. Protocol source: X4 lab 0.1.5 at
+ * 05d811ae3a75b0711540484ccdbee32464042dd6, 20 MHz modes 4/6/7/9. */
 #include "RiscDisplayOutputV1.h"
 #include "RiscDisplayOutputPowerV1.h"
 #include "../../interfaces/RiscDisplayOutputFrontlightV1.h"
@@ -20,14 +20,13 @@
 #define X4PRO_FINAL_TARGET_FRAMES 4u
 #define X4PRO_STRONG_MOTION_FRAMES 2u
 #define X4PRO_STRONG_MOTION_MAX_ROWS 160u
-#define X4PRO_DIRECTIONAL_PHASE_FRAMES 1u
 /* Role indices are local; physical pads come only from the typed device. */
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
 static const garden_spi_v1 *spi;
 static uint64_t spi_token;
-static bool spi_held, screen_powered, fast_update, absolute_update, directional_overdrive,
-            settle_update, quality_partial, presentation_fault;
+static bool spi_held, screen_powered, fast_update, absolute_update, settle_update,
+            quality_partial, presentation_fault;
 static uint32_t spi_hz = 100000u;
 static const risc_frontlight_api_v1 *frontlight;
 static const risc_provider_sync_api_v1 *sync_api;
@@ -318,7 +317,7 @@ static void write_a2_lut_table(unsigned i, uint8_t frames, bool absolute) {
     memset(table, 0, sizeof(table)); table[0] = table[5] = table[6] = 1u;
     /* X4 wire {OLD,NEW}:00->24,01->22,10->23,11->21. Absolute
      * refresh follows NEW only. Differential refresh leaves 00/11 idle and
-     * drives only the two transition buckets. */
+     * drives only black->white and white->black transitions. */
     if (i == 0u) table[1] = frames;
     else if (absolute) table[1] = (uint8_t)((i <= 2u ? 0x80u : 0x40u) | frames);
     else if (i == 2u) table[1] = (uint8_t)(0x80u | frames);
@@ -326,31 +325,8 @@ static void write_a2_lut_table(unsigned i, uint8_t frames, bool absolute) {
     else table[1] = frames;
     write_register((uint8_t)(0x20u + i), table, sizeof(table));
 }
-static void write_directional_overdrive_lut_table(unsigned i) {
-    uint8_t table[42];
-    const uint8_t high = (uint8_t)(0x40u | X4PRO_DIRECTIONAL_PHASE_FRAMES);
-    const uint8_t low = (uint8_t)(0x80u | X4PRO_DIRECTIONAL_PHASE_FRAMES);
-    memset(table, 0, sizeof(table)); table[0] = table[5] = table[6] = 1u;
-    /* Two complementary phases preserve the two-frame active budget while
-     * maximizing source-to-VCOM field only for the selected transition:
-     *
-     * phase A: VCOM=high; 01 bucket=low (overdrive), 10/WW/BB track high
-     * phase B: VCOM=low;  10 bucket=high (overdrive), 01/WW/BB track low
-     *
-     * Unchanged pixels therefore see the same rail as VCOM in both phases.
-     * The established X4 wire mapping is 00->24,01->22,10->23,11->21. */
-    if (i == 0u || i == 1u || i == 4u) {
-        table[1] = high; table[2] = low;
-    } else if (i == 2u) {
-        table[1] = low; table[2] = low;
-    } else {
-        table[1] = high; table[2] = high;
-    }
-    write_register((uint8_t)(0x20u + i), table, sizeof(table));
-}
-static void fast_lut_table(unsigned i) {
-    if (directional_overdrive) write_directional_overdrive_lut_table(i);
-    else write_a2_lut_table(i, fast_lut_frames ? fast_lut_frames : 1u, absolute_update);
+static void absolute_lut_table(unsigned i) {
+    write_a2_lut_table(i, fast_lut_frames ? fast_lut_frames : 1u, absolute_update);
 }
 static bool begin_plane(uint8_t cmd) {
     command(cmd); panel_pin_level(X4PRO_PIN_EPD_DC, true); async_offset = 0;
@@ -430,11 +406,6 @@ static uint32_t fast_frame_index(uint32_t offset) {
     return ((uint32_t)update_area.y + offset / row_bytes) * X4PRO_ROW_BYTES +
         (uint32_t)update_area.x / 8u + offset % row_bytes;
 }
-static uint8_t old_frame_byte(uint32_t offset) {
-    if (!fast_update) return offset < 12000u ? 0xFFu :
-        (uint8_t)~previous_frame[offset - 12000u];
-    return (uint8_t)~previous_frame[fast_frame_index(offset)];
-}
 static uint8_t frame_byte(uint32_t offset) {
     if (!fast_update && offset < 12000u) return 0xFFu;
     const uint32_t index = fast_update ? fast_frame_index(offset) : offset - 12000u;
@@ -486,7 +457,7 @@ static bool arm_settle(void) {
     settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
     settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
-    settle_stage = (absolute_update || directional_overdrive) ? SETTLE_READY : SETTLE_WAIT;
+    settle_stage = absolute_update ? SETTLE_READY : SETTLE_WAIT;
     return true;
 }
 static void poll_settle_locked(uint32_t budget_ms) {
@@ -705,10 +676,8 @@ static void poll_present_locked(uint32_t budget_ms) {
             else if (fast_update && setup_step == 1u) window_data();
             else if (!fast_update && setup_step == 0u) reg1(0x30, 0x0E);
             else {
-                const bool old_first = fast_update && directional_overdrive;
-                if (!begin_plane(old_first ? 0x10 : (fast_update || quality_partial ? 0x13 : 0x10))) goto failed;
-                async_stage = old_first ? UC_ASYNC_OLD :
-                    (fast_update || quality_partial ? UC_ASYNC_NEW : UC_ASYNC_WHITE);
+                if (!begin_plane(fast_update || quality_partial ? 0x13 : 0x10)) goto failed;
+                async_stage = fast_update || quality_partial ? UC_ASYNC_NEW : UC_ASYNC_WHITE;
             }
             ++setup_step;
         } else if (async_stage == UC_ASYNC_WHITE || async_stage == UC_ASYNC_NEW || async_stage == UC_ASYNC_OLD || async_stage == UC_ASYNC_SYNC) {
@@ -722,7 +691,8 @@ static void poll_present_locked(uint32_t budget_ms) {
             for (uint32_t i = 0; i < count; ++i) {
                 const uint32_t offset = async_offset + i;
                 buffer[i] = async_stage == UC_ASYNC_WHITE ? 0xFFu :
-                    (async_stage == UC_ASYNC_OLD ? old_frame_byte(offset) :
+                    (async_stage == UC_ASYNC_OLD ? (offset < 12000u ? 0xFFu :
+                        (uint8_t)~previous_frame[offset - 12000u]) :
                     (full_sync_plane ? (offset < 12000u ? 0xFFu :
                         (uint8_t)~previous_frame[offset - 12000u]) : frame_byte(offset)));
             }
@@ -732,12 +702,9 @@ static void poll_present_locked(uint32_t budget_ms) {
             if (async_offset == total) {
                 if (!end_spi()) goto failed;
                 if (async_stage == UC_ASYNC_WHITE) { if (!begin_plane(0x13)) goto failed; async_stage = UC_ASYNC_NEW; }
-                else if (async_stage == UC_ASYNC_OLD && fast_update) {
-                    if (!begin_plane(0x13)) goto failed;
-                    async_stage = UC_ASYNC_NEW;
-                } else if (async_stage == UC_ASYNC_NEW && quality_partial) {
-                    /* Fast absolute motion can leave OLD stale; deep wake also
-                     * loses panel RAM. Restore canonical history before OTP partial. */
+                else if (async_stage == UC_ASYNC_NEW && quality_partial) {
+                    /* Fast A2 never syncs OLD; deep wake loses panel RAM. Restore
+                     * the canonical previous image before every OTP partial. */
                     if (!begin_plane(0x10)) goto failed;
                     async_stage = UC_ASYNC_OLD;
                 } else if (async_stage == UC_ASYNC_SYNC) {
@@ -770,7 +737,7 @@ static void poll_present_locked(uint32_t budget_ms) {
                 case 6: reg1(0x50, 0xD7); break;
                 case 7: reg1(0xE0, 0x02); break;
                 case 8: reg1(0xE5, 0x5A); break;
-                default: if (setup_step < finish) fast_lut_table(setup_step - 9u); break;
+                default: if (setup_step < finish) absolute_lut_table(setup_step - 9u); break;
                 }
             } else {
                 /* PON may restore MTP defaults. Replay every clean/quality
@@ -848,10 +815,7 @@ static void poll_present_locked(uint32_t budget_ms) {
             if (fast_update) {
                 command(0x92); if (io_failed) goto failed;
                 remember_completed_frame();
-                if ((absolute_update || directional_overdrive) && !settle_update) {
-                    /* DTM1 intentionally remains the pre-refresh target so the
-                     * resident settle can repeat the same directional impulse.
-                     * The next active frame uploads a fresh truthful OLD plane. */
+                if (absolute_update && !settle_update) {
                     dtm1_synced = false;
                     if (!absolute_frames) absolute_started_ms = busy_done_ms;
                     ++absolute_frames;
@@ -935,8 +899,7 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     const uint8_t intent = options ? options->intent : RISC_DISPLAY_PRESENT_DEFAULT;
     quality_partial = intent == RISC_DISPLAY_PRESENT_QUALITY && count && (completed_history || previous_seeded);
     fast_update = completed_history && (intent == RISC_DISPLAY_PRESENT_DEFAULT || intent == RISC_DISPLAY_PRESENT_LOW_LATENCY);
-    absolute_update = directional_overdrive = settle_update = false;
-    fast_lut_frames = 1u; sync_full = false;
+    absolute_update = settle_update = false; fast_lut_frames = 1u; sync_full = false;
     partial_update = count && (fast_update || quality_partial);
     update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (count) {
@@ -969,9 +932,9 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
             update_area = tested_window_for((uint32_t)changed.x, (uint32_t)changed.y,
                 (uint32_t)changed.x + changed.width,
                 (uint32_t)changed.y + changed.height);
-            directional_overdrive = update_area.height <= X4PRO_STRONG_MOTION_MAX_ROWS;
-            absolute_update = !directional_overdrive;
-            fast_lut_frames = directional_overdrive ? X4PRO_STRONG_MOTION_FRAMES : 1u;
+            absolute_update = true;
+            fast_lut_frames = update_area.height <= X4PRO_STRONG_MOTION_MAX_ROWS ?
+                X4PRO_STRONG_MOTION_FRAMES : 1u;
             partial_update = true;
         }
     } else if (!quality_partial) {
@@ -1279,7 +1242,7 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     physical_pins[X4PRO_PIN_EPD_DC] = (uint8_t)configuration->dc;
     physical_pins[X4PRO_PIN_EPD_RST] = (uint8_t)configuration->reset;
     shutdown_stage = 0; previous_seeded = completed_history = partial_update = false;
-    fast_update = absolute_update = directional_overdrive = settle_update = quality_partial = false;
+    fast_update = absolute_update = settle_update = quality_partial = false;
     dtm1_synced = sync_full = false; fast_lut_frames = 1u;
     absolute_frames = 0; absolute_started_ms = UINT64_MAX;
     settle_stage = SETTLE_NONE; settle_stop = settle_coverage_valid = false;
@@ -1466,7 +1429,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     started = true; screen_powered = false; shutdown_stage = 0; pending_token = 0; present_state = PRESENT_NONE;
     memset(&metrics, 0, sizeof(metrics));
     bytes_sent = 0; transfer_start_ms = transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
-    partial_update = fast_update = absolute_update = directional_overdrive = settle_update = quality_partial = false;
+    partial_update = fast_update = absolute_update = settle_update = quality_partial = false;
     dtm1_synced = sync_full = false; fast_lut_frames = 1u;
     absolute_frames = 0; absolute_started_ms = UINT64_MAX;
     async_stage = UC_ASYNC_NONE; transfer_started = false;
@@ -1560,7 +1523,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.14 cause=");
+    append(destination, capacity, &used, "v=0.1.13 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
@@ -1596,8 +1559,6 @@ static bool last_error(char *destination, size_t capacity) {
     append_u(destination, capacity, &used, dtm1_synced);
     append(destination, capacity, &used, " abs=");
     append_u(destination, capacity, &used, absolute_update);
-    append(destination, capacity, &used, " dir=");
-    append_u(destination, capacity, &used, directional_overdrive);
     append(destination, capacity, &used, " settle2=");
     append_u(destination, capacity, &used, settle_update);
     append(destination, capacity, &used, " burst=");
