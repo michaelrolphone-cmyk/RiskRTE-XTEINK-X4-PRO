@@ -179,7 +179,7 @@ def validate_paths(store):
             raise ValueError('Unsafe store member: ' + name)
 
 
-def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE):
+def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE, *, expected_tool_sha256=None):
     if expected_size not in (BOOTFS_SIZE, 0x510000):
         raise ValueError('Unknown SPIFFS geometry')
     if tool is None:
@@ -187,7 +187,7 @@ def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE):
         validate_paths(files)
         return files
     tool = Path(tool).resolve()
-    if sha(tool.read_bytes()) != MKSPIFFS_SHA256:
+    if sha(tool.read_bytes()) != (expected_tool_sha256 or MKSPIFFS_SHA256):
         raise ValueError('SPIFFS tool differs from pinned Arduino ESP32 binary')
     if len(raw) != expected_size:
         raise ValueError('Incorrect SPIFFS partition size')
