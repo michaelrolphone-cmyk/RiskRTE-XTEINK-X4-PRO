@@ -17,6 +17,8 @@ static bool fail_unhold, hold_retained, frozen_clock, stuck_reset;
 static bool stuck_refresh, absent_busy, stuck_poweroff, scoped_bus = true, ambiguous, unstable_probe;
 static bool rollback_clock, bad_clock, reenter;
 static bool async_model;
+static unsigned refresh_delay_ms=3;
+static bool require_busy_observation,busy_observed;
 static uint64_t phase_until;
 static unsigned async_calls;
 static uint64_t wire_hash=UINT64_C(1469598103934665603);
@@ -52,7 +54,7 @@ static bool fake_destroy(void *c, uint64_t token) {
 static uint64_t fake_time(void *c) {
     (void)c; ++clock_reads; if (bad_clock) return UINT64_MAX;
     if (async_model && fake_now >= phase_until &&
-        (phase == PON || (phase == REFRESH && !stuck_refresh))) phase = IDLE;
+        (phase == PON || (phase == REFRESH && !stuck_refresh && (!require_busy_observation || busy_observed)))) phase = IDLE;
     if (rollback_clock) return --fake_now;
     return fake_now;
 }
@@ -89,7 +91,7 @@ static void model_command(uint8_t cmd) {
         ++refreshes; phase = absent_busy ? IDLE : REFRESH;
     }
     if (chip == PROBE_UC8279 && cmd == 0x04) phase = PON;
-    if (phase == PON || phase == REFRESH) phase_until = fake_now + 3u;
+    if (phase == PON || phase == REFRESH) { phase_until = fake_now + (phase == REFRESH ? refresh_delay_ms : 3u); busy_observed=false; }
     if (chip == PROBE_UC8279 && cmd == 0x00) assert(phase != PON);
     if ((chip == PROBE_UC8279 && cmd == 0x07) || (chip == PROBE_SSD && cmd == 0x10)) ++deep_sleeps;
 }
@@ -126,7 +128,7 @@ static bool fake_write(void *c, uint64_t token, bool level) {
 static bool fake_read(void *c, uint64_t token, bool *out) {
     (void)c; unsigned pin = find_pin(token); ++pin_reads; assert(owner && lock_held);
     if (fail_read) return false;
-    if (pin == 6) { *out = chip == PROBE_SSD ? phase != IDLE : phase == IDLE; return true; }
+    if (pin == 6) { *out = chip == PROBE_SSD ? phase != IDLE : phase == IDLE; if (phase == REFRESH) busy_observed=true; return true; }
     if (pin == 11 && !pads[pin].output) {
         uint8_t value = 0xFF;
         if (chip == PROBE_UC8279 || ambiguous) {
@@ -434,6 +436,7 @@ static void test_power(const char *scenario, const risc_driver_v2 *driver) {
     assert(!driver->quiesce() && poweroffs == final_pof && deep_sleeps == final_sleep);
 #endif
 }
+#include "panel_ssd_async_test.inc"
 int main(int argc, char **argv) {
     assert(argc == 2);
     const char *scenario = argv[1];
@@ -490,7 +493,7 @@ int main(int argc, char **argv) {
         risc_display_info_v1 info={0}; assert(display->get_info(NULL,&info));
         assert(info.width==800 && info.height==480 && info.preferred_format==RISC_DISPLAY_FORMAT_MONO1);
         assert(info.flags&RISC_DISPLAY_INFO_BRIGHTNESS);
-        assert(!!(info.flags&RISC_DISPLAY_INFO_ASYNC_PRESENT)==(chip==PROBE_UC8279));
+        assert(info.flags&RISC_DISPLAY_INFO_ASYNC_PRESENT);
         risc_display_surface_v1 surface={0}; uint64_t token=0; risc_display_present_status_v1 status={0};
         assert(!display->present_status(NULL,0,&status));
         if (strstr(scenario, "-sleep-")) { test_power(scenario, driver); goto done; }
@@ -498,7 +501,9 @@ int main(int argc, char **argv) {
         unsigned before=writes; assert(!display->wait_present(NULL,token,20000,NULL) && writes==before);
         assert(display->wait_present(NULL,token,0,&status) && status.state==RISC_DISPLAY_PRESENT_QUEUED && writes==before);
         display->release(NULL,surface.frame); assert(!display->acquire(NULL,RISC_DISPLAY_FORMAT_MONO1,&surface));
-        if (!strcmp(scenario,"uc-async-metrics")) {
+        if (!strncmp(scenario,"ssd-async-",10)) {
+            ssd_async_cases(scenario,driver,&surface,token);goto done;
+        } else if (!strcmp(scenario,"uc-async-metrics")) {
             test_metrics(driver,token);goto done;
         } else if (!strcmp(scenario,"uc-async-history")) {
             ordinary_history(driver,token);goto done;

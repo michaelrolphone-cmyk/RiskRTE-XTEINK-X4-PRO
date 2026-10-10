@@ -1,0 +1,195 @@
+{
+  "package": "x4pro-panel",
+  "version": "0.1.23",
+  "base_commit": "f4ef23bcb8d91432adaf39784039e20af8e292ab",
+  "checked_at": "2026-10-10T13:30:10Z",
+  "branch_manifests": [
+    {
+      "branch": "checkpoint/x4-026",
+      "commit": "c89fb777b9332e7be46e5ae13872858cab9a3934",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "checkpoint/x4-032",
+      "commit": "ec2c984659c761143c8d3373bae5bf802b80d32e",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "checkpoint/x4-recovered-test-055",
+      "commit": "5cc9791e63102725a48a6a0c44e1c2ab0bb358e4",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "codex/x4-clock-sleep-wake",
+      "commit": "a32324865d182f5e3fa7edeacdd809f53dfc96b8",
+      "blob": "b3bed5e8cc1b6a865913c12af8411b1dddfa5cd2",
+      "version": "0.1.18"
+    },
+    {
+      "branch": "codex/x4-provisioning-profile",
+      "commit": "9021a03c123f7539820330a93e5ed1bd1bcfcd68",
+      "blob": "8606860a45a244107e4ee65c340721db75f3b762",
+      "version": "0.1.16"
+    },
+    {
+      "branch": "codex/x4-sd-sleep-recovery",
+      "commit": "10132268a126ad3b14a9e6464404aa001df9c176",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "diagnostics/x4-stage-timing-20261007",
+      "commit": "b2bfb0fdf3278cdf686ff5bb80872f519b47ccea",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "experiment/x4-gpio-high-before-mux-035",
+      "commit": "a7a37915eb732205df0caf44c69b754cb94b025d",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "feat/declarative-alarms",
+      "commit": "241ece9c107d7de0d9aa3be8ff99709c9d485d66",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "feat/x4-clock-deep-entry",
+      "commit": "cf0120d78453fb9985b6334b0e7d2a8c53432e49",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "feat/x4-deep-board-keepalive",
+      "commit": "a676c4b7834fc59c1e241f88c73d699cc39cb61f",
+      "blob": "8a12465dd33ba058091cd0b4ebe6dc569d300792",
+      "version": "0.1.20"
+    },
+    {
+      "branch": "feat/x4-desk-clock-client",
+      "commit": "c8a4f951abccd2e88660468958621612c82083c3",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "feat/x4-desk-clock-integration",
+      "commit": "f6c12e00e54a85fb2c09517ffad77c67c5b1851b",
+      "blob": "8a12465dd33ba058091cd0b4ebe6dc569d300792",
+      "version": "0.1.20"
+    },
+    {
+      "branch": "feat/x4-generic-provisioning-026",
+      "commit": "b7cc7ef8f7df02691b76d4edc8e901c8a15859aa",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "feat/x4-minimal-runtime",
+      "commit": "f190c1192ce3cee97c0ede01cf9d57654df6508d",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "feat/x4-panel-sleep-lifecycle",
+      "commit": "585edb3aa68c83e7c077de4819ddc65dbf0739ae",
+      "blob": "8a12465dd33ba058091cd0b4ebe6dc569d300792",
+      "version": "0.1.20"
+    },
+    {
+      "branch": "feat/x4-sparse-clock-integration",
+      "commit": "f600431fe98cf64e34ca19c88ee747aa4b124b6c",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "feat/x4-sparse-sleep-client",
+      "commit": "1cc18a9c998a3d041cf25364fb15c98449fe99d3",
+      "blob": "8a12465dd33ba058091cd0b4ebe6dc569d300792",
+      "version": "0.1.20"
+    },
+    {
+      "branch": "feat/x4-touch-sleep-recovery",
+      "commit": "cc89c6d871a2f36195e1babef0a1d3e83865e332",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "fix/first-boot-board-power",
+      "commit": "af564ca168d1f1de6aec6569e11b1fdace348560",
+      "blob": "8606860a45a244107e4ee65c340721db75f3b762",
+      "version": "0.1.16"
+    },
+    {
+      "branch": "fix/x4-offline-boot-log-0130",
+      "commit": "e31c2ecb6ee624a7ec95b15b097ea65e8b91e62f",
+      "error": "GitHub API error 404: {\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/repos/contents#get-repository-content\",\"status\":\"404\"}"
+    },
+    {
+      "branch": "fix/x4-usb-preparation-034",
+      "commit": "4af0904dda965b71b1217394581685feba84e4e7",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "integrate/x4-failure-evidence-045",
+      "commit": "ce3b21e5bc1676b36d5cfd2c7182913b729613d1",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "integrate/x4-resident-loader-repair-046",
+      "commit": "c081eebddad9ac61740b758e3fa74e5c92e325b1",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "integrate/x4-resident-shell-044",
+      "commit": "cd83611a76591569f29397903e93190c2a1bdf43",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "integration/x4-temporal-current-20261010",
+      "commit": "4ac862c55b3c9712fdb4aeed733d2f54eeee9690",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "main",
+      "commit": "ba01df1319b250821273e36544c9d537ffb9e6d0",
+      "error": "GitHub API error 404: {\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/repos/contents#get-repository-content\",\"status\":\"404\"}"
+    },
+    {
+      "branch": "migrate/x4-platform",
+      "commit": "aafc17feb2fec9aa1bae5b00e1c4b2dd6395f012",
+      "error": "GitHub API error 404: {\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest/repos/contents#get-repository-content\",\"status\":\"404\"}"
+    },
+    {
+      "branch": "perf/uc8279-cooperative-present",
+      "commit": "76da0ac2540e9d10bf94f8141c1ea7227c17fc42",
+      "blob": "b8c4d5fd28aa9c4b967fadb4e49f53567548fbe3",
+      "version": "0.1.19"
+    },
+    {
+      "branch": "recovered/gt911-019-source-20261010",
+      "commit": "89884c5f839dd35d65d7f96742a11371ddcd22f8",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    },
+    {
+      "branch": "recovery/x4-sd-state-0214-20261010",
+      "commit": "1b4995f5f550860cfbd2eea9141674f81fc7e1f2",
+      "blob": "a7d9b02773c25cedbbce38e85cec5db37f6742bc",
+      "version": "0.1.22"
+    }
+  ],
+  "tags": [],
+  "scope": "SSD1677 bounded owner poll only; UC8279 fast package separate",
+  "all_state_pr_version_search_count": 0,
+  "local_manifest_versions_max": "0.1.22"
+}

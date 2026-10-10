@@ -85,7 +85,11 @@ static uint64_t transfer_yielded_ms;
 static unsigned transfer_work;
 static bool transfer_started;
 enum { UC_ASYNC_NONE, UC_ASYNC_PRE, UC_ASYNC_PLANE13, UC_ASYNC_PLANE10,
-       UC_ASYNC_SETUP, UC_ASYNC_PON, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE };
+       UC_ASYNC_SETUP, UC_ASYNC_PON, UC_ASYNC_REFRESH, UC_ASYNC_ASSERT, UC_ASYNC_DONE,
+       SSD_ASYNC_PRE, SSD_ASYNC_WINDOW_X, SSD_ASYNC_WINDOW_Y, SSD_ASYNC_CURSOR_X,
+       SSD_ASYNC_CURSOR_Y, SSD_ASYNC_READY, SSD_ASYNC_PLANE24, SSD_ASYNC_OPEN26,
+       SSD_ASYNC_PLANE26, SSD_ASYNC_SETUP21, SSD_ASYNC_SETUP3C, SSD_ASYNC_SETUP22,
+       SSD_ASYNC_REFRESH, SSD_ASYNC_ASSERT, SSD_ASYNC_DONE };
 static uint8_t async_stage;
 static uint32_t async_offset;
 static uint64_t async_deadline, async_not_before;
@@ -489,10 +493,128 @@ static void remember_completed_frame(void) {
     } else memcpy(previous_frame, frame, FRAME_BYTES);
     completed_history = true;
 }
+/* SSD1677 preserves the synchronous wire sequence, including the full/partial
+ * RAM source and update-control bytes. Only owner scheduling changes: no sleep
+ * or readiness spin occurs here. Each poll sends at most 512 pixel bytes and
+ * samples time after eight bytes or one <=5-byte register command. A native
+ * GPIO callback itself must remain bounded; it cannot be preempted by us. */
+static uint64_t ssd_ready_deadline;
+static void ssd_begin_readiness(uint64_t now) {
+    ssd_ready_deadline = now >= async_deadline || async_deadline - now < 500u ? async_deadline : now + 500u;
+}
+static bool ssd_async_ready(uint64_t now) {
+    if (now >= ssd_ready_deadline) { set_reason("pre-transfer readiness"); return false; }
+    return !panel_pin_read(X4PRO_PIN_EPD_BUSY) && !io_failed;
+}
+static void ssd_poll_present(uint32_t budget_ms) {
+    if (!budget_ms || !started || shutdown_stage ||
+        (present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
+    uint64_t now = 0;
+    if (!sample_now(&now)) goto failed;
+    if (present_state == PRESENT_QUEUED) {
+        if (now > UINT64_MAX - 10000u) { set_reason("clock overflow"); goto failed; }
+        wait_start_ms = transfer_start_ms = now; wait_budget_ms = 10000u;
+        metrics.valid_times |= RISC_DISPLAY_METRICS_TRANSFER_START;
+        transfer_end_ms = refresh_ms = busy_assert_ms = busy_done_ms = 0;
+        bytes_sent = 0; reason = "none"; transfer_started = true;
+        async_stage = SSD_ASYNC_PRE; async_offset = 0; async_deadline = now + 10000u;
+        ssd_begin_readiness(now); present_state = PRESENT_ACTIVE;
+    }
+    if (now >= async_deadline) { set_reason("async present deadline"); goto failed; }
+    const uint32_t slice_ms = budget_ms > 8u ? 8u : budget_ms;
+    const uint64_t slice_end = async_deadline - now < slice_ms ? async_deadline : now + slice_ms;
+    const unsigned x = partial_update ? (unsigned)update_area.x / 8u : 0u;
+    const unsigned y = partial_update ? (unsigned)update_area.y : 0u;
+    const unsigned w = partial_update ? update_area.width / 8u : X4PRO_PANEL_WIDTH / 8u;
+    const unsigned h = partial_update ? update_area.height : X4PRO_PANEL_HEIGHT;
+    const uint16_t left = (uint16_t)(x * 8u), right = (uint16_t)(left + w * 8u - 1u);
+    const uint16_t first = (uint16_t)(X4PRO_PANEL_HEIGHT - 1u - y), last = (uint16_t)(first + 1u - h);
+    unsigned work = 0;
+    do {
+        if (!sample_now(&now)) goto failed;
+        if (now >= async_deadline) { set_reason("async present deadline"); goto failed; }
+        if (async_stage == SSD_ASYNC_PRE || async_stage == SSD_ASYNC_READY) {
+            if (!ssd_async_ready(now)) {
+                if (io_failed || now >= ssd_ready_deadline) goto failed;
+                break;
+            }
+            if (async_stage == SSD_ASYNC_PRE) async_stage = SSD_ASYNC_WINDOW_X;
+            else {
+                command(0x24); panel_pin_level(X4PRO_PIN_EPD_DC, true);
+                panel_pin_level(X4PRO_PIN_EPD_CS, false); async_stage = SSD_ASYNC_PLANE24;
+            }
+        } else if (async_stage == SSD_ASYNC_WINDOW_X) {
+            command(0x44); data1(left & 255u); data1(left >> 8); data1(right & 255u); data1(right >> 8);
+            async_stage = SSD_ASYNC_WINDOW_Y;
+        } else if (async_stage == SSD_ASYNC_WINDOW_Y) {
+            command(0x45); data1(first & 255u); data1(first >> 8); data1(last & 255u); data1(last >> 8);
+            async_stage = SSD_ASYNC_CURSOR_X;
+        } else if (async_stage == SSD_ASYNC_CURSOR_X) {
+            command(0x4E); data1(left & 255u); data1(left >> 8); async_stage = SSD_ASYNC_CURSOR_Y;
+        } else if (async_stage == SSD_ASYNC_CURSOR_Y) {
+            command(0x4F); data1(first & 255u); data1(first >> 8);
+            if (!sample_now(&now)) goto failed;
+            ssd_begin_readiness(now); async_stage = SSD_ASYNC_READY;
+        } else if (async_stage == SSD_ASYNC_PLANE24 || async_stage == SSD_ASYNC_PLANE26) {
+            const uint8_t *pixels = partial_update && async_stage == SSD_ASYNC_PLANE26 ? previous_frame : frame;
+            for (unsigned n = 0; n < 8u && async_offset < w * h && work < 512u; ++n) {
+                const size_t i = (size_t)(async_offset / w + y) * (X4PRO_PANEL_WIDTH / 8u) + x + async_offset % w;
+                spi_byte((uint8_t)~pixels[i]); ++async_offset; ++bytes_sent; ++work;
+            }
+            if (async_offset == w * h) {
+                panel_pin_level(X4PRO_PIN_EPD_CS, true);
+                if (async_stage == SSD_ASYNC_PLANE24) {
+                    async_stage = SSD_ASYNC_OPEN26; async_offset = 0;
+                } else {
+                    if (!sample_metric(&transfer_end_ms, RISC_DISPLAY_METRICS_TRANSFER_END)) goto failed;
+                    async_stage = SSD_ASYNC_SETUP21;
+                }
+            }
+        } else if (async_stage == SSD_ASYNC_OPEN26) {
+            command(0x26); panel_pin_level(X4PRO_PIN_EPD_DC, true);
+            panel_pin_level(X4PRO_PIN_EPD_CS, false); async_stage = SSD_ASYNC_PLANE26;
+        } else if (async_stage == SSD_ASYNC_SETUP21) {
+            busy_before = panel_pin_read(X4PRO_PIN_EPD_BUSY) ? 1u : 0u;
+            if (io_failed) goto failed;
+            if (busy_before) { set_reason("busy already active"); goto failed; }
+            command(0x21); data1(partial_update ? 0x00 : 0x40); async_stage = SSD_ASYNC_SETUP3C;
+        } else if (async_stage == SSD_ASYNC_SETUP3C) {
+            command(0x3C); data1(partial_update ? 0x80 : 0xC0); async_stage = SSD_ASYNC_SETUP22;
+        } else if (async_stage == SSD_ASYNC_SETUP22) {
+            command(0x22); data1(partial_update ? 0xFC : 0xF7); async_stage = SSD_ASYNC_REFRESH;
+        } else if (async_stage == SSD_ASYNC_REFRESH) {
+            if (!sample_metric(&refresh_ms, RISC_DISPLAY_METRICS_REFRESH)) goto failed;
+            metrics.refresh_ms = refresh_ms; command(0x20); async_stage = SSD_ASYNC_ASSERT;
+        } else if (async_stage == SSD_ASYNC_ASSERT) {
+            const bool busy = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (!busy) break;
+            if (!sample_metric(&busy_assert_ms, RISC_DISPLAY_METRICS_BUSY_ASSERT)) goto failed;
+            async_stage = SSD_ASYNC_DONE;
+        } else if (async_stage == SSD_ASYNC_DONE) {
+            const bool busy = panel_pin_read(X4PRO_PIN_EPD_BUSY);
+            if (io_failed) goto failed;
+            if (busy) break;
+            if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE) || busy_done_ms >= async_deadline) goto failed;
+            present_state = PRESENT_COMPLETE; held = false; previous_seeded = false;
+            async_stage = UC_ASYNC_NONE; reason = "complete"; break;
+        } else { set_reason("invalid async state"); goto failed; }
+        if (io_failed) goto failed;
+        if (!sample_now(&now)) goto failed;
+    } while (now < slice_end && work < 512u);
+    if (io_failed) goto failed;
+    (void)leave(); return;
+failed:
+    panel_pin_level(X4PRO_PIN_EPD_CS, true);
+    present_state = PRESENT_FAILED; held = false; async_stage = UC_ASYNC_NONE;
+    (void)leave();
+}
+
 /* Runtime calls this ordinary poll suffix on the existing serialized owner.
  * Keep every GPIO edge/command from the synchronous UC path, but return between
  * bounded chunks so app input can be sampled while a frame is in flight. */
 static void poll_present(uint32_t budget_ms) {
+    if (controller == PROBE_SSD) { ssd_poll_present(budget_ms); return; }
     if (!budget_ms || controller != PROBE_UC8279 || !started || shutdown_stage ||
         (present_state != PRESENT_QUEUED && present_state != PRESENT_ACTIVE) || !enter()) return;
     uint64_t now = 0;
@@ -598,7 +720,7 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->supported_rotations = RISC_DISPLAY_ROTATION_0;
     out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE | RISC_DISPLAY_INFO_QUIESCE_SLEEP;
     if (frontlight && frontlight->set_level) out->flags |= RISC_DISPLAY_INFO_BRIGHTNESS;
-    if (controller == PROBE_UC8279) out->flags |= RISC_DISPLAY_INFO_ASYNC_PRESENT;
+    if (controller == PROBE_UC8279 || controller == PROBE_SSD) out->flags |= RISC_DISPLAY_INFO_ASYNC_PRESENT;
     out->damage_x_alignment = 8;
     out->damage_width_alignment = 8;
     out->damage_y_alignment = 1;
@@ -1139,7 +1261,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.22 cause=");
+    append(destination, capacity, &used, "v=0.1.23 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
