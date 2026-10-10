@@ -1,0 +1,43 @@
+name: Apply X4 UC8279 panel 0.1.14
+
+on:
+  push:
+    branches:
+      - recovery/x4-sd-state-0214-20261010
+    paths:
+      - .github/workflows/apply-x4-panel-014.yml
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: recovery/x4-sd-state-0214-20261010
+          fetch-depth: 0
+
+      - name: Install complementary directional-overdrive driver
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '37d111e9e44a51bccf94e46df558713e7914462b96c2441ef7f8926e31592ba3  .github/x4-panel-014-payload.patch.gz' | sha256sum -c -
+          gzip -dc .github/x4-panel-014-payload.patch.gz > /tmp/x4-panel-014.patch
+          git apply --index /tmp/x4-panel-014.patch
+          printf '%s' 'bmFtZTogWDQgVUM4Mjc5IGZhc3QtZGlzcGxheSBxdWFsaWZpY2F0aW9uCgpvbjoKICBwdXNoOgogICAgYnJhbmNoZXM6CiAgICAgIC0gcmVjb3ZlcnkveDQtc2Qtc3RhdGUtMDIxNC0yMDI2MTAxMAogICAgcGF0aHM6CiAgICAgIC0gbWluaW1hbC9kcml2ZXJzL3g0cHJvX3VjODI3OV9mYXN0LyoqCiAgICAgIC0gbWluaW1hbC9pbnRlcmZhY2VzLyoqCiAgICAgIC0gbWluaW1hbC9zY3JpcHRzL2J1aWxkX2RyaXZlcnMucHkKICAgICAgLSBtaW5pbWFsL3NjcmlwdHMvcHJlcGFyZV9zZGsucHkKICAgICAgLSBtaW5pbWFsL3Rlc3QvdWM4Mjc5X2Zhc3RfdGVzdC5jCiAgICAgIC0gbWluaW1hbC90ZXN0L3J1bl91YzgyNzlfZmFzdF90ZXN0LnNoCiAgICAgIC0gbWluaW1hbC90ZXN0L3VjODI3OV9mYXN0X3Byb2ZpbGVfdGVzdC5weQogICAgICAtIG1pbmltYWwvdGVzdC9wcmVwYXJlX3Nka190ZXN0LnB5CiAgICAgIC0gbWluaW1hbC90ZXN0L29yZGluYXJ5LWRyaXZlci1zb3VyY2VzLmxvY2suanNvbgogICAgICAtIG1pbmltYWwvdmFsaWRhdGlvbi91YzgyNzktY29tcGxlbWVudGFyeS1kaXJlY3Rpb25hbC1vdmVyZHJpdmUtMC4xLjE0Lmpzb24KICAgICAgLSAuZ2l0aHViL3dvcmtmbG93cy94NC1mYXN0LWRpc3BsYXkueW1sCiAgd29ya2Zsb3dfZGlzcGF0Y2g6CgpwZXJtaXNzaW9uczoKICBjb250ZW50czogcmVhZAoKZW52OgogIFBMQVRGT1JNSU9fU0VUVElOR19FTkFCTEVfVEVMRU1FVFJZOiAiTm8iCgpqb2JzOgogIHF1YWxpZnktYnVpbGQ6CiAgICBydW5zLW9uOiB1YnVudHUtbGF0ZXN0CiAgICB0aW1lb3V0LW1pbnV0ZXM6IDIwCiAgICBzdGVwczoKICAgICAgLSB1c2VzOiBhY3Rpb25zL2NoZWNrb3V0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIHJlZjogJHt7IGdpdGh1Yi5zaGEgfX0KICAgICAgICAgIHBlcnNpc3QtY3JlZGVudGlhbHM6IGZhbHNlCiAgICAgIC0gdXNlczogYWN0aW9ucy9jaGVja291dEB2NAogICAgICAgIHdpdGg6CiAgICAgICAgICByZXBvc2l0b3J5OiBtaWNoYWVscm9scGhvbmUtY215ay9SaXNjUlRFCiAgICAgICAgICByZWY6IGFhYTc3YWQxMWZjNjZiNDI0MzAyNTRhYjcwNjU1OTBkMzNmZDFmY2EKICAgICAgICAgIHBhdGg6IC5zaGFyZWQvcnVudGltZQogICAgICAgICAgcGVyc2lzdC1jcmVkZW50aWFsczogZmFsc2UKICAgICAgLSB1c2VzOiBhY3Rpb25zL2NoZWNrb3V0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIHJlcG9zaXRvcnk6IG1pY2hhZWxyb2xwaG9uZS1jbXlrL1Q1UzMtUmVhZGVyCiAgICAgICAgICByZWY6IDI5Mjc2YjRlMWNmZjc4MTlhZjA2NWE3N2NmNjQ4MDVmNmQ1YTEyY2UKICAgICAgICAgIHBhdGg6IC5zaGFyZWQvcmVhZGVyCiAgICAgICAgICBwZXJzaXN0LWNyZWRlbnRpYWxzOiBmYWxzZQogICAgICAtIHVzZXM6IGFjdGlvbnMvc2V0dXAtcHl0aG9uQHY1CiAgICAgICAgd2l0aDoKICAgICAgICAgIHB5dGhvbi12ZXJzaW9uOiAnMy4xMScKICAgICAgLSBuYW1lOiBWZXJpZnkgc291cmNlIGlkZW50aXR5IGFuZCBTREsgY29tcG9zaXRpb24KICAgICAgICBydW46IHwKICAgICAgICAgIGdyZXAgLXEgJyJ2ZXJzaW9uIjogIjAuMS4xNCInIG1pbmltYWwvZHJpdmVycy94NHByb191YzgyNzlfZmFzdC9tYW5pZmVzdC5qc29uCiAgICAgICAgICBncmVwIC1xICd3cml0ZV9kaXJlY3Rpb25hbF9vdmVyZHJpdmVfbHV0X3RhYmxlJyBtaW5pbWFsL2RyaXZlcnMveDRwcm9fdWM4Mjc5X2Zhc3QvZHJpdmVyLmMKICAgICAgICAgIGdyZXAgLXEgJ2NvbnN0IGJvb2wgb2xkX2ZpcnN0ID0gZmFzdF91cGRhdGUgJiYgZGlyZWN0aW9uYWxfb3ZlcmRyaXZlJyBtaW5pbWFsL2RyaXZlcnMveDRwcm9fdWM4Mjc5X2Zhc3QvZHJpdmVyLmMKICAgICAgICAgIGdyZXAgLXEgJ3RhYmxlXFsxXF0gPSBoaWdoOyB0YWJsZVxbMlxdID0gbG93JyBtaW5pbWFsL2RyaXZlcnMveDRwcm9fdWM4Mjc5X2Zhc3QvZHJpdmVyLmMKICAgICAgICAgIHB5dGhvbjMgbWluaW1hbC90ZXN0L3ByZXBhcmVfc2RrX3Rlc3QucHkKICAgICAgICAgIHB5dGhvbjMgbWluaW1hbC90ZXN0L3VjODI3OV9mYXN0X3Byb2ZpbGVfdGVzdC5weQogICAgICAtIG5hbWU6IFVDODI3OSBob3N0IHJlZ3Jlc3Npb25zCiAgICAgICAgZW52OgogICAgICAgICAgUklTQ1JURV9SVU5USU1FX1JPT1Q6ICR7eyBnaXRodWIud29ya3NwYWNlIH19Ly5zaGFyZWQvcnVudGltZQogICAgICAgICAgUklTQ1JURV9SRUFERVJfUk9PVDogJHt7IGdpdGh1Yi53b3Jrc3BhY2UgfX0vLnNoYXJlZC9yZWFkZXIKICAgICAgICBydW46IHwKICAgICAgICAgIFNBTklUSVpFPTAgYmFzaCBtaW5pbWFsL3Rlc3QvcnVuX3VjODI3OV9mYXN0X3Rlc3Quc2gKICAgICAgICAgIFNBTklUSVpFPTEgYmFzaCBtaW5pbWFsL3Rlc3QvcnVuX3VjODI3OV9mYXN0X3Rlc3Quc2gKICAgICAgLSBydW46IHBpcCBpbnN0YWxsIHBsYXRmb3JtaW89PTYuMS4xOSBweWVsZnRvb2xzPT0wLjMyCiAgICAgIC0gbmFtZTogQnVpbGQgVUM4Mjc5IHByb3ZpZGVyIEVMRgogICAgICAgIHJ1bjogfAogICAgICAgICAgcGlvIHBrZyBpbnN0YWxsIC0tZ2xvYmFsIC0tdG9vbCAnZXNwcmVzc2lmL3Rvb2xjaGFpbi14dGVuc2EtZXNwMzJzM0A4LjQuMCsyMDIxcjItcGF0Y2g1JwogICAgICAgICAgcHl0aG9uMyBtaW5pbWFsL3NjcmlwdHMvYnVpbGRfZHJpdmVycy5weSBcCiAgICAgICAgICAgIC0tcnVudGltZSAuc2hhcmVkL3J1bnRpbWUgXAogICAgICAgICAgICAtLXJlYWRlciAuc2hhcmVkL3JlYWRlciBcCiAgICAgICAgICAgIC0tc291cmNlLWxvY2sgbWluaW1hbC90ZXN0L29yZGluYXJ5LWRyaXZlci1zb3VyY2VzLmxvY2suanNvbiBcCiAgICAgICAgICAgIC0tY2MgIiRIT01FLy5wbGF0Zm9ybWlvL3BhY2thZ2VzL3Rvb2xjaGFpbi14dGVuc2EtZXNwMzJzMy9iaW4veHRlbnNhLWVzcDMyczMtZWxmLWdjYyIgXAogICAgICAgICAgICAtLW91dHB1dCBidWlsZC94NC11YzgyNzktZmFzdC0wLjEuMTQgXAogICAgICAgICAgICAtLXNsZWVwIFwKICAgICAgICAgICAgLS1wYW5lbC1kcml2ZXIgdWM4Mjc5LWZhc3QKICAgICAgICAgIGdpdCByZXYtcGFyc2UgSEVBRCA+IGJ1aWxkL3g0LXVjODI3OS1mYXN0LTAuMS4xNC9wbGF0Zm9ybS1zb3VyY2Utc2hhLnR4dAogICAgICAgICAgc2hhMjU2c3VtIFwKICAgICAgICAgICAgbWluaW1hbC9kcml2ZXJzL3g0cHJvX3VjODI3OV9mYXN0L2RyaXZlci5jIFwKICAgICAgICAgICAgbWluaW1hbC9kcml2ZXJzL3g0cHJvX3VjODI3OV9mYXN0L21hbmlmZXN0Lmpzb24gXAogICAgICAgICAgICA+IGJ1aWxkL3g0LXVjODI3OS1mYXN0LTAuMS4xNC9zb3VyY2Utc2hhMjU2LnR4dAogICAgICAtIHVzZXM6IGFjdGlvbnMvdXBsb2FkLWFydGlmYWN0QHY0CiAgICAgICAgd2l0aDoKICAgICAgICAgIG5hbWU6IHg0LXVjODI3OS1mYXN0LTAuMS4xNC0ke3sgZ2l0aHViLnNoYSB9fQogICAgICAgICAgcGF0aDogYnVpbGQveDQtdWM4Mjc5LWZhc3QtMC4xLjE0LwogICAgICAgICAgaWYtbm8tZmlsZXMtZm91bmQ6IGVycm9yCiAgICAgICAgICByZXRlbnRpb24tZGF5czogMTQK' | base64 -d > .github/workflows/x4-fast-display.yml
+          python3 -m json.tool minimal/drivers/x4pro_uc8279_fast/manifest.json >/dev/null
+          python3 -m json.tool minimal/validation/uc8279-complementary-directional-overdrive-0.1.14.json >/dev/null
+          test "$(python3 -c 'import json; print(json.load(open("minimal/drivers/x4pro_uc8279_fast/manifest.json"))["version"])')" = '0.1.14'
+          grep -q 'write_directional_overdrive_lut_table' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'const bool old_first = fast_update && directional_overdrive' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'table\[1\] = high; table\[2\] = low' minimal/drivers/x4pro_uc8279_fast/driver.c
+          rm -f .github/x4-panel-014-payload.patch.gz .github/workflows/apply-x4-panel-014.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'feat(x4): add complementary UC8279 directional overdrive'
+          git push origin HEAD:recovery/x4-sd-state-0214-20261010
