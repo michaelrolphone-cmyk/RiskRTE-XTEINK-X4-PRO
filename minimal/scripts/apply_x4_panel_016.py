@@ -90,10 +90,23 @@ readme = Path("minimal/drivers/x4pro_uc8279_fast/README.md")
 replace_once(readme, "# X4 UC8279 fast provider 0.1.13\n", "# X4 UC8279 fast provider 0.1.16\n")
 text = readme.read_text()
 insert = """## Longer absolute active drive (0.1.16)\n\nVersion 0.1.16 returns exactly to the hardware-confirmed 0.1.13 absolute-A2\nimplementation and changes only active pulse duration and its scheduling metadata.\nByte-level changed-region detection, byte-aligned horizontal windows, the\n40/80/160/480-row gate choices, absolute OLD-plane policy, resident endpoint\nsettling, four-frame final-target redraw, complete DTM1/DTM2 reconciliation,\nand POF lifecycle are inherited from 0.1.13.\n\nChanged regions no taller than 160 rows now receive one four-frame absolute DRF.\nBroad 480-row motion receives one two-frame absolute DRF. No differential or\ncomplementary LUT is used, no source-rail or VCOM override is programmed, and no\nsecond active DRF is added. The additional time is therefore spent driving the\ncurrent target within one coherent refresh rather than replaying an intermediate\ntransition. The 160-row laboratory measurement for the four-frame profile was\napproximately 100.9 ms total, or 9.91 FPS.\n\n"""
-marker = "## Changed-pixel windows and stronger active drive (0.1.13)\n"
+marker = "## Tight changed-pixel windows and stronger motion (0.1.13)\n"
 if marker not in text:
     raise SystemExit("0.1.13 README marker missing")
-readme.write_text(text.replace(marker, insert + marker, 1))
+text = text.replace(marker, insert + marker, 1)
+text = text.replace(
+    "Effective windows up to 160 rows use two scan frames (white-target entries\n"
+    "0x82, black-target entries 0x42); broader/full-visible motion uses one frame\n"
+    "(0x81/0x41).",
+    "Effective windows up to 160 rows use four scan frames (white-target entries\n"
+    "0x84, black-target entries 0x44); broader/full-visible motion uses two frames\n"
+    "(0x82/0x42).",
+)
+text = text.replace(
+    "Confirm small windows select two LUT frames, broad windows select one, normal\n",
+    "Confirm small windows select four LUT frames, broad windows select two, normal\n",
+)
+readme.write_text(text)
 
 validation_path = Path("minimal/validation/uc8279-absolute4-0.1.16.json")
 tracked = [driver, manifest, readme, test, profile_test, idle_runner]
