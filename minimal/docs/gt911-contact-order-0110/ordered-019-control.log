@@ -1,0 +1,4 @@
+normal: ordered consumer qualification passed
+asan: ordered consumer qualification passed
+ubsan: ordered consumer qualification passed
+75 runs passed; evidence: /workspace/shared/gt911-contact-order-proof/ordered-019-control/evidence.json

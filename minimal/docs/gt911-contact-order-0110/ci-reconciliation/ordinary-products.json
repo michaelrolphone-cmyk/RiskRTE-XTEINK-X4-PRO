@@ -1,0 +1,165 @@
+[
+  {
+    "id": "x4pro-board-power",
+    "version": "0.1.3",
+    "bytes": 8380,
+    "sha256": "9e59dbad8ff29af8016fe464d16ba96454efb0e2f3b1f3d32467ed576ee3cbfd",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "b5a06e7f2a74ab5b204b2590eba515ccd56eb99a35771f3ec6f978353ed389a7",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_board_power/driver.c": "b5a06e7f2a74ab5b204b2590eba515ccd56eb99a35771f3ec6f978353ed389a7",
+      "minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
+      "minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h": "f4079c4593ecfd05e5f07626930bdf14d92db61a3ce0bf9cf9cc1cd94492c728"
+    }
+  },
+  {
+    "id": "x4pro-i2c",
+    "version": "0.1.5",
+    "bytes": 7636,
+    "sha256": "09d69148d760a5f3b0af8df82f4b10cb87d89342054c3719d40a3ca8f52dca02",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "78950f1d1b2a2c190f6450522816fad36d26a824341385549d9084e6b82b47b4",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_i2c/driver.c": "78950f1d1b2a2c190f6450522816fad36d26a824341385549d9084e6b82b47b4"
+    }
+  },
+  {
+    "id": "x4pro-panel",
+    "version": "0.1.22",
+    "bytes": 69496,
+    "sha256": "10ab802a15572c32ad06bde898795138af74766a78c45a3cdb94700a037aabb0",
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ],
+    "source_sha256": "3e8b181828f3d1d17a0a975d412251a83abcc2cf7083a8910b5006ddd3c6f275",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_panel/driver.c": "3e8b181828f3d1d17a0a975d412251a83abcc2cf7083a8910b5006ddd3c6f275",
+      "minimal/interfaces/RiscDisplayOutputMetricsV1.h": "5be17adbae2ec26a855894e0d6443ac29572002c21efe53b2a913a5a0f0c642d"
+    }
+  },
+  {
+    "id": "x4pro-frontlight",
+    "version": "0.1.6",
+    "bytes": 8908,
+    "sha256": "ade1fb2960bffb0d6e56ec76dac4f505f29e04199e95ee914ce0ad94f63cbb35",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "40e855342ef11dee36999282fec2331b8763927026fdb74c1d59cbca3052f146",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_frontlight/driver.c": "40e855342ef11dee36999282fec2331b8763927026fdb74c1d59cbca3052f146",
+      "minimal/interfaces/RiscFrontlightToneV1.h": "7c9956bdb5d0f7cccf91146b4bbb42b41745e9fa547fdf0a46850f30203f2872"
+    }
+  },
+  {
+    "id": "x4pro-buttons",
+    "version": "0.1.8",
+    "bytes": 9300,
+    "sha256": "43de5df84eaaa82b3b5b2081d4f2cbde1999808323938efcfcaf60b8ae7f5e91",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "2395fa579f81c0368980650c9121751e6f9d44c6fea4fa95d7a1a1089aa55e9d",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_buttons/driver.c": "2395fa579f81c0368980650c9121751e6f9d44c6fea4fa95d7a1a1089aa55e9d",
+      "minimal/drivers/x4pro_power/X4PowerV1.h": "ba4696466768e45bd5a3b675a280a195c1015576630a57022477cab05f09027f"
+    }
+  },
+  {
+    "id": "x4pro-rtc",
+    "version": "0.1.1",
+    "bytes": 9876,
+    "sha256": "77bba7376d1306fe4066dd69f6b7460fb92909d34e6e204b10ee4e32445f2db8",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "7a0275d41b7cbe1483e136f36d2875dc1f5f3c49fcd75d15d5904ef5869fedb8",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_rtc/driver.c": "7a0275d41b7cbe1483e136f36d2875dc1f5f3c49fcd75d15d5904ef5869fedb8"
+    }
+  },
+  {
+    "id": "x4pro-sd",
+    "version": "0.2.11",
+    "bytes": 81528,
+    "sha256": "ad9ceee33dd31b91420d60a1107e6aad80a240842710af7eeb85a5b77791923e",
+    "imports": [
+      "memcmp",
+      "memcpy",
+      "memset",
+      "strchr",
+      "strlen"
+    ],
+    "source_sha256": "9d78ae7265b718221bc186eca7f8c169b2a2ae8c62381bb9f5fe5203a775c6e2",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_sd/driver.c": "9d78ae7265b718221bc186eca7f8c169b2a2ae8c62381bb9f5fe5203a775c6e2",
+      "minimal/drivers/x4pro_sd/BootLog.h": "2442b7fa2fdf6a573e0b8a43973104899d287379d2bb9c14efb3da57a355f9ec"
+    }
+  },
+  {
+    "id": "x4pro-battery",
+    "version": "0.1.3",
+    "bytes": 11228,
+    "sha256": "fa82fa0f050d6ae6fe83e532a51ac00c5d880192ffc5d4157471a7fda981afff",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "47a1a5d724b0732d05c39ec6030f107a76a76b3cf7a49db4e02ec82e233f6f13",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_battery/driver.c": "47a1a5d724b0732d05c39ec6030f107a76a76b3cf7a49db4e02ec82e233f6f13"
+    }
+  },
+  {
+    "id": "x4pro-gt911",
+    "version": "0.1.10",
+    "bytes": 22284,
+    "sha256": "dd42e5cd78e40cfca380dcfc4ac28e0df7f43874fdf21e8655d68ace82ae22c1",
+    "imports": [
+      "memcpy",
+      "memset",
+      "strcmp"
+    ],
+    "source_sha256": "ddb898395bcfb4ca126b284f01b288274da97f34efd2e2e63c9347dff8ed4cb5",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_gt911/driver.c": "ddb898395bcfb4ca126b284f01b288274da97f34efd2e2e63c9347dff8ed4cb5"
+    }
+  },
+  {
+    "id": "x4pro-power",
+    "version": "0.1.2",
+    "bytes": 8216,
+    "sha256": "b2c63d87d57f5570b24c3e6a69acef218fd75a9174d448e17677c74feb654a8e",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "f8f497b393a14f3e1d1e432d1bbedad1ba0d6f00ecc9d1a8aed45c1d739f9e28",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_power/driver.c": "f8f497b393a14f3e1d1e432d1bbedad1ba0d6f00ecc9d1a8aed45c1d739f9e28",
+      "minimal/drivers/x4pro_power/X4PowerV1.h": "ba4696466768e45bd5a3b675a280a195c1015576630a57022477cab05f09027f",
+      "minimal/drivers/x4pro_power/X4PowerDeepV1.h": "61690e17fe81558c692b8029b21af284e782370a96bb9ff890de81d2ef9b50a9",
+      "minimal/drivers/x4pro_board_power/PowerReadyV1.h": "5e9ea2fbd5491561a55272afc61ab2b94c8c179916930c9ee4c5f8e16ac58048",
+      "minimal/drivers/x4pro_board_power/X4BoardKeepaliveV1.h": "f4079c4593ecfd05e5f07626930bdf14d92db61a3ce0bf9cf9cc1cd94492c728"
+    }
+  },
+  {
+    "id": "x4pro-power-buttons",
+    "version": "0.1.0",
+    "bytes": 9292,
+    "sha256": "9fe1d193ab1256828e906ef6719bd78b69f2e3587ed9c4a6cf69538e03a8878c",
+    "imports": [
+      "strcmp"
+    ],
+    "source_sha256": "976482d88900a173c8a899aa47c5e4e5d8db03d8706961baaac883bc340e2bb7",
+    "local_source_hashes": {
+      "minimal/drivers/x4pro_power_buttons/driver.c": "976482d88900a173c8a899aa47c5e4e5d8db03d8706961baaac883bc340e2bb7",
+      "minimal/drivers/x4pro_buttons/driver.c": "2395fa579f81c0368980650c9121751e6f9d44c6fea4fa95d7a1a1089aa55e9d",
+      "minimal/drivers/x4pro_power/X4PowerV1.h": "ba4696466768e45bd5a3b675a280a195c1015576630a57022477cab05f09027f"
+    }
+  }
+]

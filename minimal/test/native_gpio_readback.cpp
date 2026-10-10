@@ -18,6 +18,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 using namespace RiscCpu;
+[[maybe_unused]] static garden_gpio_v1& gpioBase(garden_gpio_v1& api){return api;}
+template<class Api> static auto& gpioBase(Api& api){return api.base;}
 uint64_t native_sleep_test_output_mask=native_sleep_test_gpio_mask;
 static gpio_mode_t modes[49]{};
 static bool levels[49]{}, forcedLow[49]{}, held[49]{};
@@ -46,7 +48,7 @@ int main(int argc,char**argv){
  Port port(hardware());active=&port;
  RiscBoot::Runtime runtime({owner,[](risc_runtime_health_v1*){return true;},[](uint32_t){},[](const char*){return true;},bind});
  assert(runtime.prepare(argv[1]));assert(io==0);
- auto scoped=[&](uint64_t id)->garden_gpio_v1&{for(auto&g:port.gpios_)if(g.instance==id)return g.api;assert(false);return port.gpios_[0].api;};
+ auto scoped=[&](uint64_t id)->garden_gpio_v1&{for(auto&g:port.gpios_)if(g.instance==id)return gpioBase(g.api);assert(false);return gpioBase(port.gpios_[0].api);};
  auto& rail=scoped(1);auto& sd=scoped(9);
  risc_provider_sync_api_v1* sync=nullptr;for(auto&s:port.syncs_)if(s.instance==1)sync=&s.api;assert(sync);
  auto* driver=t5_driver_get(2);assert(driver);

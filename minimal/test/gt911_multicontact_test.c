@@ -75,6 +75,57 @@ static void five_contacts(void) {
     for(unsigned i=0;i<5;++i)event(sub,RISC_TOUCH_EVENT_DOWN,(uint8_t)(i+12),(uint16_t)(211+i),(uint16_t)(411+i),i+11);
     event(sub,RISC_TOUCH_EVENT_BUTTON_DOWN,0,0,0,16);no_event(sub,0);done(sub);
 }
+static void additions_before_motion(void) {
+    const uint64_t sub=begin(),other=api->subscribe(NULL);assert(other);
+    packet(1,10,20,false);assert(api->poll(NULL,1));
+    event(sub,RISC_TOUCH_EVENT_DOWN,1,10,20,1);
+    event(other,RISC_TOUCH_EVENT_DOWN,1,10,20,1);
+    /* Reverse wire order and a higher-ID newcomer must not let ID 1's MOVE
+     * escape before second-contact cancellation. Repeat the unchanged READY
+     * report before either subscriber drains its queued transitions. */
+    two(7,300,500,0,180,20,true);assert(api->poll(NULL,1));
+    const uint64_t first=time_ms;
+    two(0,180,20,7,300,500,true);assert(api->poll(NULL,1));
+    assert(snapshot().sequence==4 && snapshot().timestamp_ms>first);
+    for(unsigned subscriber=0;subscriber<2;++subscriber) {
+        uint64_t token=subscriber?other:sub;
+        risc_touch_event_v1 e={0};
+        assert(api->next(NULL,token,&e)==1 && e.kind==RISC_TOUCH_EVENT_DOWN && e.id==8 && e.sequence==2 && e.timestamp_ms==first);
+        assert(api->next(NULL,token,&e)==1 && e.kind==RISC_TOUCH_EVENT_MOVE && e.id==1 && e.x==180 && e.y==20 && e.sequence==3 && e.timestamp_ms==first);
+        assert(api->next(NULL,token,&e)==1 && e.kind==RISC_TOUCH_EVENT_BUTTON_DOWN && e.sequence==4 && e.timestamp_ms==first);
+        no_event(token,0);
+    }
+    /* Mixed removal/addition/motion remains UP, DOWN, MOVE, Home, with all
+     * exact old/new coordinates and identical streams for both subscribers. */
+    two(15,400,600,0,181,21,false);assert(api->poll(NULL,1));
+    for(unsigned subscriber=0;subscriber<2;++subscriber) {
+        uint64_t token=subscriber?other:sub;
+        event(token,RISC_TOUCH_EVENT_UP,8,300,500,5);
+        event(token,RISC_TOUCH_EVENT_DOWN,16,400,600,6);
+        event(token,RISC_TOUCH_EVENT_MOVE,1,181,21,7);
+        event(token,RISC_TOUCH_EVENT_BUTTON_UP,0,0,0,8);no_event(token,0);
+    }
+    assert(api->unsubscribe(NULL,other));done(sub);
+}
+static void earlier_report_order(void) {
+    const uint64_t sub=begin();
+    /* A queued independent MOVE cannot be reordered after a later contact.
+     * Distinct reports may share the clock tick, including valid UP/DOWN. */
+    packet(1,10,20,false);assert(api->poll(NULL,1));
+    packet(1,180,20,false);assert(api->poll(NULL,1));
+    const uint64_t when=time_ms;
+    packet(0,0,0,false);time_ms=when;assert(api->poll(NULL,1));
+    packet(1,50,60,false);time_ms=when;assert(api->poll(NULL,1));
+    two(7,300,500,0,51,61,false);time_ms=when;assert(api->poll(NULL,1));
+    risc_touch_event_v1 e={0};
+    const uint8_t kinds[]={RISC_TOUCH_EVENT_DOWN,RISC_TOUCH_EVENT_MOVE,RISC_TOUCH_EVENT_UP,RISC_TOUCH_EVENT_DOWN,RISC_TOUCH_EVENT_DOWN,RISC_TOUCH_EVENT_MOVE};
+    const uint8_t ids[]={1,1,1,1,8,1};
+    for(unsigned i=0;i<6;++i) {
+        assert(api->next(NULL,sub,&e)==1 && e.kind==kinds[i] && e.id==ids[i] && e.sequence==i+1u);
+        if(i)assert(e.timestamp_ms==when);
+    }
+    no_event(sub,0);done(sub);
+}
 static void malformed(void) {
     const uint64_t sub=begin(),other=api->subscribe(NULL);assert(other);
     for(unsigned bad=0;bad<10;++bad) {
@@ -173,6 +224,8 @@ int main(int argc,char **argv) {
     if(!strcmp(argv[1],"wire-layout"))wire_layout();
     else if(!strcmp(argv[1],"reorder-lift"))reorder_and_lift();
     else if(!strcmp(argv[1],"five-contacts"))five_contacts();
+    else if(!strcmp(argv[1],"additions-before-motion"))additions_before_motion();
+    else if(!strcmp(argv[1],"earlier-report-order"))earlier_report_order();
     else if(!strcmp(argv[1],"malformed"))malformed();
     else if(!strcmp(argv[1],"partial-reads"))partial_reads();
     else if(!strcmp(argv[1],"acknowledge"))acknowledge();

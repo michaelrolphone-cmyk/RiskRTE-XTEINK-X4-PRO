@@ -1,0 +1,1 @@
+baseline-multicontact: minimal/test/gt911_multicontact_test.c:93: additions_before_motion: Assertion `api->next(NULL,token,&e)==1 && e.kind==RISC_TOUCH_EVENT_DOWN && e.id==8 && e.sequence==2 && e.timestamp_ms==first' failed.

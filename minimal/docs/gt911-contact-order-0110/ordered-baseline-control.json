@@ -1,0 +1,392 @@
+{
+  "schema": 1,
+  "runs": [
+    {
+      "layer": "synthetic-provider",
+      "mode": "normal",
+      "profile": "portable"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "normal",
+      "profile": "native"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "normal",
+      "profile": "native-180"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "bursts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "same-tick-recontacts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "same-tick-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "same-tick-burst"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "subscribers"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "inherited"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "full-queue"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "multi-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "identity"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "identity-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "move-return"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "reset"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "overflow"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "read-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "ack-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "partial-read"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "malformed-report"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "recontact-recovery"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "terminal-next"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "terminal-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "terminal-move-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "normal",
+      "scenario": "terminal-unlock"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "asan",
+      "profile": "portable"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "asan",
+      "profile": "native"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "asan",
+      "profile": "native-180"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "bursts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "same-tick-recontacts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "same-tick-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "same-tick-burst"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "subscribers"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "inherited"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "full-queue"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "multi-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "identity"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "identity-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "move-return"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "reset"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "overflow"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "read-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "ack-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "partial-read"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "malformed-report"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "recontact-recovery"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "terminal-next"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "terminal-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "terminal-move-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "asan",
+      "scenario": "terminal-unlock"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "ubsan",
+      "profile": "portable"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "ubsan",
+      "profile": "native"
+    },
+    {
+      "layer": "synthetic-provider",
+      "mode": "ubsan",
+      "profile": "native-180"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "bursts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "same-tick-recontacts"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "same-tick-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "same-tick-burst"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "subscribers"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "inherited"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "full-queue"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "multi-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "identity"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "identity-home"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "move-return"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "reset"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "overflow"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "read-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "ack-failure"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "partial-read"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "malformed-report"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "recontact-recovery"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "terminal-next"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "terminal-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "terminal-move-snapshot"
+    },
+    {
+      "layer": "actual-gt911-0.1.9",
+      "mode": "ubsan",
+      "scenario": "terminal-unlock"
+    }
+  ],
+  "hardware_verified": false,
+  "publication": "none",
+  "driver_version": "0.1.9",
+  "source_sha256": {
+    "/workspace/shared/system-gt911-contact-order-20261010/lib/PortableApps/include/PortableTouch.h": "817d5bde4d3a3c4634512503d283d0c7e731744a65e743305038294b58205004",
+    "/workspace/shared/system-gt911-contact-order-20261010/test/native_apps/portable_touch_ordered_test.c": "d69d922f4115a2b9373340f2324543e6670e5339f0d11eb52643b309badd5293",
+    "/workspace/shared/system-gt911-contact-order-20261010/test/native_apps/portable_touch_ordered_gt911_test.c": "a159b05f723d46b09339dd48ec5c9782e206c9ba71eadbc6cd4c4a7b113967d4",
+    "/workspace/shared/system-gt911-contact-order-20261010/scripts/test_portable_touch_ordered.py": "de40de3614f04ef543298bd9184d897d11354712d9181d71977d64bccd591906",
+    "/workspace/shared/x4-wifi-ui-composition-057/minimal/drivers/x4pro_gt911/driver.c": "da287cbd675b6a59131b97278a48c6cf1734b90e30a9e2674e72b0063c9a86d1",
+    "/workspace/shared/x4-wifi-ui-composition-057/minimal/test/gt911_test.c": "538377486bf3be4b9a0f166590f89e850e518b793e8118864973c3d591cdfdc1",
+    "/workspace/shared/x4-wifi-ui-composition-057/minimal/drivers/x4pro_gt911/manifest.json": "fc63bf11712a2bdec8204c6e64b5fdeb5e999a25506a992fc2cc5db3df048bce"
+  }
+}

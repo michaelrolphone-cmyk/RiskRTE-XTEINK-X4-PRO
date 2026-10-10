@@ -1,0 +1,28 @@
+Production board/power/CPU refused repeated checked restore PASS
+Production board/power/CPU arm-refusal repeated checked restore PASS
+Production board/power/CPU timer-refusal repeated checked restore PASS
+Production board/power/CPU arm-retained retained exact claims PASS
+Production board/power/CPU timer-retained retained exact claims PASS
+Production board/power/CPU restore-read retained exact claims PASS
+Production board/power/CPU native-return-retained retained exact claims PASS
+Fresh process claim stages HIGH/config before unhold and re-holds in CPU custody PASS
+Production board/power/CPU terminal repeated checked restore PASS
+Production board/CPU physical LOW retained PASS
+Production board/CPU startup-hold-refusal retained exact ownership PASS
+Production board/CPU startup-hold-retained retained exact ownership PASS
+Production board/CPU startup-unhold-retained retained exact ownership PASS
+Production board/CPU startup-low-after-hold retained exact ownership PASS
+Production board/power/CPU refused repeated checked restore PASS
+Production board/power/CPU arm-refusal repeated checked restore PASS
+Production board/power/CPU timer-refusal repeated checked restore PASS
+Production board/power/CPU arm-retained retained exact claims PASS
+Production board/power/CPU timer-retained retained exact claims PASS
+Production board/power/CPU restore-read retained exact claims PASS
+Production board/power/CPU native-return-retained retained exact claims PASS
+Fresh process claim stages HIGH/config before unhold and re-holds in CPU custody PASS
+Production board/power/CPU terminal repeated checked restore PASS
+Production board/CPU physical LOW retained PASS
+Production board/CPU startup-hold-refusal retained exact ownership PASS
+Production board/CPU startup-hold-retained retained exact ownership PASS
+Production board/CPU startup-unhold-retained retained exact ownership PASS
+Production board/CPU startup-low-after-hold retained exact ownership PASS

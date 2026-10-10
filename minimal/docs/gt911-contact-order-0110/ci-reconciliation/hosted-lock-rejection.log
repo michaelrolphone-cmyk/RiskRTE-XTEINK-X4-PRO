@@ -1,0 +1,41 @@
+2026-10-10T17:12:14.8324363Z SD preparation flow capacity_stress=1 bytes=131027 steps=31 elapsed_ms=48521 max_step_ms=2346 exact_saved_text=PASS cancel_restart=PASS zero_service_io=PASS
+2026-10-10T17:12:14.8690207Z ##[group]Run pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+2026-10-10T17:12:14.8691736Z [36;1mpio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'[0m
+2026-10-10T17:12:14.8766301Z shell: /usr/bin/bash -e {0}
+2026-10-10T17:12:14.8766726Z env:
+2026-10-10T17:12:14.8767102Z   PLATFORMIO_SETTING_ENABLE_TELEMETRY: No
+2026-10-10T17:12:14.8767728Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:14.8768199Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-10T17:12:14.8768627Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:14.8769007Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:14.8769380Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:14.8769753Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-10T17:12:14.8770071Z ##[endgroup]
+2026-10-10T17:12:15.2551330Z ********************************************************************************
+2026-10-10T17:12:15.2552252Z If you like PlatformIO, please:
+2026-10-10T17:12:15.2552922Z - star it on GitHub > https://github.com/platformio/platformio-core
+2026-10-10T17:12:15.2554032Z - follow us on LinkedIn to stay up-to-date on the latest project news > https://www.linkedin.com/company/platformio/
+2026-10-10T17:12:15.2555301Z - try PlatformIO IDE for embedded development > https://platformio.org/platformio-ide
+2026-10-10T17:12:15.2556201Z ********************************************************************************
+2026-10-10T17:12:15.2556621Z 
+2026-10-10T17:12:15.2565578Z Tool Manager: Installing espressif/toolchain-xtensa-esp32s3 @ 8.4.0+2021r2-patch5
+2026-10-10T17:12:18.1068322Z Downloading 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+2026-10-10T17:12:20.4168951Z Unpacking 0% 10% 20% 30% 40% 50% 60% 70% 80% 90% 100%
+2026-10-10T17:12:20.7495265Z Tool Manager: toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5 has been installed!
+2026-10-10T17:12:20.7864340Z ##[group]Run python3 minimal/scripts/build_drivers.py --runtime .shared/runtime --reader .shared/reader --source-lock minimal/test/ordinary-driver-sources.lock.json --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" --output build/minimal-drivers --sleep
+2026-10-10T17:12:20.7866416Z [36;1mpython3 minimal/scripts/build_drivers.py --runtime .shared/runtime --reader .shared/reader --source-lock minimal/test/ordinary-driver-sources.lock.json --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" --output build/minimal-drivers --sleep[0m
+2026-10-10T17:12:20.7957241Z shell: /usr/bin/bash -e {0}
+2026-10-10T17:12:20.7957668Z env:
+2026-10-10T17:12:20.7958023Z   PLATFORMIO_SETTING_ENABLE_TELEMETRY: No
+2026-10-10T17:12:20.7958653Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:20.7959511Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib/pkgconfig
+2026-10-10T17:12:20.7960314Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:20.7961304Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:20.7962002Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.17/x64
+2026-10-10T17:12:20.7962698Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.17/x64/lib
+2026-10-10T17:12:20.7963267Z ##[endgroup]
+2026-10-10T17:12:20.8892038Z runtime: clean locked source checkout required
+2026-10-10T17:12:20.8963383Z ##[error]Process completed with exit code 1.
+2026-10-10T17:12:20.9098683Z Post job cleanup.
+2026-10-10T17:12:20.9964269Z [command]/usr/bin/git version
+

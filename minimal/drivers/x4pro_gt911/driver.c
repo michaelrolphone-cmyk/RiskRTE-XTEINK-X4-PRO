@@ -240,11 +240,19 @@ static bool poll_locked(void) {
         if (!find_contact(current, contacts, old->id))
             emit(RISC_TOUCH_EVENT_UP, old->id, old->x, old->y, when);
     }
+    /* Publish additions before retained-contact motion from this same atomic
+     * report. Single-contact gesture consumers must observe a second DOWN
+     * before a simultaneous MOVE can trigger an irreversible action. Keep
+     * removals first, sorted IDs within each phase, and all report edges. */
     for (uint8_t i = 0; i < contacts; ++i) {
         const risc_touch_contact_v1 *contact = &current[i];
         const risc_touch_contact_v1 *old = find_contact(state.contacts, state.contact_count, contact->id);
         if (!old) emit(RISC_TOUCH_EVENT_DOWN, contact->id, contact->x, contact->y, when);
-        else if (old->x != contact->x || old->y != contact->y)
+    }
+    for (uint8_t i = 0; i < contacts; ++i) {
+        const risc_touch_contact_v1 *contact = &current[i];
+        const risc_touch_contact_v1 *old = find_contact(state.contacts, state.contact_count, contact->id);
+        if (old && (old->x != contact->x || old->y != contact->y))
             emit(RISC_TOUCH_EVENT_MOVE, contact->id, contact->x, contact->y, when);
     }
     if (home != was_home)

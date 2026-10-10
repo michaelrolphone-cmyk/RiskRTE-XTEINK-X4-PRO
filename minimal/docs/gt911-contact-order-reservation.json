@@ -1,0 +1,143 @@
+{
+  "checked_at": "2026-10-10T16:38:40Z",
+  "branches": [
+    {
+      "branch": "checkpoint/x4-032",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "codex/x4-provisioning-profile",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "codex/raster-provider-progress-20261010",
+      "version": "0.1.9"
+    },
+    {
+      "branch": "checkpoint/x4-recovered-test-055",
+      "version": "0.1.9"
+    },
+    {
+      "branch": "checkpoint/x4-026",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "codex/x4-clock-sleep-wake",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "diagnostics/x4-stage-timing-20261007",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-deep-board-keepalive",
+      "version": "0.1.7"
+    },
+    {
+      "branch": "feat/declarative-alarms",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "feat/x4-clock-deep-entry",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "experiment/x4-gpio-high-before-mux-035",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "codex/x4-sd-sleep-recovery",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-panel-sleep-lifecycle",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-minimal-runtime",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-generic-provisioning-026",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "feat/x4-desk-clock-integration",
+      "version": "0.1.7"
+    },
+    {
+      "branch": "feat/x4-desk-clock-client",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-sparse-clock-integration",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "fix/x4-offline-boot-log-0130",
+      "version": null
+    },
+    {
+      "branch": "feat/x4-sparse-sleep-client",
+      "version": "0.1.7"
+    },
+    {
+      "branch": "fix/first-boot-board-power",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "feat/x4-touch-sleep-recovery",
+      "version": "0.1.7"
+    },
+    {
+      "branch": "fix/x4-usb-preparation-034",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "integrate/x4-failure-evidence-045",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "main",
+      "version": null
+    },
+    {
+      "branch": "migrate/x4-platform",
+      "version": null
+    },
+    {
+      "branch": "integration/x4-temporal-current-20261010",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "integrate/x4-wifi-ui-057",
+      "version": "0.1.9"
+    },
+    {
+      "branch": "integrate/x4-resident-loader-repair-046",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "integrate/x4-resident-shell-044",
+      "version": "0.1.8"
+    },
+    {
+      "branch": "perf/uc8279-cooperative-present",
+      "version": "0.1.6"
+    },
+    {
+      "branch": "recovery/ssd-bounded-poll-20261010",
+      "version": "0.1.9"
+    },
+    {
+      "branch": "recovered/gt911-019-source-20261010",
+      "version": "0.1.9"
+    },
+    {
+      "branch": "recovery/x4-sd-state-0214-20261010",
+      "version": "0.1.8"
+    }
+  ],
+  "reserved": "0.1.10",
+  "baseline_public": "89884c5f839dd35d65d7f96742a11371ddcd22f8"
+}

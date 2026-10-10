@@ -1,6 +1,6 @@
 # X4 GT911 ordinary provider
 
-Package `x4pro-gt911` 0.1.9 extends the Reader source 0.1.5 at
+Package `x4pro-gt911` 0.1.10 extends the Reader source 0.1.5 at
 `34d8e694d89a1e72d8854403d8592c289fae3ddc` to scoped typed GPIO,
 owner-task synchronization, clock and safe-contract I2C dependencies. It has
 no MMIO, firmware pin, RTOS or board-driver imports. Physical verification is
@@ -48,9 +48,15 @@ size, then a reserved byte. The former `0x8150` read omitted the track ID.
 Hardware finger IDs 0–15 map to public IDs 1–16, independent of record order.
 Hardware ID 0 keeps legacy public ID 1. Snapshots are sorted by public ID.
 Disappearing IDs emit UP at their last coordinates before new IDs emit DOWN;
-retained IDs emit MOVE only when coordinates change. Reordering records alone
+all new DOWNs precede retained IDs' MOVEs within that same atomic report.
+Each phase stays sorted by ID. Retained IDs emit MOVE only when coordinates change. Reordering records alone
 emits nothing. Size and reserved bytes are not coordinates or extra contacts.
 No second contact is synthesized for controllers reporting one finger.
+
+This order lets gesture consumers cancel on a second contact before acting on
+simultaneous motion, even when a later unchanged ready report has advanced the
+snapshot timestamp. No edge is removed or reordered across hardware reports;
+independent earlier gestures and same-millisecond UP/DOWN sequences survive.
 
 The complete report is validated before any event or snapshot update. Counts
 above five, duplicate IDs, special/non-finger IDs (including HotKnot ID 32),
