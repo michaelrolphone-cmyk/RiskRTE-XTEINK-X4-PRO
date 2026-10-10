@@ -636,11 +636,13 @@ static void preparation_flow_case(bool capacity_stress) {
  verify_cleanup();
 }
 #include "sd_export_test.inc"
+#include "sdmmc_storage_test.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
     if(materialized){FILE*f=fopen(materialized,"rb");assert(f);assert(fread(&fixture_config,1,sizeof(fixture_config),f)==sizeof(fixture_config));assert(fgetc(f)==EOF);assert(!fclose(f));}
     assert(t5_driver_get(2)==&driver.poll.streams.driver && !t5_driver_get(1));
+    if(!strncmp(scenario,"sdmmc-",6)){sdmmc_storage_cases(scenario);goto done;}
     if(!strncmp(scenario,"export-",7)){export_cases(scenario);goto done;}
     if(!strcmp(scenario,"log-preparation-flow") || !strcmp(scenario,"log-preparation-capacity")){preparation_flow_case(!strcmp(scenario,"log-preparation-capacity"));return 0;}
     if(!strcmp(scenario,"log-batching-latency")){batching_latency_case();return 0;}

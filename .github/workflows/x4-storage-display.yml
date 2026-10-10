@@ -1,0 +1,57 @@
+name: X4 storage and fast-display regression
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['minimal/**', '.github/workflows/x4-storage-display.yml']
+  pull_request:
+    paths: ['minimal/**', '.github/workflows/x4-storage-display.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+          persist-credentials: false
+      - name: Production driver regressions
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        run: |
+          for mode in 0 1; do
+            SANITIZE=$mode bash minimal/test/run_uc8279_fast_test.sh
+            SANITIZE=$mode bash minimal/test/run_sd_test.sh
+          done
+          python3 minimal/test/native_composition_test.py
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Compile fast-display and SD ELF packages
+        run: |
+          pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+          python minimal/scripts/build_drivers.py --runtime .shared/runtime --reader .shared/reader --source-lock minimal/test/ordinary-driver-sources.lock.json --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" --output build/minimal-fast-drivers --sleep --panel-driver uc8279-fast
+          git rev-parse HEAD > build/minimal-fast-drivers/platform-source-sha.txt
+          printf '%s\n' 'These are ELF provider packages, not a full firmware image. SDMMC throughput requires the matching native host feature; legacy runtimes use the GPIO fallback.' > build/minimal-fast-drivers/BUILD-NOTES.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-fast-display-sd-drivers-${{ github.event.pull_request.head.sha || github.sha }}
+          path: build/minimal-fast-drivers/
+          if-no-files-found: error
+          retention-days: 14

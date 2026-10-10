@@ -77,7 +77,7 @@ def snapshot(root, revision):
 def validate_build_options(options):
     required = {'app_policy_rows', 'app_image_cache'}
     require(isinstance(options, dict) and required <= set(options) and
-            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence'},
+            set(options) <= required | {'usb_phy', 'retained_wake_bytes', 'failure_evidence', 'sdmmc'},
             'Invalid native build options')
     require(type(options['app_policy_rows']) is int and options['app_policy_rows'] in (16, 17),
             'App policy rows must be 16 or 17')
@@ -89,12 +89,14 @@ def validate_build_options(options):
             'Extended retained wake must be an explicit 512-byte opt-in')
     require('failure_evidence' not in options or options['failure_evidence'] is True,
             'Failure evidence must be an explicit true opt-in')
+    require('sdmmc' not in options or options['sdmmc'] is True,
+            'SDMMC must be an explicit true opt-in')
     return options
 
 
 def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], platform_root=ROOT,
             app_policy_rows=16, app_image_cache=False, boot_flash_dio=False, usb_phy=False,
-            retained_wake_bytes=None, failure_evidence=False):
+            retained_wake_bytes=None, failure_evidence=False, sdmmc=False):
     runtime, output, platform_root = (Path(p).resolve() for p in (runtime, output, platform_root))
     require(environment in ENVIRONMENTS, 'Unsupported X4 native environment')
     require(type(usb_phy) is bool, 'USB PHY selection must be boolean')
@@ -106,6 +108,9 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
     require(type(failure_evidence) is bool, 'Failure evidence selection must be boolean')
     if failure_evidence:
         options['failure_evidence'] = True
+    require(type(sdmmc) is bool, 'SDMMC selection must be boolean')
+    if sdmmc:
+        options['sdmmc'] = True
     validate_build_options(options)
     require(type(boot_flash_dio) is bool, 'DIO selection must be boolean')
     flash_selection = {'boot_flash_experiment': flash_profile.DIO} if boot_flash_dio else {}
@@ -135,6 +140,10 @@ def compose(runtime, output, runtime_commit=None, environment=ENVIRONMENTS[0], p
         require(hook in files.get('src/ports/esp32s3/SleepDiagnostics.cpp',(b'',0))[0],
                 'Runtime lacks the persistent diagnostic handoff: ' + hook.decode())
     require('sdk/driver/RiscDiagnosticSourceV1.h' in files, 'Runtime diagnostic source SDK missing')
+    if sdmmc:
+        require('sdk/driver/RiscGpioSdmmcV1.h' in files and
+                b'risc_sdmmc_host_abi' in files.get('src/ports/esp32s3/NativeHardware.cpp', (b'', 0))[0],
+                'Runtime lacks the native SDMMC feature; integrate its source before composing')
     original_config = files['platformio.ini'][0]
     files['platformio.ini'] = (flash_profile.compose_config(original_config, environment, flash_selection), files['platformio.ini'][1])
     sources = {}
@@ -465,6 +474,14 @@ def runtime_options_proof(blobs, record):
                 elf_symbol_bytes(elf, evidence) == (1).to_bytes(4, 'little'),
                 'Missing strong failure-evidence ABI marker')
         result['failure_evidence'] = {'enabled': True, 'abi': 1, 'marker': evidence.name}
+    sdmmc_marker = symbols.get('risc_sdmmc_host_abi')
+    if options.get('sdmmc'):
+        require(sdmmc_marker is not None and sdmmc_marker['st_info']['bind'] == 'STB_GLOBAL' and
+                elf_symbol_bytes(elf, sdmmc_marker) == (1).to_bytes(4, 'little'),
+                'Missing enabled SDMMC ABI marker')
+        result['sdmmc'] = {'enabled': True, 'abi': 1, 'marker': sdmmc_marker.name}
+    elif sdmmc_marker is not None:
+        require(sdmmc_marker['st_shndx'] == 'SHN_UNDEF', 'Unrecorded enabled SDMMC feature')
     retained = retained_wake_proof(elf, symbols, options)
     if retained is not None:
         result['retained_wake'] = retained
@@ -685,6 +702,8 @@ def main():
                          help='Explicitly enable the bounded extended retained payload; default remains 128 bytes')
     prepare.add_argument('--failure-evidence', action='store_true',
                          help='Opt in to the pinned native panic recorder and linked closure audit')
+    prepare.add_argument('--sdmmc', action='store_true',
+                         help='Enable hardware one-bit SDMMC on the selected GPIO bank; requires the native host feature')
     freeze = actions.add_parser('stage')
     for name in ('runtime', 'workspace', 'output', 'appdata'):
         freeze.add_argument('--' + name, type=Path, required=True)

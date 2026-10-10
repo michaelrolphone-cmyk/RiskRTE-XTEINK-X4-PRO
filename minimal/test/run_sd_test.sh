@@ -10,12 +10,12 @@ export X4_EARLY_TRACE_FIXTURE="$build/early-reset-trace.txt"
 bash "$root/minimal/test/run_bootlog_test.sh"
 flags=(-std=c11 -O1 -g -Wall -Wextra -Werror -Wno-overflow)
 if [[ -n "${X4_SD_DRIVER_SOURCE:-}" ]]; then flags+=("-DX4_SD_DRIVER_SOURCE=\"$X4_SD_DRIVER_SOURCE\""); else flags+=(-DX4_EXPECT_BATCHING=1); fi
-if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer); fi
+if [[ "${SANITIZE:-0}" == 1 ]]; then flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -no-pie); fi
 "${CC:-cc}" "${flags[@]}" -I"$build/sdk" -I"$RISCRTE_READER_ROOT/Drivers/storage_fatfs" \
  -I"$RISCRTE_READER_ROOT/Drivers/x4pro_board" -I"$RISCRTE_READER_ROOT" \
  "$root/minimal/test/sd_test.c" "$RISCRTE_READER_ROOT/Drivers/storage_fatfs/fatfs/ff.c" \
  "$RISCRTE_READER_ROOT/Drivers/storage_fatfs/fatfs/ffunicode.c" -o "$build/test"
-for scenario in validation absent lifetime mbr files-paths stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail \
+for scenario in sdmmc-roundtrip sdmmc-absent sdmmc-open-invalid sdmmc-open-retained sdmmc-close-retained sdmmc-read-failure sdmmc-write-failure sdmmc-sleep sdmmc-export validation absent lifetime mbr files-paths stale-handles reentry nonowner create-fail take-fail unlock-fail destroy-fail release-retained shutdown-write claim-retained gpio-read-fail clock-stuck crc write-rejected busy-timeout budgets generation power power-fail \
  sleep-empty sleep-absent sleep-handles sleep-busy sleep-refusal sleep-legacy sleep-sync sleep-prepare-unlock sleep-reentry \
  sleep-repeat-prepare-unlock sleep-repeat-commit-unlock sleep-repeat-resume-unlock \
  sleep-commit-clock sleep-commit-cmd-release sleep-commit-cmd-claim sleep-commit-dat-release sleep-commit-dat-claim sleep-commit-rail sleep-commit-hold sleep-commit-hold-retained sleep-commit-unlock \

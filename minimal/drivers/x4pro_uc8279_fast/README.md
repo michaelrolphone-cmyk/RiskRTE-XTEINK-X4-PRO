@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.6
+# X4 UC8279 fast provider 0.1.12
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -225,7 +225,7 @@ is required. All timing fixtures are host models; physical quality remains a
 separate check.
 
 
-## Awake resident maintenance (0.1.6)
+## Awake resident maintenance (0.1.6; removed in 0.1.9)
 
 After a completed interactive fast frame finishes its 2.3-second settling,
 ordinary owner polling schedules one full-visible-area resident refresh about
@@ -256,3 +256,96 @@ and retained failures. The actual adapter/Runtime cadence fixture verifies one
 zero-payload event after 30 seconds while input polling continues. These checks
 do not establish physical contrast, power consumption, or recovery from earlier
 panel experiments; those observations remain a hardware qualification step.
+
+
+## Plane-coherent idle and bounded fast rendering (0.1.9)
+
+Version 0.1.9 retains the delayed-owner-poll fixes from 0.1.8 and changes the
+rendering lifecycle based on the subsequent panel diagnostics:
+
+- removes the 30-second full-visible no-upload resident DRF;
+- makes DEFAULT a one-frame differential update whenever DTM1 is trustworthy;
+- keeps LOW_LATENCY as a bounded one-frame absolute burst (16 frames or 2 s);
+- ends a stale absolute burst with a two-frame target update and full DTM1 reseed;
+- after 2.3 s without a replacement frame, writes the complete current image to
+  both 800x600 controller planes and issues POF without entering deep sleep;
+- wakes only as part of a queued presentation and replays PSR, timing controls
+  and the external LUT after PON before DRF;
+- invalidates controller-plane state on every uncertain BUSY, SPI, GPIO, reset,
+  or lifecycle failure.
+
+The host completed-image shadow remains authoritative. The idle plane rewrite
+uses white hidden rows and the full visible target, so a later refresh cannot
+replay mixed-generation DTM2 bands. No inversion/counterpulse, voltage, TCON,
+compact geometry, SPI overclock, undocumented PLL, PMIC or battery changes are
+included.
+
+
+## Optional frontlight tone forwarding (0.1.10)
+
+The optional `RiscDisplayOutputFrontlightV1.h` suffix follows the exact existing
+base/history/power/metrics/snapshot prefixes. It forwards the dimensionless
+cool-to-warm ratio through the already-required `display.frontlight@1`
+dependency's optional `RiscFrontlightToneV1.h` suffix. Zero is cool, maximum is
+warm, and midpoint is neutral; these values are not calibrated Kelvin claims.
+The underlying provider preserves logical brightness, including OFF.
+
+Both calls require normal serialized owner admission, a started provider and
+an awake lifecycle. Tone does not acquire or release a frame, submit a
+presentation, advance a waveform, read the clock, or perform panel I/O. Existing
+rendering, settling and plane-coherence state is unchanged. Only the underlying
+frontlight callback may touch its output. No rollback, retry or cleanup I/O is
+issued after a failed callback.
+
+`set_tone` returns false for a zero maximum, an out-of-range value, an absent or
+malformed suffix, a provider refusal, or failed admission. `get_tone` returns
+OK (0) only after a successful callback returns a nonzero maximum and a valid
+ratio; UNAVAILABLE (1) only when an otherwise admitted dependency lacks a valid
+tone suffix; FAILED (-1) for provider failure, invalid arguments or lifecycle
+failure. Output pointers must be distinct and non-null, and remain unchanged
+unless the complete operation succeeds, including owner unlock.
+
+Host tests cover legacy exact-size and malformed descriptors, logical OFF,
+readback validation, callback failures, invalid arguments, reentry, non-owner
+and lifecycle refusal, retained/unlock failures, and unchanged display activity.
+
+
+## Explicit sleep-overlay settling (0.1.11)
+
+This successor preserves the exact 0.1.10 ordinary rendering state machine.
+It adds an optional token-bound settling request/status suffix after the exact
+frontlight tone prefix. Only an owner explicitly preparing a final sleep image
+uses it. Normal app/GameBoy frame completion, burst policy, RAM synchronization,
+2.3-second quiet period and POF/PON cadence are unchanged.
+
+A request for the just-completed overlay enables resident settling for that
+absolute target if its existing burst policy selected quiet WAIT. Matching
+status reports PENDING until the repeats, dual-plane sync and validated POF
+finish; invalid/newer tokens and uncertain custody fail. The callbacks do not
+lease frames, perform panel I/O or sample time. Ordinary Runtime polling does
+the work. A newer frame preempts exactly as before.
+
+Home explicitly awaits this condition only before sleep, keeping input active
+so fresh contact or navigation cancels the sleep and restores the foreground.
+The separate transition/cadence investigation is NOT part of this version.
+Physical panel contrast remains unverified.
+
+
+## Hardware-driven endpoint correction (0.1.12)
+
+Device testing of product 0.1.52/0.1.53 found that the one-frame differential
+DEFAULT path produced faint motion and incomplete view transitions, while POF
+exposed previously displayed images. This revision restores the proven
+one-frame absolute A2 path for both DEFAULT and LOW_LATENCY motion.
+
+After the existing 2.3-second resident settling interval, the driver now uploads
+the exact final framebuffer across complete controller DTM2 RAM, programs a
+four-frame absolute endpoint waveform, and physically redraws the full visible
+800x480 target. It never inserts an all-white, all-black, or inverted frame.
+Only after that target-ending BUSY cycle completes does it synchronize complete
+DTM1 and DTM2 (hidden rows white) and issue validated POF. A queued replacement
+can cancel before the endpoint DRF, or after an already-started DRF completes.
+
+The 30-second no-upload maintenance refresh remains removed. PON profile replay,
+uncertain-state invalidation, frontlight tone, and the token-bound sleep-settle
+contract are retained.

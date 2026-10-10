@@ -1,9 +1,9 @@
 {
   "schema": "x4.resident-native-selection",
   "schema_version": 1,
-  "baseline_product": "0.1.44",
-  "runtime_source": "148ad226b55db00e1dc451f21f11696f2b77f0a5",
-  "runtime_version": "0.1.93",
+  "baseline_product": "0.1.45",
+  "runtime_source": "ae83a7c14f83313101c0d491a19101f420d28dc9",
+  "runtime_version": "0.1.96",
   "environment": "esp32s3-16mb-appdata-iq-stage",
   "build_options": {
     "app_image_cache": true,

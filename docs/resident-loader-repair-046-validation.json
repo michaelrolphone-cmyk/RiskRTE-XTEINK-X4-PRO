@@ -1,0 +1,55 @@
+{
+  "schema": "x4.resident-loader-repair-qualification",
+  "version": 1,
+  "product": "0.1.46",
+  "product_source": "ebdb2a04b45e0a8d2639e0a5602234dfc8916033",
+  "runtime_source": "ae83a7c14f83313101c0d491a19101f420d28dc9",
+  "image": {
+    "bytes": 16777216,
+    "name": "xteink-x4-pro-0.1.46-resident-loader-repair-first-install.bin",
+    "sha256": "bef2dd81a78b8607ed7fe090744b56ef88fb2dec400d453e30e2284a041b1008"
+  },
+  "native_firmware_sha256": "3e86de5fbe94a18f0f7bfe44402707dd1b8dccf7136f57ef8589055e7b59baec",
+  "preserved_store_files": 90,
+  "changed_store_paths": [
+    "cohort.json"
+  ],
+  "elf_count": 44,
+  "native_admission": {
+    "active_store_sha256": "93001d8bdb523f53a640f1da5535171c7f517b8ff4e435b055fe725cedc7b2fb",
+    "app_policy_rows": 17,
+    "candidate_store_sha256": "93001d8bdb523f53a640f1da5535171c7f517b8ff4e435b055fe725cedc7b2fb",
+    "cohort_validated": true,
+    "cooperative_yields": 138,
+    "elf_count": 44,
+    "error": "",
+    "hardware_calls": 0,
+    "native_elf_sha256": "30c19b66deb350b155634965d4d4b00794ac14b3f8b16f64dc5cb513eab8bb51",
+    "prepared": true,
+    "preserved_production_dependency": {
+      "admission_function_changed": false,
+      "path": "src/runtime/drivers/NativeProviderPolicyValidationV1.h",
+      "sha256": "c036e70653e4b49541382fccb99d2bc210bd865c82f199832b40e5b8194126c9"
+    },
+    "storage_calls": 0,
+    "target_instructions_executed": false
+  },
+  "boot_flash_selection": "dio-opi-80mhz",
+  "loader_proof": {
+    "sha256": "1e8295262efb47317cf333752f16520bb8c145db276ea3bc546420e30d302145",
+    "before": "Exact .93 loader fails descriptor lookup for all 20 packaged ELFs in uncached/cache-miss/cache-hit modes; entry/init/fini remain resolved.",
+    "after": "Exact .96 source resolves expected descriptor bytes for all 20 unchanged packaged ELFs in all three modes; entry/init/fini remain resolved.",
+    "limits": [
+      "Host software lookup proof, not Xtensa execution or hardware qualification. Architecture relocation/publication and RTOS calls are substituted; descriptor payload has numeric fields and no relocation-dependent pointer.",
+      "Physical device boot and display behavior remain unqualified.",
+      "No .94/.95 integration. Frozen .95 does not contain this repair; eventual adoption requires deliberate integration.",
+      "No source publication, device action, app/cohort changes or policy changes performed by this task."
+    ]
+  },
+  "hardware_tested": false,
+  "ci_pending": true,
+  "software_validation_complete": true,
+  "hosted_ci": "pending",
+  "source_publication": "pending",
+  "runtime_qualification_sha256": "6ac864a2f2428a37bc52d5eb6fa45a480e41e3c74e6a60cf68dca05aa33973fa"
+}

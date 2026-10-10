@@ -16,14 +16,11 @@ class SdkTest(unittest.TestCase):
    (runtime/'sdk/hardware/Hardware.h').write_text('/* typed hardware */\n')
    result=module.prepare(runtime,reader,root/'sdk')
    self.assertEqual(result['Shared.h']['origins'],['runtime/driver','reader/driver'])
-   self.assertEqual(result['RiscDisplayOutputMetricsV1.h']['origins'],['x4/interfaces'])
-   self.assertEqual((root/'sdk/RiscDisplayOutputMetricsV1.h').read_bytes(),
-                    (ROOT/'interfaces/RiscDisplayOutputMetricsV1.h').read_bytes())
    self.assertEqual({p.name for p in (root/'sdk').glob('*.h')},
-                    {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h'})
-   self.assertEqual(result['RiscDisplayOutputSnapshotV1.h']['origins'],['x4/interfaces'])
-   self.assertEqual((root/'sdk/RiscDisplayOutputSnapshotV1.h').read_bytes(),
-                    (ROOT/'interfaces/RiscDisplayOutputSnapshotV1.h').read_bytes())
+                    {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h'})
+   for name in ('RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h','RiscGpioSdmmcV1.h'):
+    self.assertEqual(result[name]['origins'],['x4/interfaces'])
+    self.assertEqual((root/'sdk'/name).read_bytes(),(ROOT/'interfaces'/name).read_bytes())
    with self.assertRaises(ValueError):module.prepare(runtime,reader,root/'sdk')
    (reader/'sdk/driver/Shared.h').write_text('/* divergent */\n')
    with self.assertRaisesRegex(ValueError,'Shared SDK header differs'):module.prepare(runtime,reader,root/'conflict')
@@ -32,4 +29,16 @@ class SdkTest(unittest.TestCase):
    (reader/'sdk/driver/RiscDisplayOutputMetricsV1.h').write_text('/* divergent diagnostic contract */\n')
    with self.assertRaisesRegex(ValueError,'Shared SDK header differs: RiscDisplayOutputMetricsV1.h'):
     module.prepare(runtime,reader,root/'metric-conflict')
+ def test_sdmmc_native_copy_is_identical_or_rejected(self):
+  with tempfile.TemporaryDirectory() as temporary:
+   root=Path(temporary);runtime=root/'runtime';reader=root/'reader'
+   for folder in [runtime/'sdk/driver',runtime/'sdk/hardware',reader/'sdk/driver']:folder.mkdir(parents=True)
+   header=runtime/'sdk/driver/RiscGpioSdmmcV1.h'
+   header.write_bytes((ROOT/'interfaces/RiscGpioSdmmcV1.h').read_bytes())
+   result=module.prepare(runtime,reader,root/'sdk')
+   self.assertEqual(result['RiscGpioSdmmcV1.h']['origins'],['runtime/driver','x4/interfaces'])
+   header.write_text('/* incompatible native SDMMC API */\n')
+   with self.assertRaisesRegex(ValueError,'Shared SDK header differs: RiscGpioSdmmcV1.h'):
+    module.prepare(runtime,reader,root/'conflict')
+   self.assertFalse((root/'conflict').exists())
 if __name__=='__main__':unittest.main()

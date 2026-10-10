@@ -1,4 +1,4 @@
-/* X4 native one-bit CLK/CMD/DAT0 SD transport, ordinary provider ABI2.
+/* X4 hardware one-bit SDMMC transport with legacy GPIO fallback, provider ABI2.
  * Protocol derived from Drivers/x4pro_sd/driver.c at Reader 34d8e694.
  * Filesystem implementation remains shared in Reader storage_fatfs/volume.c.
  * GPIO authority and synchronization are scoped to this hardware.device. */
@@ -8,6 +8,7 @@
 #include <RiscDiagnosticSourceV1.h>
 #include <RiscStorageExportV1.h>
 #include <GardenPlatformV1.h>
+#include <RiscGpioSdmmcV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
 #include "../../../Drivers/x4pro_board/x4pro_pins.h"
 #include <sd_protocol.h>
@@ -18,6 +19,9 @@
 #define x4pro_sd_crc16 risc_sd_crc16
 static const risc_platform_clock_api_v1 *clock_api;
 static const garden_gpio_v1 *gpio_api;
+static const risc_sdmmc_host_api_v1 *sdmmc_api;
+static uint64_t sdmmc_token;
+static bool sdmmc_fault;
 static const risc_provider_sync_api_v1 *sync_api;
 static const risc_diagnostic_source_api_v1 *diagnostic_source;
 static void bootlog_drain(void);
@@ -207,7 +211,25 @@ static bool command(uint8_t index, uint32_t arg, uint8_t *response, size_t lengt
 static bool response_for(uint8_t index, const uint8_t response[6]) {
     return (response[0] & 0xc0u) == 0u && (response[0] & 0x3fu) == index;
 }
+/* Close the peripheral before remuxing pins or removing card power. A failed
+ * close keeps its token, so terminal cleanup can retry without losing custody. */
+static bool close_sdmmc(void) {
+    if (!sdmmc_token) return !sdmmc_fault;
+    if (!sdmmc_api || !sdmmc_api->release(sdmmc_api->context, sdmmc_token)) {
+        sdmmc_fault = true; fail("sdmmc close retained"); return false;
+    }
+    sdmmc_token = 0; sdmmc_fault = false; card_ready = false;
+    return true;
+}
+static bool sdmmc_result(bool okay, const char *reason) {
+    if (!okay) { sdmmc_fault = true; fail(reason); }
+    return okay;
+}
 static bool read_sector(uint32_t lba, uint8_t out[512]) {
+    if (sdmmc_api) {
+        if (!out || !sdmmc_token || sdmmc_fault || (uint64_t)lba >= card_block_count) return false;
+        return sdmmc_result(sdmmc_api->read(sdmmc_api->context, sdmmc_token, lba, 1u, out), "sdmmc read failed");
+    }
     uint8_t response[6];
     if (!out || (!high_capacity && lba > UINT32_MAX / 512u) ||
         !command(17, high_capacity ? lba : lba * 512u, response, sizeof(response)) ||
@@ -259,7 +281,7 @@ static bool decode_csd(const uint8_t response[17], bool block_addressed, uint64_
 }
 static bool init_card(void) {
     uint8_t response[17] = {0};
-    if (gpio_fault) return false;
+    if (gpio_fault || !close_sdmmc()) return false;
     high_capacity = false;
     card_block_count = 0;
     x4pro_pin_hold(X4PRO_PIN_SD_PWR, false);
@@ -267,6 +289,31 @@ static bool init_card(void) {
     if (clock_api) clock_api->sleep_ms(clock_api->context, 80);
     x4pro_pin_output(X4PRO_PIN_SD_PWR, false);
     if (clock_api) clock_api->sleep_ms(clock_api->context, 120);
+    if (sdmmc_api) {
+        /* The controller takes the same CLK/CMD/DAT0 pins, not GPIO5 power.
+         * Retire static GPIO claims from startup/sleep before changing mux. */
+        for (unsigned i = 1; i < 4; ++i) if (pins[i].token) {
+            if (pins[i].held || !gpio_api->release(gpio_api->context, pins[i].token)) {
+                gpio_fault = true; fail("sdmmc pin handoff failed"); return false;
+            }
+            pins[i].token = 0;
+        }
+        if (gpio_fault) return false;
+        risc_sdmmc_card_info_v1 info = {0};
+        const bool opened = sdmmc_api->open(sdmmc_api->context, X4PRO_PIN_SD_CLK,
+            X4PRO_PIN_SD_CMD, X4PRO_PIN_SD_DAT0, RISC_SDMMC_MAX_HZ, &sdmmc_token, &info);
+        if (!opened || !sdmmc_token || info.struct_size != sizeof(info) || info.reserved ||
+            info.sector_size != 512u || !info.sector_count || info.sector_count > (UINT64_C(1) << 32) ||
+            !info.clock_hz || info.clock_hz > RISC_SDMMC_MAX_HZ) {
+            fail("sdmmc initialization failed");
+            if (sdmmc_token) (void)close_sdmmc();
+            return false; /* Never switch transport after a hardware failure. */
+        }
+        card_block_count = info.sector_count; card_ready = true;
+        const bool okay = mount_filesystem();
+        bootlog_mount_pending = okay;
+        return okay;
+    }
     x4pro_pin_release(X4PRO_PIN_SD_CMD);
     x4pro_pin_release(X4PRO_PIN_SD_DAT0);
     if (gpio_fault) return false;
@@ -312,6 +359,10 @@ static bool init_card(void) {
 /* A native single-block write: CRC16, accepted data-response, busy release,
  * and card status must all succeed. Never retry an uncertain write. */
 static bool write_sector(uint32_t lba, const uint8_t data[512]) {
+    if (sdmmc_api) {
+        if (!data || !sdmmc_token || sdmmc_fault || (uint64_t)lba >= card_block_count) return false;
+        return sdmmc_result(sdmmc_api->write(sdmmc_api->context, sdmmc_token, lba, 1u, data), "sdmmc write failed");
+    }
     uint8_t response[6];
     if (!data || (!high_capacity && lba > UINT32_MAX / 512u) ||
         !command(24, high_capacity ? lba : lba * 512u, response, 6) ||
@@ -345,11 +396,16 @@ static bool write_sector(uint32_t lba, const uint8_t data[512]) {
     return !(final_status & 0xfdffe008u);
 }
 
-static bool sync_card(void) { return !gpio_fault && wait_dat0(true, 262144, 1000); }
+static bool sync_card(void) {
+    if (sdmmc_api) return !gpio_fault && sdmmc_token && !sdmmc_fault &&
+        sdmmc_result(sdmmc_api->sync(sdmmc_api->context, sdmmc_token), "sdmmc sync failed");
+    return !gpio_fault && wait_dat0(true, 262144, 1000);
+}
 /* All native one-bit transfers are synchronous. A failed GPIO transition is
  * uncertain transport state and cannot pass a power-down barrier. */
-static bool transport_idle(void) { return !gpio_fault && !gpio_retained; }
+static bool transport_idle(void) { return !gpio_fault && !gpio_retained && !sdmmc_fault; }
 static bool commit_sleep_rails(void) {
+    if (!close_sdmmc()) return false;
     x4pro_pin_output(X4PRO_PIN_SD_CLK, false);
     x4pro_pin_input(X4PRO_PIN_SD_CMD, false);
     x4pro_pin_input(X4PRO_PIN_SD_DAT0, false);
@@ -362,11 +418,11 @@ static bool resume_sleep_media(void) {
      * bounded settle delays, and reopens FatFs. No media is distinct from
      * uncertain rail/hold custody; the helper checks mounted/io_failed too. */
     (void)init_card();
-    return !gpio_fault && !gpio_retained && pins[0].token && !pins[0].held;
+    return !gpio_fault && !gpio_retained && !sdmmc_fault && pins[0].token && !pins[0].held;
 }
 #define STORAGE_VOLUME_TRY_COMMIT_POWER_DOWN commit_sleep_rails
 #define STORAGE_VOLUME_TRY_RESUME_POWER_DOWN resume_sleep_media
-#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained))
+#define STORAGE_VOLUME_SLEEP_UNSAFE() (valid_task() && (mutex_poisoned || gpio_fault || gpio_retained || sdmmc_fault))
 #define STORAGE_VOLUME_EXTERNAL_GUARD
 #define STORAGE_VOLUME_GUARD_ENTER guard_enter
 #define STORAGE_VOLUME_GUARD_LEAVE guard_leave
@@ -416,10 +472,10 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     for (unsigned i=0; i<RISC_HW_MAX_CHANNELS; ++i)
         if (config->pins[i] != (i<4 ? pin_numbers[i] : 0)) return false;
     if (!sync->is_owner(sync->context) || !power->ready(power->context)) return false;
-    gpio_api = gpio; clock_api = clock; sync_api = sync; diagnostic_source = source;
+    gpio_api = gpio; sdmmc_api = risc_gpio_sdmmc(gpio); clock_api = clock; sync_api = sync; diagnostic_source = source;
     quiescing = quiesced = gpio_fault = false;
     if (!sync_api->create(sync_api->context, &operation_mutex) || !operation_mutex) {
-        gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
+        gpio_api = NULL; sdmmc_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
     }
     if (!enter_lifecycle()) return false;
     x4pro_pin_output(X4PRO_PIN_SD_CLK, false);
@@ -429,11 +485,12 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     mounted = card_ready = io_failed = false;
     error[0] = 0;
     (void)init_card(); /* An absent card preserves refresh capability. */
-    if (gpio_fault) { io_failed = true; mounted = false; }
-    const bool okay = !gpio_fault;
+    if (gpio_fault || sdmmc_fault) { io_failed = true; mounted = false; }
+    const bool okay = !gpio_fault && !sdmmc_fault;
     return leave() && okay;
 }
 static bool release_pins(void) {
+    if (!close_sdmmc()) return false;
     /* Cleanup is allowed after a transport fault. Establish safe static rails
      * before releasing anything; a failed write retains every owned token. */
     if (pins[0].token && (pins[0].held || !gpio_api->write(gpio_api->context, pins[0].token, true))) return false;
@@ -466,7 +523,7 @@ static bool quiesce(void) {
      * terminal cleanup, with ordinary API admission fenced throughout. */
     if (!sync_api->destroy(sync_api->context, operation_mutex)) return false;
     operation_mutex = 0; quiesced = true;
-    gpio_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL;
+    gpio_api = NULL; sdmmc_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL;
     power_down_prepared = false;
     return true;
 }

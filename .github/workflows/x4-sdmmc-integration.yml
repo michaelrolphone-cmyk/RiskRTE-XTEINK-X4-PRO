@@ -1,0 +1,31 @@
+name: X4 SDMMC integration
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths: ['.github/workflows/x4-sdmmc-integration.yml', 'minimal/integration/sdmmc/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shared-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          persist-credentials: false
+      - name: Export pinned shared dependency source and exact Git identity
+        run: |
+          mkdir output
+          git archive HEAD | gzip -n > output/reader-source.tar.gz
+          git cat-file commit HEAD > output/reader-commit.txt
+          git rev-parse HEAD > output/reader-source.txt
+          sha256sum output/* > output/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-sdmmc-shared-fatfs-${{ github.sha }}
+          path: output/
+          if-no-files-found: error
+          retention-days: 7
