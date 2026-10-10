@@ -36,8 +36,8 @@ capacity-checked full cohort before creating any flash image.
 ## Current deployment constraint
 
 X4 `.65` already contains approximately 4.7 MB of bootstrap files in its
-`0x510000` (5,308,416-byte) store partition. The initial reader embeds CrossPoint's
-Noto families and exceeds that remaining space. `stage_reader.py` reports exact
+`0x510000` (5,308,416-byte) store partition. The reader exceeds that remaining space even with CrossPoint's full
+Noto families supplied as separately installed SD assets. `stage_reader.py` reports exact
 payload size before filesystem overhead. A fitting product choice is still
 needed: a different app selection, a planned asset/storage arrangement, or a
 different partition layout. None is silently selected here.
