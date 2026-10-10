@@ -14,6 +14,12 @@ out=(a.output_dir or root/'build/hid-gt911').resolve()
 source=a.utilities.resolve()/'scripts/test_hid_renderer.py';body=source.read_text()
 fixture=a.utilities.resolve()/'test/native_apps/hid_renderer_test.c'
 text=fixture.read_text()
+# The shared Runtime table has additive optional suffixes. Explicit member
+# initialization keeps the unchanged test callbacks strict-warning compatible
+# with both historical and current SDKs; absent optional functions stay NULL.
+positional='static const risc_runtime_api_v1 runtime_api={1,sizeof(runtime_api),fake_health,fake_yield,fake_diag,fake_launch,fake_acquire,fake_release};'
+if positional in text:
+ text=text.replace(positional,'static const risc_runtime_api_v1 runtime_api={.api_version=1,.struct_size=sizeof(runtime_api),.health=fake_health,.yield_ms=fake_yield,.diagnostic=fake_diag,.request_launch=fake_launch,.acquire=fake_acquire,.release=fake_release};')
 rejection='if(getenv("HID_RENDER_CLEANUP")&&++unsub_attempts==1)return false;'
 assert text.count(rejection)==1;text=text.replace(rejection,'')
 anchor='static bool fake_unsub(void*c,uint64_t n){(void)c;assert(n>0&&n<5&&subscribers[n].live&&subs);'
