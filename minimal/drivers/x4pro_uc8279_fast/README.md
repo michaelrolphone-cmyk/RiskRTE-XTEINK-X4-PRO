@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.18
+# X4 UC8279 fast provider 0.1.19
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -350,7 +350,7 @@ The 30-second no-upload maintenance refresh remains removed. PON profile replay,
 uncertain-state invalidation, frontlight tone, and the token-bound sleep-settle
 contract are retained.
 
-## Transition-selective powered-retention experiment (0.1.18)
+## Transition-selective powered retention with normal sleep (0.1.19)
 
 This candidate is based directly on the exact 0.1.12 source cohort. It retains
 0.1.12's controller setup and full-width 40/80/160/480-row gate windows, but
@@ -365,11 +365,12 @@ presentation completes. No resident replay reinforces an obsolete animation
 frame.
 
 After the 2.3-second quiet period, the existing four-frame exact-target endpoint
-redraw and dual-plane reconciliation still run. The panel then remains powered:
-automatic POF is removed, the sleep capability flag is not advertised, and an
-explicit power-prepare request returns BUSY once an image is established. This
-intentionally trades idle power for a direct test of the observed POF-triggered
-relaxation and old-image bleed.
+redraw and dual-plane reconciliation still run. The panel then remains powered
+during ordinary awake idle, so a static screen does not automatically enter the
+observed POF-triggered relaxation state. This does not replace the product power
+lifecycle: an explicit system-sleep request drains finalization, issues validated
+POF and DSLP, holds reset, and resumes through the established reset/profile path.
+The normal sleep capability is advertised; no diagnostic BUSY interlock remains.
 
 The driver still accepts MONO1. Content grayscale dithering therefore remains
 upstream; the Game Boy producer's stable 2x2 Bayer mapping must remain enabled.

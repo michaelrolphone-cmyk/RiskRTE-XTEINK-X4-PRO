@@ -790,9 +790,10 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->supported_formats = RISC_DISPLAY_FORMAT_BIT(RISC_DISPLAY_FORMAT_MONO1);
     out->preferred_format = RISC_DISPLAY_FORMAT_MONO1;
     out->supported_rotations = RISC_DISPLAY_ROTATION_0;
-    /* This diagnostic profile deliberately retains panel power and refuses
-     * normal sleep preparation after the first physical frame. */
-    out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE;
+    /* Ordinary awake idle retains panel power; explicit system sleep remains
+     * available through the typed power lifecycle. */
+    out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE |
+        RISC_DISPLAY_INFO_QUIESCE_SLEEP;
     if (frontlight && frontlight->set_level) out->flags |= RISC_DISPLAY_INFO_BRIGHTNESS;
     if (controller == PROBE_UC8279) out->flags |= RISC_DISPLAY_INFO_ASYNC_PRESENT;
     out->damage_x_alignment = 8;
@@ -1180,9 +1181,9 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
 }
 /* Each operation has a total owner-admission deadline, at most 1500 ms and
  * 150 ten-ms readiness polls. Single commands are finite (at most 6 bytes),
- * completed before deadline sampling. Once the panel has displayed an image,
- * this diagnostic profile refuses sleep preparation rather than issuing POF
- * or DSLP and allowing inactive-region relaxation. */
+ * completed before deadline sampling so retries never replay partial POF/DSLP.
+ * Awake idle retains panel power; an explicit system-sleep request still uses
+ * the established POF, DSLP, reset-hold and resume lifecycle. */
 static int32_t power_checkpoint(uint64_t deadline) {
     uint64_t now = 0;
     if (retained || io_failed) return RISC_DISPLAY_POWER_RETAINED;
@@ -1255,12 +1256,17 @@ static int32_t prepare_power_impl(uint64_t deadline) {
         const bool busy = !panel_pin_read(X4PRO_PIN_EPD_BUSY);
         if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
         if (busy) return RISC_DISPLAY_POWER_BUSY;
-        /* Refuse sleep before invalidating any live state. A BUSY result must
-         * leave started/history/planes intact so normal rendering can continue. */
-        if (screen_powered) return RISC_DISPLAY_POWER_BUSY;
         started = false; previous_seeded = completed_history = dtm1_synced = false;
         absolute_frames = 0; absolute_started_ms = UINT64_MAX;
-        shutdown_stage = 2u;
+        if (screen_powered) {
+            command(0x02);
+            if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
+            shutdown_stage = 1u; screen_powered = false;
+            /* Explicit system sleep, not ordinary awake-idle finalization. */
+            result = power_checkpoint(deadline);
+            shutdown_not_before = last_sample_ms + (controller == PROBE_UC8279 ? 1u : 200u);
+            if (result) return result;
+        } else shutdown_stage = 2u;
     }
     if (shutdown_stage == 1u) {
         result = power_ready(deadline);
@@ -1318,7 +1324,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     shutdown_stage = 5u; started = false; previous_seeded = completed_history = false;
     shutdown_not_before = 0;
     /* The same controller register setup as initial start, but without probe,
-     * frame clear, PON or refresh. RESET recovers pre-display DSLP/refusals. */
+     * frame clear, PON or refresh. RESET recovers partial POF/DSLP state. */
     panel_pin_output(X4PRO_PIN_EPD_RST, false);
     result = power_delay(deadline, controller == PROBE_UC8279 ? 50u : 10u);
     if (result) return result;
@@ -1429,7 +1435,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.18 cause=");
+    append(destination, capacity, &used, "v=0.1.19 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);

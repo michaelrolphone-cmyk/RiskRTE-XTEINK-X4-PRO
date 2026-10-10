@@ -600,7 +600,7 @@ int main(int argc,char**argv){
  if(!strcmp(s,"probe-spi-fail")){fail_spi_exchange=true;assert(!d->start(deps,7)&&!d->quiesce()&&!model_bus_held);goto done;}
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
  assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
- risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==11000&&info.typical_present_latency_us==90000&&!(info.flags&RISC_DISPLAY_INFO_QUIESCE_SLEEP));
+ risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==11000&&info.typical_present_latency_us==90000&&(info.flags&RISC_DISPLAY_INFO_QUIESCE_SLEEP));
  if(!strncmp(s,"storage-",8)){test_storage_gap(s);goto done;}
  if(!strncmp(s,"tone-",5)){test_tone(s,&tone_api);goto done;}
  if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
@@ -627,9 +627,11 @@ int main(int argc,char**argv){
   assert(commands[0x10]==broad1+1&&commands[0x13]==broad2+1&&bytes_sent==96000u&&dtm1_synced);
   drain_settle();assert(screen_powered&&pofs==initial_pof&&sleeps==initial_sleep);
   const risc_display_output_api_v1_power *panel_power=risc_display_output_power(output);assert(panel_power);
-  assert(panel_power->prepare(NULL,1500)==RISC_DISPLAY_POWER_BUSY);
+  assert(panel_power->prepare(NULL,1500)==RISC_DISPLAY_POWER_OK);
+  assert(!screen_powered&&pofs==initial_pof+1&&sleeps==initial_sleep+1&&reset_held);
   assert(panel_power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
-  assert(screen_powered&&pofs==initial_pof&&sleeps==initial_sleep&&!d->quiesce());
+  assert(!screen_powered&&pofs==initial_pof+1&&sleeps==initial_sleep+1&&!completed_history);
+  assert(d->quiesce());
   goto done;
  }
 #ifdef TEST_X4_IDLE_POLICY

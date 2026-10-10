@@ -1,0 +1,38 @@
+{
+  "schema": "x4.uc8279.selective-real-sleep-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T22:39:17.383474+00:00",
+  "baseline": {
+    "commit": "6cecb165152af12ae49979924b02ac308223fe12",
+    "driver_version": "0.1.18",
+    "problem": "diagnostic sleep refusal replaced the product sleep lifecycle"
+  },
+  "candidate": {
+    "driver_version": "0.1.19"
+  },
+  "rendering": {
+    "active_drive": "unchanged 0.1.18 truthful differential A2",
+    "localized_frames": 3,
+    "broad_frames": 2,
+    "automatic_awake_idle_pof": false,
+    "endpoint": "four-frame exact-target redraw plus dual-plane reconciliation"
+  },
+  "power": {
+    "sleep_capability_advertised": true,
+    "explicit_sleep": "drain finalizer, POF, DSLP, reset hold",
+    "resume": "reset plus controller profile replay",
+    "sleep_refusal": false
+  },
+  "software_validation": {
+    "status": "pending focused exact-head qualification",
+    "workflow": ".github/workflows/apply-x4-panel-019.yml"
+  },
+  "integrated_driver_hardware_tested": false,
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "7454e423f902828639097821e858531b25af3d1c79a2da89d44fcb4a65ff2388",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "d90997dcd47346e48a0e68b08a993d3e3590114e90b3fd2f4df16fd07e2461a5",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "4a834e2a24e677aab95080354624d118339897c644a0b7f8fba37e12ebc43b28",
+    "minimal/test/uc8279_fast_profile_test.py": "2e0f240b1f862ca7bca2b7679cceb09d6a649baf4c697965376d5e8755d1ae87",
+    "minimal/test/uc8279_fast_test.c": "70ac9519b6cc6db4182b321a93dc7c9836620a9d57a469268273a4d71e4bc0a4"
+  }
+}
