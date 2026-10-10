@@ -32,6 +32,8 @@ def main():
     ap.add_argument('--snapshot',action='store_true',help='Use the deployed sliced renderer and four-ms input service cadence')
     ap.add_argument('--paper-transitions',action='store_true',help='Pair with the selected LOW_LATENCY interactive adapter')
     args=ap.parse_args();runtime=args.runtime.resolve();args.output.mkdir(parents=True,exist_ok=True)
+    version=json.loads((ROOT/'minimal/drivers/x4pro_uc8279_fast/manifest.json').read_text())['version']
+    powered=version=='0.1.18'
     fixture=ROOT/'minimal/test/uc8279_fast_cadence';results=[]
     san=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer','-no-pie'] if args.sanitize else []
     with tempfile.TemporaryDirectory(prefix='panel-cadence-') as temp:
@@ -39,7 +41,7 @@ def main():
         run(['python3',ROOT/'minimal/scripts/prepare_sdk.py','--runtime',runtime,'--reader',args.reader,'--output',sdk])
         includes=['-I'+str(p) for p in [sdk,runtime/'sdk/app',runtime/'sdk/driver',runtime/'sdk/hardware']]
         cc=[os.environ.get('CC','cc'),'-std=c11','-O1','-g','-Wall','-Wextra','-Werror','-Wno-misleading-indentation',*san,*includes]
-        run([*cc,'-c',fixture/'panel_model.c','-o',work/'panel.o'])
+        run([*cc,*(['-DPANEL_RESIDENT_NOPOF'] if powered else []),'-c',fixture/'panel_model.c','-o',work/'panel.o'])
         run([*cc,'-fPIC','-shared','-fvisibility=hidden','-DCADENCE_PROVIDER',fixture/'modules.c','-o',work/'provider.elf'])
         run([*cc,'-fPIC','-shared','-fvisibility=hidden',fixture/'modules.c','-o',work/'app.elf'])
         for label,system,baseline in [('current',args.system,False)]:
@@ -89,8 +91,9 @@ def main():
                     assert not data['frames'][0]['full']['partial'] and data['frames'][1]['partial']['partial']
                     idle=data['idle']
                     assert idle['bytes']==180000 and idle['max_slice_bytes']<=16384
-                    assert idle['repeats']==idle['completed_repeats'] and idle['repeats']>1
-                    # Finalize both retained planes in bounded slices, then POF.
+                    assert idle['repeats']==idle['completed_repeats']
+                    assert idle['repeats']==1 if powered else idle['repeats']>1
+                    # Finalize both retained planes; .18 intentionally omits POF.
                     assert 2300<=idle['elapsed_ms']<=2300+20*max(interval,args.settle_work_ms+1)+300
                     assert idle['provider_polls']>0 and idle['max_slice_ms']<=8
                     assert idle['controller_polls']>0 and idle['max_controller_gap_ms']<=max(interval,args.settle_work_ms+1)+8

@@ -84,6 +84,34 @@ static void idle_policy_panel(const char *scenario) {
  ip_storage.terminal.extension_tag=RISC_STORAGE_POWER_COMMIT_TAG;ip_storage.terminal.extension_version=1;ip_storage.terminal.commit_power_down=ip_legacy;
  ip_storage.sleep_tag=RISC_STORAGE_SLEEP_TAG;ip_storage.sleep_version=1;
  ip_storage.prepare_sleep=ip_sd_prepare;ip_storage.commit_sleep=ip_sd_commit;ip_storage.resume_sleep=ip_sd_resume;
+ if(!strcmp(scenario,"policy-nopof")) {
+  risc_display_info_v1 info={0};assert(output->get_info(NULL,&info));
+  assert(!(info.flags&RISC_DISPLAY_INFO_QUIESCE_SLEEP));
+  const unsigned old_pofs=pofs,old_sleeps=sleeps,old_resets=reset_assertions;
+  risc_display_surface_v1 pending=acquire_frame();memcpy(pending.pixels,previous_frame,FRAME_BYTES);
+  ((uint8_t*)pending.pixels)[44000]^=0xffu;
+  const risc_display_rect_v1 pending_area={0,440,800,40};
+  complete_frame(submit_frame(pending,&pending_area,1,false));
+  assert(settle_stage==SETTLE_WAIT);
+  for(unsigned cycle=0;cycle<3;++cycle) {
+   /* Include a pending endpoint on the first attempt and a finalized one
+    * thereafter. A refused Light request must leave Home able to draw. */
+   if(cycle)drain_settle();
+   memcpy(ip_foreground_frame,previous_frame,FRAME_BYTES);
+   assert(portable_app_idle_sleep(&ip_runtime,output,NULL,&ip_alarm.base)==0);
+   assert(!ip_lights&&!ip_live&&!ip_touch&&!ip_sd&&!reset_held);
+   assert(started&&completed_history&&screen_powered&&dtm1_synced&&!presentation_fault);
+   assert(pofs==old_pofs&&sleeps==old_sleeps&&reset_assertions==old_resets);
+   assert(!memcmp(previous_frame,ip_foreground_frame,FRAME_BYTES));
+   risc_display_surface_v1 frame=acquire_frame();memcpy(frame.pixels,previous_frame,FRAME_BYTES);
+   ((uint8_t*)frame.pixels)[20u+cycle]^=0xffu;
+   const risc_display_rect_v1 area={0,0,800,40};
+   complete_frame(submit_frame(frame,&area,1,false));
+   assert(started&&completed_history&&dtm1_synced&&!presentation_fault);
+  }
+  puts("Actual panel0.1.18 + Light helper: repeated refusal restores input and permits the next frame PASS");
+  return;
+ }
  if(!strcmp(scenario,"policy-overlay-settled")) {
   const char *path=getenv("SLEEP_OVERLAY_FRAME");assert(path);FILE *file=fopen(path,"rb");assert(file);
   assert(fread(ip_sleep_frame,1,sizeof(ip_sleep_frame),file)==sizeof(ip_sleep_frame));assert(fgetc(file)==EOF);assert(!fclose(file));

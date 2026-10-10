@@ -15,6 +15,11 @@ static unsigned measured_settle_writes;
 static unsigned max_slice_ms, max_slice_writes, max_slice_bytes, min_budget, max_budget;
 static uint64_t measured_at, wire_us;
 static uint32_t model_hz;
+#ifdef PANEL_RESIDENT_NOPOF
+#define CADENCE_POWERED true
+#else
+#define CADENCE_POWERED false
+#endif
 static bool timed_begin(void*c,uint64_t t,uint32_t hz,uint8_t mode,uint32_t ms){model_hz=hz;return spi_begin(c,t,hz,mode,ms);}
 static bool timed_exchange(void*c,uint64_t t,const uint8_t*tx,uint8_t*rx,size_t n){
     bool ok=spi_exchange(c,t,tx,rx,n);
@@ -54,10 +59,10 @@ void panel_cadence_reset_metrics(void){
 void panel_cadence_report(const char*label){
     const risc_display_present_metrics_v1 m=snapshot();assert(m.state==PRESENT_COMPLETE&&m.valid_times==63);
     assert(m.bytes_sent==payload-measured_payload&&m.gpio_write_calls==gpio_writes-measured_writes-measured_settle_writes);
-    printf("\"%s\":{\"elapsed_ms\":%llu,\"transfer_ms\":%llu,\"bytes\":%u,\"gpio_writes\":%u,\"native_exchanges\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"max_slice_writes\":%u,\"partial\":%s,\"damage\":[%d,%d,%u,%u],\"state\":%u,\"budget_ms\":[%u,%u]}",
-        label,(unsigned long long)(tick-measured_at),(unsigned long long)(m.transfer_end_ms-m.transfer_start_ms),m.bytes_sent,m.gpio_write_calls,exchanges-measured_exchanges,measured_polls,max_slice_ms,max_slice_bytes,max_slice_writes,partial_update?"true":"false",update_area.x,update_area.y,update_area.width,update_area.height,m.state,min_budget,max_budget);
+    printf("\"%s\":{\"elapsed_ms\":%llu,\"transfer_ms\":%llu,\"bytes\":%u,\"gpio_writes\":%u,\"native_exchanges\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"max_slice_writes\":%u,\"partial\":%s,\"directional\":%s,\"damage\":[%d,%d,%u,%u],\"state\":%u,\"budget_ms\":[%u,%u]}",
+        label,(unsigned long long)(tick-measured_at),(unsigned long long)(m.transfer_end_ms-m.transfer_start_ms),m.bytes_sent,m.gpio_write_calls,exchanges-measured_exchanges,measured_polls,max_slice_ms,max_slice_bytes,max_slice_writes,partial_update?"true":"false",fast_update&&!absolute_update?"true":"false",update_area.x,update_area.y,update_area.width,update_area.height,m.state,min_budget,max_budget);
 }
-void panel_cadence_stop(void){assert(t5_driver_get(2)->quiesce());}
+void panel_cadence_stop(void){assert(t5_driver_get(2)->quiesce()!=CADENCE_POWERED);}
 static risc_display_present_metrics_v1 completed_metrics;
 static unsigned measured_refreshes;
 bool panel_cadence_settle_active(void){return settle_stage!=SETTLE_NONE;}
@@ -69,8 +74,9 @@ void panel_cadence_settle_report(void){
     const risc_display_present_metrics_v1 m=snapshot();
     assert(!settle_stage&&!ptin&&!model_bus_held&&!presentation_fault);
     assert(!memcmp(&m,&completed_metrics,sizeof(m))&&payload-measured_payload==180000u);
-    assert(dtm1_synced&&!screen_powered);
-    assert(settle_completed==settle_refreshes&&settle_completed==refreshes-measured_refreshes&&settle_completed>1);
+    assert(dtm1_synced&&screen_powered==CADENCE_POWERED);
+    assert(settle_completed==settle_refreshes&&settle_completed==refreshes-measured_refreshes);
+    assert(CADENCE_POWERED?settle_completed==1:settle_completed>1);
     assert(tick>=settle_until&&last_refresh_at>=settle_until);
     printf("\"elapsed_ms\":%llu,\"bytes\":%u,\"repeats\":%u,\"completed_repeats\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"budget_ms\":[%u,%u]",
         (unsigned long long)(tick-measured_at),payload-measured_payload,settle_refreshes,settle_completed,measured_polls,max_slice_ms,max_slice_bytes,min_budget,max_budget);
@@ -79,7 +85,7 @@ static uint64_t measured_maintenance_due;
 void panel_cadence_maintenance_begin(void){
     /* The deployed 0.1.9 baseline finalizes both planes and powers off.
      * Retain this fixture hook to prove thirty seconds stays completely quiet. */
-    assert(dtm1_synced&&!screen_powered&&!settle_stage);
+    assert(dtm1_synced&&screen_powered==CADENCE_POWERED&&!settle_stage);
     measured_maintenance_due=tick+30000u;measured_refreshes=refreshes;
     completed_metrics=snapshot();panel_cadence_reset_metrics();
 }
@@ -88,7 +94,7 @@ void panel_cadence_maintenance_report(void){
     const risc_display_present_metrics_v1 m=snapshot();
     assert(panel_cadence_maintenance_done()&&!ptin&&!model_bus_held&&!presentation_fault);
     assert(!memcmp(&m,&completed_metrics,sizeof(m))&&payload==measured_payload);
-    assert(refreshes==measured_refreshes&&dtm1_synced&&!screen_powered);
+    assert(refreshes==measured_refreshes&&dtm1_synced&&screen_powered==CADENCE_POWERED);
     assert(exchanges==measured_exchanges&&gpio_writes==measured_writes);
     printf("\"elapsed_ms\":%llu,\"bytes\":%u,\"repeats\":%u,\"provider_polls\":%u,\"max_slice_ms\":%u,\"max_slice_bytes\":%u,\"budget_ms\":[%u,%u]",
         (unsigned long long)(tick-measured_at),payload-measured_payload,refreshes-measured_refreshes,measured_polls,max_slice_ms,max_slice_bytes,min_budget,max_budget);

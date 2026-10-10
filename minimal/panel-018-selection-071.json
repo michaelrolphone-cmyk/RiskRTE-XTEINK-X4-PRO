@@ -1,0 +1,14 @@
+{
+  "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+  "commit": "045b610b82bb6d423215dcd83fd901be9d6f93ed",
+  "version": "0.1.18",
+  "reason": "User requested next display experiment over hardware-approved product 0.1.69",
+  "files": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "39e44723c763e91791a0c0ef533a80030190021f82f4ffa5f97994005eef818f",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "1c1993e319b9b1e9f86f8f5e0eb18ce15ba3e0591e55246b59122e64a181ca48",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "5dc3ec70e8f7bf3f5a5c1ed9c09def6e03da25cbb4ee2e724cd76cbd3b84cb9a",
+    "minimal/test/uc8279_fast_test.c": "2cfe8682fa3994fe9ba43b11935ee5f37e0ae673dbac17bf9f3eb4a72b026443",
+    "minimal/test/uc8279_fast_profile_test.py": "9df093f8ca2ada60e7360a49e3f95f2b4a36bfea7b305bfd2c5ff437929c4a4d",
+    "minimal/validation/uc8279-012-selective-nopof-0.1.18.json": "baf4d83ba1c0aa7681f9db7f39b4c3497788d0277a2da701eb7ca0dd0264cfaf"
+  }
+}
