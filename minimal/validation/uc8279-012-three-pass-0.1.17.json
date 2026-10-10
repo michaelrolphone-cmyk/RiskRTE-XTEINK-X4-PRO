@@ -1,0 +1,37 @@
+{
+  "schema": "x4.uc8279.012-three-pass-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T21:45:19.770554+00:00",
+  "baseline": {
+    "commit": "c081eebddad9ac61740b758e3fa74e5c92e325b1",
+    "driver_version": "0.1.12",
+    "selection_reason": "best overall hardware baseline reported after later driver regressions"
+  },
+  "candidate": {
+    "driver_version": "0.1.17"
+  },
+  "active_policy": {
+    "drive": "absolute A2",
+    "window_model": "0.1.12 full-width 40/80/160/480-row bands",
+    "local_frames": 3,
+    "local_max_rows": 160,
+    "broad_frames": 2,
+    "normal_resident_replays": 0,
+    "quiet_interval_ms": 2300,
+    "final_target_frames": 4
+  },
+  "dither_findings": {
+    "panel_input": "MONO1; grayscale information is unavailable in the driver",
+    "gameboy": "static 2x2 Bayer is enabled unless GBEMU_FAST_MONO is defined",
+    "fastepd": "per-pixel state tracks three completed drive passes and stops settled pixels",
+    "decision": "preserve producer Bayer and test bounded three-pass drive before adding transition-mask dithering"
+  },
+  "electrical_changes": "none",
+  "integrated_driver_hardware_tested": false,
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "ca17ccbd5144046921c09e685aff6d66b5b5049a88751f1af8552960d594131d",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "0022d51964716327a973598ea38c636978a68e0a4af3f52d2af3edbbedda8c06",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "9a0f72900283f8188a9f1da41832aef8bba4d3d1f61479f8dff77f54939f387b",
+    "minimal/test/uc8279_fast_profile_test.py": "6365a9ac24d43d79c6d3fe52dec309e973d01340d31d6a3ba965ebe1d4fc886a"
+  }
+}

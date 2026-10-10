@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.12
+# X4 UC8279 fast provider 0.1.17
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -349,3 +349,24 @@ can cancel before the endpoint DRF, or after an already-started DRF completes.
 The 30-second no-upload maintenance refresh remains removed. PON profile replay,
 uncertain-state invalidation, frontlight tone, and the token-bound sleep-settle
 contract are retained.
+
+## 0.1.12-based bounded three-pass experiment (0.1.17)
+
+This candidate is based directly on the exact 0.1.12 source cohort. It keeps
+0.1.12's full-width 40/80/160/480-row absolute-A2 windows, electrical profile,
+controller setup, endpoint redraw, dual-plane reconciliation, and POF lifecycle.
+It does not import the later narrow-horizontal-window or differential-overdrive
+implementations.
+
+Interactive updates no taller than 160 rows receive one three-frame absolute
+DRF. Broad 480-row motion receives one two-frame absolute DRF. A normal
+completed frame enters a quiet wait rather than repeatedly replaying the same
+intermediate animation target; after the 2.3-second quiet interval, the existing
+four-frame exact-target finalizer runs. Explicit lifecycle settling can still
+promote the wait state when required.
+
+The three-pass count deliberately mirrors the useful part of the direct FastEPD
+video implementation: changed pixels retain drive debt until three scans have
+completed. Grayscale dithering remains a producer responsibility because this
+provider receives an already quantized MONO1 frame. The current GameBoy renderer
+uses a static 2x2 Bayer mapping unless GBEMU_FAST_MONO is explicitly enabled.

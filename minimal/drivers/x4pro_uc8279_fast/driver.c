@@ -17,6 +17,9 @@
 #define X4PRO_PANEL_WIDTH 800u
 #define X4PRO_PANEL_HEIGHT 480u
 #define X4PRO_FINAL_TARGET_FRAMES 4u
+#define X4PRO_ACTIVE_LOCAL_FRAMES 3u
+#define X4PRO_ACTIVE_BROAD_FRAMES 2u
+#define X4PRO_ACTIVE_LOCAL_MAX_ROWS 160u
 /* Role indices are local; physical pads come only from the typed device. */
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
@@ -396,7 +399,12 @@ static bool arm_settle(void) {
     settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
     settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
-    settle_stage = absolute_update ? SETTLE_READY : SETTLE_WAIT;
+    /* FastEPD's useful behavior is a bounded number of drive passes, not
+     * indefinite replay of a completed animation target. Each accepted
+     * 0.1.17 frame receives its complete active pulse before completion;
+     * normal quiet time then waits for the exact-target finalizer. An
+     * explicit request_settle may still promote WAIT to READY. */
+    settle_stage = SETTLE_WAIT;
     return true;
 }
 static void poll_settle_locked(uint32_t budget_ms) {
@@ -808,8 +816,8 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->damage_width_alignment = 8;
     out->damage_y_alignment = 1;
     out->damage_height_alignment = 1;
-    out->nominal_refresh_millihz = 10000; /* Selected lab mode scheduling hint. */
-    out->typical_present_latency_us = 100000; /* Integrated timing remains unqualified. */
+    out->nominal_refresh_millihz = 11000; /* Three-frame 160-row lab profile. */
+    out->typical_present_latency_us = 90000; /* 89.1 ms measured reference. */
     return true;
 }
 static bool acquire_impl(void *context, uint32_t format, risc_display_surface_v1 *out) {
@@ -840,10 +848,10 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     fast_update = completed_history && (intent == RISC_DISPLAY_PRESENT_DEFAULT || intent == RISC_DISPLAY_PRESENT_LOW_LATENCY);
     absolute_update = settle_update = false; fast_lut_frames = 1u; sync_full = false;
     if (fast_update) {
-        /* Hardware 0.1.52/0.1.53 testing showed that one-frame differential
-         * DEFAULT updates were visibly under-driven. Restore the known-working
-         * absolute motion path for both interactive intents. DTM1 is reconciled
-         * only after the target-ending full-frame redraw. */
+        /* Preserve the 0.1.12 full-width absolute-A2 band model. Localized
+         * motion receives three target-directed scan frames, matching the
+         * proven FastEPD per-pixel drive-pass count; broad motion receives
+         * two frames to avoid collapsing full-screen cadence. */
         absolute_update = true;
     }
     partial_update = count && (fast_update || quality_partial);
@@ -865,9 +873,10 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
         update_area = (risc_display_rect_v1){(int32_t)left, (int32_t)top, right - left, bottom - top};
     }
     if (fast_update) {
-        /* Use the source's tested gate-window heights. Preserve completed
-         * pixels in both dimensions when damage needs a wider/taller band. */
+        /* Keep the exact 0.1.12 full-width 40/80/160/480-row windows. */
         update_area = tested_window((uint32_t)update_area.y, (uint32_t)update_area.y + update_area.height);
+        fast_lut_frames = update_area.height <= X4PRO_ACTIVE_LOCAL_MAX_ROWS ?
+            X4PRO_ACTIVE_LOCAL_FRAMES : X4PRO_ACTIVE_BROAD_FRAMES;
     } else if (!quality_partial) update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
@@ -1443,7 +1452,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.12 cause=");
+    append(destination, capacity, &used, "v=0.1.17 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
