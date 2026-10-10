@@ -6,10 +6,9 @@ import resident_client_build as resident
 HERE=Path(__file__).resolve().parent
 p=argparse.ArgumentParser(description=__doc__);resident.options(p)
 p.add_argument('--source',type=Path,required=True)
-p.add_argument('--runtime-revision',default='274bc66f193cbe29018d2a85c9400cb0dce8aacc')
 p.add_argument('--check-only',action='store_true')
 a=p.parse_args();root=a.source.resolve();baseline=json.loads((HERE/'baseline-017.json').read_text())
-assert resident.sha(HERE/'resident_client_build.py')==baseline['build_helper_sha256'],'Changed recovered helper'
+assert resident.sha(HERE/'resident_client_build.py')=='d8be689c466ec52b11b97710af3b3758d489865029b764f57578293b6ee7bfb1','Changed selected helper'
 resident.exact(root,'918c730a10c6a80b116a6a3aa01e891641eeadd5')
 for name,want in baseline['compiled_dependencies_sha256'].items():
  if name.startswith('Source/'):
@@ -31,5 +30,5 @@ if a.check_only:
  print('Contexts 0.1.8 exact application sources, frozen shared ABI and syntax PASS; no production objects built')
 else:
  record=resident.build(c,root,'contexts','0.1.8',defines,sources,grants,baseline['features'])
- record['recovery']={'historical_private_revision':baseline['source_revision'],'private_commit_recovered':False,'all_three_app_owned_compiled_inputs_byte_exact':True,'historical_helper_byte_exact':True,'shared_system_selected_by_integrator':True}
+ record['recovery']={'historical_private_revision':baseline['source_revision'],'private_commit_recovered':False,'all_three_app_owned_compiled_inputs_byte_exact':True,'historical_helper_byte_exact':False,'historical_helper_sha256':baseline['build_helper_sha256'],'selected_helper_public_commit':'35c2141c68668971dc524d98702109b00c740815','raster_snapshot':a.raster_snapshot,'shared_system_selected_by_integrator':True}
  resident.write(c['out']/'contexts/x4-native-app.json',record)

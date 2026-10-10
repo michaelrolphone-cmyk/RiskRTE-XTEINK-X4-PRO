@@ -25,10 +25,12 @@ def exact(path,pin):
 
 def options(parser):
     parser.add_argument('--resident-shell-client',action='store_true',required=True)
+    parser.add_argument('--raster-snapshot',action='store_true',help='Select bounded shared-System raster replay explicitly')
     parser.add_argument('--system-apps',type=Path,required=True)
     parser.add_argument('--system-revision',default=SYSTEM)
     parser.add_argument('--development-system',action='store_true',help='Review-only dirty System build; never final custody')
     parser.add_argument('--runtime',type=Path,required=True)
+    parser.add_argument('--runtime-revision',default=RUNTIME,help='Explicit clean SDK source pin; legacy default remains unchanged')
     parser.add_argument('--display-sdk',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
 
@@ -37,7 +39,7 @@ def prepare(a,p,utilities):
     if a.development_system:
         if git(system,'rev-parse','HEAD')!=a.system_revision:raise ValueError('Development System base differs')
     else:exact(system,a.system_revision)
-    exact(runtime,RUNTIME)
+    exact(runtime,a.runtime_revision)
     output.mkdir(parents=True,exist_ok=True);inc=output/'sdk/include';inc.mkdir(parents=True,exist_ok=True)
     # Real copied staging avoids mutating frozen source headers via a symlink.
     for folder in (a.display_sdk,system/'lib/PortableApps/include',runtime/'sdk/app',utilities/'lib/Alarm/include'):
@@ -53,14 +55,17 @@ def prepare(a,p,utilities):
     shared=importlib.util.module_from_spec(spec);spec.loader.exec_module(shared)
     selected=argparse.Namespace(resident_shell_client=True,resident_shell_host=False,resident_policy=True,
       resident_runtime_sdk=runtime/'sdk/app',alarm_client=True,quick_actions=False,quick_radios=False,
-      quick_usb_transfer=False,paper_transitions=False,home_app=None)
+      quick_usb_transfer=False,paper_transitions=False,home_app=None,
+      raster_snapshot=getattr(a,'raster_snapshot',False))
     flags,sources=shared.configure(selected,p,system,output,inc)
     if sources:raise ValueError('Foreground unexpectedly has shared renderer sources')
+    if getattr(a,'raster_snapshot',False) and '-DPORTABLE_RASTER_SNAPSHOT' not in flags:
+        raise ValueError('Selected System builder does not support --raster-snapshot')
     cc=os.environ.get('NATIVE_APP_CC')
     if not cc:raise ValueError('Set NATIVE_APP_CC to existing pinned GCC8.4')
     compiler=subprocess.check_output([cc,'--version'],text=True).splitlines()[0]
     if '8.4.0' not in compiler or '2021r2-patch5' not in compiler:raise ValueError('Pinned GCC8.4 required')
-    return dict(system=system,runtime=runtime,out=output,inc=inc,flags=flags,receipt=selected.resident_shell_receipt,cc=cc,compiler=compiler,utilities=utilities)
+    return dict(system=system,runtime=runtime,runtime_revision=a.runtime_revision,out=output,inc=inc,flags=flags,receipt=selected.resident_shell_receipt,cc=cc,compiler=compiler,utilities=utilities)
 
 def build(c,root,name,version,defines,sources,grants,features):
     system=c['system'];out=c['out']/name;out.mkdir(exist_ok=True);elf=out/(name+'.elf')
@@ -99,7 +104,7 @@ def build(c,root,name,version,defines,sources,grants,features):
             path=Path(token).resolve()
             for label,base in roots:
                 if path.is_relative_to(base):deps[label+'/'+str(path.relative_to(base))]=sha(path);break
-    record=dict(schema=1,app=name,version=version,source_revision=git(root,'rev-parse','HEAD'),source_dirty=bool(git(root,'status','--porcelain')),system_source_revision=git(system,'rev-parse','HEAD'),system_dirty=bool(git(system,'status','--porcelain','--untracked-files=no')),runtime_source_revision=RUNTIME,compiler=c['compiler'],resident_shell=c['receipt'],build_defines=defines,compile_command=list(map(str,command)),imports=sorted(imports),exports=sorted(exports),elf_sha256=sha(elf),elf_bytes=elf.stat().st_size,quick_render_definitions=0,requires=needs,required_grants=grants,features=features,compiled_dependencies_sha256=deps,build_helper_sha256=sha(Path(__file__)),sdk_sha256={p.name:sha(p) for p in c['inc'].glob('*.h')},utilities_source_revision=git(c['utilities'],'rev-parse','HEAD'),target_validation='passed',hardware_verified=False,installable=False)
+    record=dict(schema=1,app=name,version=version,source_revision=git(root,'rev-parse','HEAD'),source_dirty=bool(git(root,'status','--porcelain')),system_source_revision=git(system,'rev-parse','HEAD'),system_dirty=bool(git(system,'status','--porcelain','--untracked-files=no')),runtime_source_revision=c['runtime_revision'],compiler=c['compiler'],resident_shell=c['receipt'],build_defines=defines,compile_command=list(map(str,command)),imports=sorted(imports),exports=sorted(exports),elf_sha256=sha(elf),elf_bytes=elf.stat().st_size,quick_render_definitions=0,requires=needs,required_grants=grants,features=features,compiled_dependencies_sha256=deps,build_helper_sha256=sha(Path(__file__)),sdk_sha256={p.name:sha(p) for p in c['inc'].glob('*.h')},utilities_source_revision=git(c['utilities'],'rev-parse','HEAD'),target_validation='passed',hardware_verified=False,installable=False)
     write(out/'x4-native-app.json',record)
     dest=out/'licenses';dest.mkdir(exist_ok=True)
     for label,repo in [('App',root),('System',system),('Runtime',c['runtime']),('Utilities',c['utilities'])]:shutil.copyfile(repo/'LICENSE',dest/(label+'-MIT.txt'))

@@ -2,13 +2,13 @@
   "schema": 1,
   "runtime": {
     "repository": "michaelrolphone-cmyk/RiscRTE",
-    "commit": "274bc66f193cbe29018d2a85c9400cb0dce8aacc",
-    "version": "0.1.106"
+    "commit": "0f17a435f99d02d60ca50df1d1a51fcef123db89",
+    "version": "0.2.2"
   },
   "shared": {
     "repository": "michaelrolphone-cmyk/T5S3-Reader",
     "commit": "45cf61ac013fb618e8d7fed63217a35350484d52",
     "base_commit": "af3f638c6c2bf1ad0c78bc048a160374f2a2fdd4"
   },
-  "status": "Recovered source union for a future clean .55 build. Runtime106 includes105 capacity. No old product outputs are valid assembly inputs."
+  "status": "X4 .57 coordinated async Wi-Fi native source; exact source-bound .55 artifacts may be reused where compiled input closure is unchanged."
 }

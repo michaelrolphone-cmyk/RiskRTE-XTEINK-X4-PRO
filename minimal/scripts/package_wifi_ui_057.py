@@ -52,7 +52,10 @@ def build(a):
  require(set(spec['native'])=={'firmware.bin','firmware.elf','bootloader.bin','partitions.bin','appdata.bin','candidate.json'},'Native asset set differs')
  assets={name:artifact(row) for name,row in spec['native'].items()};candidate=json.loads(assets['candidate.json'])
  for name,row in spec['native'].items():require(Path(row['path']).resolve()==(native/name).resolve(),'Native asset displaced')
- native_proof=validate_native_composition(native,candidate,runtime,ROOT)
+ native_platform=Path(spec['sources']['native_platform']['path'])
+ native_proof=validate_native_composition(native,candidate,runtime,ROOT,native_source_root=native_platform)
+ for name,digest in native_proof['platform_source_sha256'].items():
+  require(sha((ROOT/name).read_bytes())==digest,'Native platform source changed after composition: '+name)
  require(candidate['firmware_version']=='0.2.2' and candidate['build_options']==NATIVE_OPTIONS,'Wrong native selection')
  require(candidate['build_environment']=='esp32s3-16mb-appdata-iq-stage','Default stage logs not selected')
  names,export_proof=bin_exports(assets['firmware.bin'],reference_tables(assets['firmware.elf']))
