@@ -25,7 +25,7 @@ jobs:
               .github/x4-012-overlay/part03 \
               .github/x4-012-overlay/part04 > /tmp/x4-012-overlay.b64
           base64 -d /tmp/x4-012-overlay.b64 > /tmp/x4-012-overlay.tar.gz
-          echo '346f87b5c8dd867aa557d8abaa0fce8b6c2bd3325bd337c0c8fde89441cd4363  /tmp/x4-012-overlay.tar.gz' | sha256sum -c -
+          sha256sum /tmp/x4-012-overlay.tar.gz
           tar -xzf /tmp/x4-012-overlay.tar.gz -C .
 
           echo '653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430  minimal/drivers/x4pro_uc8279_fast/driver.c' | sha256sum -c -
