@@ -15,6 +15,7 @@ on:
       - minimal/test/run_uc8279_fast_cadence_test.py
       - minimal/test/uc8279_fast_cadence/**
       - minimal/test/uc8279_fast_profile_test.py
+      - minimal/test/uc8279_fast_settled.inc
       - minimal/test/uc8279_fast_test.c
       - minimal/test/run_uc8279_fast_test.sh
       - minimal/test/prepare_sdk_test.py
