@@ -2,7 +2,7 @@
 static const risc_storage_volume_api_v1_export *export_api(void) {
     const risc_storage_volume_api_v1 *base=driver.poll.streams.driver.capability;
     const risc_storage_volume_api_v1_export *p=risc_storage_volume_export(base);
-    assert(p && p==&logging_api.base && p->export_begin==export_begin && p->export_end==export_end);
+    assert(p && p==&logging_api.prepared.base && p->export_begin==export_begin && p->export_end==export_end);
     assert(risc_storage_volume_sleep(base)==&p->sleep);
     assert(offsetof(risc_storage_volume_api_v1_export,sleep)==0);
     assert(offsetof(risc_storage_volume_api_v1_export,export_tag)==sizeof(risc_storage_volume_api_v1_sleep));

@@ -1,12 +1,17 @@
-/* X4 hardware one-bit SDMMC transport with legacy GPIO fallback, provider ABI2.
+/* X4 hardware one-bit SDMMC transport, provider ABI2.
+ * Legacy GPIO is available only in explicitly selected compatibility tests.
  * Protocol derived from Drivers/x4pro_sd/driver.c at Reader 34d8e694.
  * Filesystem implementation remains shared in Reader storage_fatfs/volume.c.
  * GPIO authority and synchronization are scoped to this hardware.device. */
+#ifndef X4PRO_SD_ALLOW_LEGACY_GPIO
+#define X4PRO_SD_ALLOW_LEGACY_GPIO 0
+#endif
 #include <RiscPlatformClockV1.h>
 #include <RiscProviderV2.h>
 #include <RiscProviderSyncV1.h>
 #include <RiscDiagnosticSourceV1.h>
 #include <RiscStorageExportV1.h>
+#include <RiscStorageVolumeStateV1.h>
 #include <GardenPlatformV1.h>
 #include <RiscGpioSdmmcV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
@@ -435,6 +440,24 @@ static uint32_t bootlog_budget_ms=15000,bootlog_sector_limit=2048;
 #include "BootLog.h"
 #include "Export.h"
 
+/* Owner-task snapshot only. In particular, do not call valid_task(), ready(),
+ * a guard or boot-log drain here: observation must remain safe after poison. */
+static int32_t observe_state(void *context) {
+    (void)context;
+    if (mutex_poisoned || gpio_fault || gpio_retained || sdmmc_fault ||
+        bootlog_retained || sleep_state == SLEEP_RETAINED || export_state == EXPORT_RETAINED)
+        return RISC_STORAGE_STATE_RETAINED;
+    /* The existing close contract retains a writer after failed media I/O.
+     * Inspect the fixed in-memory handle slots only; never scan the card. */
+    if (io_failed) for (unsigned i = 0; i < FILE_SLOTS; ++i)
+        if (files[i].handle && (files[i].flags & RISC_STORAGE_OPEN_WRITE))
+            return RISC_STORAGE_STATE_RETAINED;
+    if (!started || !operation_mutex || quiescing || quiesced || power_down_prepared ||
+        power_down_committed || sleep_state != SLEEP_ACTIVE || export_state != EXPORT_LOCAL ||
+        !mounted || !card_ready || io_failed) return RISC_STORAGE_STATE_UNAVAILABLE;
+    return RISC_STORAGE_STATE_READY;
+}
+
 static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     if (started || operation_mutex || gpio_api || clock_api || sync_api || mutex_poisoned ||
         gpio_retained || !deps || count != 6) return false;
@@ -472,7 +495,11 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
     for (unsigned i=0; i<RISC_HW_MAX_CHANNELS; ++i)
         if (config->pins[i] != (i<4 ? pin_numbers[i] : 0)) return false;
     if (!sync->is_owner(sync->context) || !power->ready(power->context)) return false;
-    gpio_api = gpio; sdmmc_api = risc_gpio_sdmmc(gpio); clock_api = clock; sync_api = sync; diagnostic_source = source;
+    const risc_sdmmc_host_api_v1 *native_host = risc_gpio_sdmmc(gpio);
+#if !X4PRO_SD_ALLOW_LEGACY_GPIO
+    if (!native_host) { fail("hardware SDMMC host required"); return false; }
+#endif
+    gpio_api = gpio; sdmmc_api = native_host; clock_api = clock; sync_api = sync; diagnostic_source = source;
     quiescing = quiesced = gpio_fault = false;
     if (!sync_api->create(sync_api->context, &operation_mutex) || !operation_mutex) {
         gpio_api = NULL; sdmmc_api = NULL; clock_api = NULL; sync_api = NULL; diagnostic_source = NULL; return false;
@@ -536,21 +563,24 @@ RISC_DRIVER_SERVICE_VERSION_V1, bootlog_service};
 __attribute__((visibility("default")))
 const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
-    if (!logging_api.base.sleep.terminal.power.volume.base.api_version) {
-        logging_api.base.sleep = api;
-        logging_api.base.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
-        logging_api.base.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
-        logging_api.base.export_tag = RISC_STORAGE_EXPORT_TAG;
-        logging_api.base.export_version = 1u;
-        logging_api.base.export_begin = export_begin;
-        logging_api.base.export_read = export_read;
-        logging_api.base.export_write = export_write;
-        logging_api.base.export_sync = export_sync;
-        logging_api.base.export_end = export_end;
-        logging_api.prepare_tag = RISC_STORAGE_EXPORT_PREPARE_TAG;
-        logging_api.prepare_version = 1u;
-        logging_api.begin_prepare = export_begin_prepare;
-        logging_api.prepare_step = export_prepare_step;
+    if (!logging_api.prepared.base.sleep.terminal.power.volume.base.api_version) {
+        logging_api.prepared.base.sleep = api;
+        logging_api.prepared.base.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
+        logging_api.prepared.base.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
+        logging_api.prepared.base.export_tag = RISC_STORAGE_EXPORT_TAG;
+        logging_api.prepared.base.export_version = 1u;
+        logging_api.prepared.base.export_begin = export_begin;
+        logging_api.prepared.base.export_read = export_read;
+        logging_api.prepared.base.export_write = export_write;
+        logging_api.prepared.base.export_sync = export_sync;
+        logging_api.prepared.base.export_end = export_end;
+        logging_api.prepared.prepare_tag = RISC_STORAGE_EXPORT_PREPARE_TAG;
+        logging_api.prepared.prepare_version = 1u;
+        logging_api.prepared.begin_prepare = export_begin_prepare;
+        logging_api.prepared.prepare_step = export_prepare_step;
+        logging_api.state_tag = RISC_STORAGE_STATE_TAG;
+        logging_api.state_version = 1u;
+        logging_api.observe = observe_state;
     }
     return &driver.poll.streams.driver;
 }

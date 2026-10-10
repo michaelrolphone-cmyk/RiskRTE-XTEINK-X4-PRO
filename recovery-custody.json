@@ -1,0 +1,16 @@
+{
+  "status": "production source recovery checkpoint; fresh qualification pending",
+  "previous_local_commit_unavailable": "c13a93b5561c06efa7e08722d21b3b90e2c2241d",
+  "base_remote_commit": "eb5a6eaa47133b288cf41f838a5c248542fd8dbf",
+  "files": {
+    "RECOVERY_CRASH_SD_0214.md": "f8fa49cfda6305497c7d7d2f633e8a599deb88a73360552374149e92fd7e8206",
+    "minimal/interfaces/RiscStorageVolumeStateV1.h": "1f2f7dbfe9ec7ac27a57149ac720cf7f3a4801d6d34b5532f77c77db252b87a1",
+    "minimal/test/sdmmc_storage_test.inc": "1739f02751536b9c1208b7a1a316bbeea51aa1e1d8c7545ebe05db1991d6be13",
+    "minimal/test/sd_export_test.inc": "ce7553f0de751f0ddc4c3469d427fc60ffcd7960ddc2978141dbdc37f3602ad5",
+    "minimal/test/sd_test.c": "fa19763407cd4c38385cbd3e0266c4aa42822be3746c61092d4cece31fed5c97",
+    "minimal/drivers/x4pro_sd/manifest.json": "ebf15337558c49de1ad7f38bd3f504a023ae337d30e4d4f330a2be4a51a7470f",
+    "minimal/drivers/x4pro_sd/driver.c": "57b50acf86d413929fb4b53edaa970d366f907495ca83b1d707870142c33673d",
+    "minimal/drivers/x4pro_sd/BootLog.h": "be49f4c78f5c6054f79cabe82c951b95d984b28e8740e61f71896541c93fc6a0",
+    "minimal/drivers/x4pro_sd/Export.h": "cba8ca234c8e58c8138f175296f6ac21c1b2fac06b8fa79cbb863a8faaa41c7a"
+  }
+}
