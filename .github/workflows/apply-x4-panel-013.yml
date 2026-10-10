@@ -29,9 +29,8 @@ jobs:
           cp "$RUNNER_TEMP/x4-panel-013/driver.c" minimal/drivers/x4pro_uc8279_fast/driver.c
           cp "$RUNNER_TEMP/x4-panel-013/manifest.json" minimal/drivers/x4pro_uc8279_fast/manifest.json
           cp "$RUNNER_TEMP/x4-panel-013/validation.json" minimal/validation/uc8279-delta-multipulse-0.1.13.json
-          cp "$RUNNER_TEMP/x4-panel-013/apply.py" .github/x4-panel-013/apply.py
       - name: Align tests and documentation
-        run: python3 .github/x4-panel-013/apply.py
+        run: python3 .github/x4-panel-013/apply-fixed.py
       - name: Verify candidate identity
         run: |
           echo 'e70f37ee8b2158350c4ab3c43ef9d3a22c71e80c6a3d17a47cabca08c4236629  minimal/drivers/x4pro_uc8279_fast/driver.c' | sha256sum -c -
@@ -39,6 +38,9 @@ jobs:
           grep -q 'fast_lut_frames = 2u' minimal/drivers/x4pro_uc8279_fast/driver.c
           grep -q 'changed_bounds' minimal/drivers/x4pro_uc8279_fast/driver.c
           grep -q '"version": "0.1.13"' minimal/drivers/x4pro_uc8279_fast/manifest.json
+          grep -q 'm.effective_update.width==96' minimal/test/uc8279_fast_test.c
+          grep -q 'bytes_sent==12\*h' minimal/test/uc8279_fast_test.c
+          python3 -m py_compile .github/x4-panel-013/apply-fixed.py
           git diff --check
       - name: Commit finalized source
         run: |
