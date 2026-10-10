@@ -1,0 +1,85 @@
+name: X4 UC8279 fast-display qualification
+
+on:
+  push:
+    branches:
+      - recovery/x4-sd-state-0214-20261010
+    paths:
+      - minimal/drivers/x4pro_uc8279_fast/**
+      - minimal/interfaces/**
+      - minimal/scripts/build_drivers.py
+      - minimal/scripts/prepare_sdk.py
+      - minimal/test/uc8279_fast_test.c
+      - minimal/test/run_uc8279_fast_test.sh
+      - minimal/test/prepare_sdk_test.py
+      - minimal/test/ordinary-driver-sources.lock.json
+      - minimal/validation/uc8279-delta-multipulse-0.1.13.json
+      - .github/workflows/x4-fast-display.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PLATFORMIO_SETTING_ENABLE_TELEMETRY: "No"
+
+jobs:
+  qualify-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify source identity and SDK composition
+        run: |
+          grep -q '"version": "0.1.13"' minimal/drivers/x4pro_uc8279_fast/manifest.json
+          grep -q 'fast_lut_frames = 2u' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'changed_bounds' minimal/drivers/x4pro_uc8279_fast/driver.c
+          python3 minimal/test/prepare_sdk_test.py
+      - name: UC8279 host regressions
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        run: |
+          SANITIZE=0 bash minimal/test/run_uc8279_fast_test.sh
+          SANITIZE=1 bash minimal/test/run_uc8279_fast_test.sh
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Build UC8279 provider ELF
+        run: |
+          pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+          python3 minimal/scripts/build_drivers.py \
+            --runtime .shared/runtime \
+            --reader .shared/reader \
+            --source-lock minimal/test/ordinary-driver-sources.lock.json \
+            --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" \
+            --output build/x4-uc8279-fast-0.1.13 \
+            --sleep \
+            --panel-driver uc8279-fast
+          git rev-parse HEAD > build/x4-uc8279-fast-0.1.13/platform-source-sha.txt
+          sha256sum \
+            minimal/drivers/x4pro_uc8279_fast/driver.c \
+            minimal/drivers/x4pro_uc8279_fast/manifest.json \
+            > build/x4-uc8279-fast-0.1.13/source-sha256.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-uc8279-fast-0.1.13-${{ github.sha }}
+          path: build/x4-uc8279-fast-0.1.13/
+          if-no-files-found: error
+          retention-days: 14
