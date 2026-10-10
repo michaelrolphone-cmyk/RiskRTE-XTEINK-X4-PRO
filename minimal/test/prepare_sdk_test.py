@@ -21,11 +21,11 @@ class SdkTest(unittest.TestCase):
                     (ROOT/'interfaces/RiscDisplayOutputMetricsV1.h').read_bytes())
    self.assertEqual({p.name for p in (root/'sdk').glob('*.h')},
                     {'Shared.h','Hardware.h','RiscDisplayOutputMetricsV1.h','RiscDisplayOutputSnapshotV1.h',
-                     'RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h'})
+                     'RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h','RiscDisplayOutputSettledV1.h','RiscStorageVolumeStateV1.h'})
    self.assertEqual(result['RiscDisplayOutputSnapshotV1.h']['origins'],['x4/interfaces'])
    self.assertEqual((root/'sdk/RiscDisplayOutputSnapshotV1.h').read_bytes(),
                     (ROOT/'interfaces/RiscDisplayOutputSnapshotV1.h').read_bytes())
-   for name in ['RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h']:
+   for name in ['RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h','RiscDisplayOutputSettledV1.h','RiscStorageVolumeStateV1.h']:
     self.assertEqual(result[name]['origins'],['x4/interfaces'])
     self.assertEqual((root/'sdk'/name).read_bytes(),(ROOT/'interfaces'/name).read_bytes())
    with self.assertRaises(ValueError):module.prepare(runtime,reader,root/'sdk')
@@ -37,7 +37,7 @@ class SdkTest(unittest.TestCase):
    with self.assertRaisesRegex(ValueError,'Shared SDK header differs: RiscDisplayOutputMetricsV1.h'):
     module.prepare(runtime,reader,root/'metric-conflict')
  def test_tone_header_conflicts(self):
-  for name in ['RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h']:
+  for name in ['RiscFrontlightToneV1.h','RiscDisplayOutputFrontlightV1.h','RiscDisplayOutputSettledV1.h','RiscStorageVolumeStateV1.h']:
    with tempfile.TemporaryDirectory() as temporary:
     root=Path(temporary);runtime=root/'runtime';reader=root/'reader'
     for folder in [runtime/'sdk/driver',runtime/'sdk/hardware',reader/'sdk/driver']:folder.mkdir(parents=True)

@@ -16,8 +16,9 @@ def build(a):
     def finish(name,source,commands,depfiles,allowed,normal=True):
         target=out/name;elf=target/'driver.elf'
         if normal:normalize(elf)
-        rows=subprocess.check_output([prefix+'nm','-D',str(elf)],text=True).splitlines()
-        imports={r.split()[-1] for r in rows if ' U ' in ' '+r};exports={r.split()[-1] for r in rows if len(r.split())>=3 and r.split()[-2] in ('T','D','B','R')}
+        rows=[r.split() for r in subprocess.check_output([prefix+'readelf','--dyn-syms','--wide',str(elf)],text=True).splitlines()]
+        imports={r[7] for r in rows if len(r)>=8 and r[4]=='GLOBAL' and r[6]=='UND'}
+        exports={r[7] for r in rows if len(r)>=8 and r[4]=='GLOBAL' and r[6]!='UND' and r[3]=='FUNC'}
         assert imports<=set(allowed) and exports=={'t5_driver_get'},(name,imports,exports)
         data=elf.read_bytes();assert data[:7]==b'\x7fELF\x01\x01\x01' and data[16:20]==b'\x03\x00\x5e\x00'
         deps={}
