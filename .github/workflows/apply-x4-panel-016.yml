@@ -24,6 +24,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Retry after validating the complete 0.1.13 assertion inventory.
           python3 minimal/scripts/apply_x4_panel_016.py
           rm minimal/scripts/apply_x4_panel_016.py .github/workflows/apply-x4-panel-016.yml
           git diff --check
