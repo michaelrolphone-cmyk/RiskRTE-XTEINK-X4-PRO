@@ -1,0 +1,18 @@
+{
+  "old_product": "0.1.57",
+  "new_product": "0.1.58",
+  "changed_paths": [
+    "ble_buttons.elf",
+    "ble_buttons.json",
+    "cohort.json",
+    "panel/driver.elf",
+    "panel/manifest.json",
+    "touch/driver.elf",
+    "touch/manifest.json"
+  ],
+  "identical_paths": 90,
+  "old_count": 97,
+  "new_count": 97,
+  "native_unchanged_per_region_receipt": true,
+  "all_common_apps_except_buttons_byte_identical": true
+}
