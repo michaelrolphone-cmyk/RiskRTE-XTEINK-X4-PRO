@@ -1,0 +1,16 @@
+{
+  "product": "0.1.55",
+  "library_file_id": "libfile_ccee6697bba081918b6508f67dfbcfbd",
+  "bytes": 16777216,
+  "sha256": "015f7e3f697081b14c1cccbc08c38fa50f2052b3097e8e290a41f27dfc1ae10e",
+  "flash_offset": 0,
+  "native_version": "0.1.106",
+  "panel_version": "0.1.13",
+  "fresh_module_count": 47,
+  "hardware_tested": false,
+  "full_flash_overwrites": [
+    "internal settings",
+    "Bluetooth bonds",
+    "AppData"
+  ]
+}

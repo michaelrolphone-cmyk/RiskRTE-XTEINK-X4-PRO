@@ -1,0 +1,102 @@
+{
+  "pinned_runtime_inputs_verified": 6,
+  "pinned_system_inputs_verified": 10,
+  "extra_runtime_headers": "transitive dependency copies from recovered Runtime106; SHA256 recorded",
+  "baseline_source_archive_members_verified": 12,
+  "files": {
+    "external/runtime/sdk/driver/RiscProviderV2.h": {
+      "sha256": "62478822fa8943ddfd1607f8923de52d7b5b6fc8a0db2df6ca07c65c95c62d41",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscProviderV2.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/driver/RiscBoundAppDataV1.h": {
+      "sha256": "f4c6b9e475409515ee3b385a85790f592e8d943b0f811707926a32be4e1a6a42",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscBoundAppDataV1.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/driver/RiscBoundKeyValueV1.h": {
+      "sha256": "0d77dffef1e6513cbf9b3cf38266f7c9ebcc25d000605838821241ba742cd672",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscBoundKeyValueV1.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/driver/RiscPlatformClockV1.h": {
+      "sha256": "41a12f6529f38731ee874f8bc166e1cf89fe376a1448fe5a4dd4c9abac90e5e2",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscPlatformClockV1.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/driver/RiscPlatformRealtimeV1.h": {
+      "sha256": "ed642c0f37350f7f1402342c7710564019db9c4750f3572f153d2ef1e37eca98",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscPlatformRealtimeV1.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/app/RiscAppDataV1.h": {
+      "sha256": "49ced12bd617ce9e29626f97ee21d824edcf5f8272524a7da8780c60979df201",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/app/RiscAppDataV1.h",
+      "historical_pin_verified": true
+    },
+    "external/runtime/sdk/driver/RiscStreamProviderV1.h": {
+      "sha256": "0fe306e060321387c816bb70ec4370a501a423f4fe19a20c9be80aa1b98f3432",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/driver/RiscStreamProviderV1.h",
+      "historical_pin_verified": false
+    },
+    "external/runtime/sdk/app/RiscRealtimeV1.h": {
+      "sha256": "639781f728841cda6d40c3033877436b9e5d59519a4b15e11a9bc99b2365395d",
+      "original_path": "/workspace/shared/recovered-runtime-0106/sdk/app/RiscRealtimeV1.h",
+      "historical_pin_verified": false
+    },
+    "external/system/lib/PortableApps/include/PortableTimeZone.h": {
+      "sha256": "3cfb6687d8f3675beb020a059b8cd3b3d8beffd42c11c6fd61d14b48af729c54",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/include/PortableTimeZone.h",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/src/PortableTimeZone.c": {
+      "sha256": "28c0fecf7a4d83bde07d2b72cb591122cf3c49c3219c8344b97b82a90625c5e7",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/src/PortableTimeZone.c",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/src/PortableTimeZoneCatalog.c": {
+      "sha256": "29d4c86037f7554c94a4404d5e39e28091430a1f9c23b5e35224aed3df826f20",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/src/PortableTimeZoneCatalog.c",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/time/TIMEZONE_PROVENANCE.json": {
+      "sha256": "4dda9d416b6ca815155dbf3ecac6452789564ff1312bba2d28a6d5a9b7eaab1b",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/time/TIMEZONE_PROVENANCE.json",
+      "historical_pin_verified": true
+    },
+    "external/system/LICENSE": {
+      "sha256": "7212963b5b1b5ee34ca158163356beb1e6945dd2cc5d320f1fe7573c424ea640",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/LICENSE",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/include/PortableTime.h": {
+      "sha256": "350b8c5255dafa9e25c4a20cfb458cdcda3439da929dab05e0de0c82e981ff6e",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/include/PortableTime.h",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/include/PortableRtcClock.h": {
+      "sha256": "43508db1cd392606cf37a7e55ad15e3770de1284af13a431876fd5d7785b838c",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/include/PortableRtcClock.h",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/time/denver/display_time.h": {
+      "sha256": "9460e26e1d6faf574a212cdec86d9477de7a0e5d50168d5e7e76613be2868a03",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/time/denver/display_time.h",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/time/denver/twatch_calendar.h": {
+      "sha256": "67e4a670e4ee8a485843e99be0d198d0b60d84a0bc8d84fc77a3d0e4bde39733",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/time/denver/twatch_calendar.h",
+      "historical_pin_verified": true
+    },
+    "external/system/lib/PortableApps/time/denver/twatch_caps.h": {
+      "sha256": "b8b3003c77c72eb251227329c94fda7244389fb45c7a7e92aa01a5ddce50600e",
+      "original_path": "/workspace/shared/crash-home-recovery-20261010/lib/PortableApps/time/denver/twatch_caps.h",
+      "historical_pin_verified": true
+    },
+    "points-catalog-bindings.json": {
+      "sha256": "51d53942cd4ed46b87af10ccbb70648a7a1f56a2b8a99e95ece7dc2ea72660af",
+      "original_path": "/workspace/shared/x4-home-composition-050/minimal/apps/points-catalog-bindings.json"
+    }
+  }
+}

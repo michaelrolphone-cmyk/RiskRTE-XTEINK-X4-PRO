@@ -1,0 +1,202 @@
+{
+  "schema": 1,
+  "public_source": "918c730a10c6a80b116a6a3aa01e891641eeadd5",
+  "public_tree": "3eda15f12db3e628491fd5d84e1e867b235a15da",
+  "first_rf_only_source": "80b52f404648f4831920254c0dffff940ac8c511",
+  "private_historical_source_not_recovered": "1e751d83c93dd5b4be5db9079bcf137a6efa4388",
+  "production_closure_equal_first_rf_only_commit": true,
+  "driver_abi_source": "4088b6892c2e2654b0342f04a7d191068e4a8e2e",
+  "manifest_equal_installed_053": true,
+  "contexts_abi_equal_profile_sha": true,
+  "syntax_only_pass": true,
+  "target_compiled": false,
+  "production_source_change": false,
+  "installed_053_symbols_include": [
+    "rt_summary_make",
+    "rt_example_valid",
+    "t5_driver_get"
+  ],
+  "waterfall_header_difference": "Waterfall compilation uses pre-compact-summary header; installed Contexts ELF has rt_summary_make and matches the published RF-only lineage, so do not substitute Waterfall header.",
+  "source_mask": 2,
+  "audio_available": false,
+  "requires": [
+    {
+      "capability": "platform.clock",
+      "api": 1
+    },
+    {
+      "capability": "radio.iq",
+      "api": 1
+    }
+  ],
+  "sources": {
+    "sdk/RiscPlatformClockV1.h": {
+      "sha256": "41a12f6529f38731ee874f8bc166e1cf89fe376a1448fe5a4dd4c9abac90e5e2",
+      "bytes": 592
+    },
+    "sdk/RiscProviderV2.h": {
+      "sha256": "358ac93f86a3e228c2a9c9cfca0b758571db43453bce1e4c5e38402096064ea0",
+      "bytes": 2246
+    },
+    "sdk/RiscRadioIqV1.h": {
+      "sha256": "7b6e99c6a886b9445ffae7c3471c4f9867b8af9329924710203db5b99764bd2f",
+      "bytes": 6404
+    },
+    "Apps/AudioInputV1.h": {
+      "sha256": "c64c27cf421033074a96e90ee6ac3287050304c5ef47d82a51dcbc48ce73b494",
+      "bytes": 777,
+      "equal_first_rf_only_source": true,
+      "blob": "6bc205e1f552febc4b10c241a1bf7af76dbdeef6"
+    },
+    "Apps/rf_background.h": {
+      "sha256": "6792af20634225de59fdc4c176a471bcbbd6d9f4ff06e9de964261d1f9668cb0",
+      "bytes": 4377,
+      "equal_first_rf_only_source": true,
+      "blob": "f7cd0d85d2ff886aaf80090338b55a47a764ec4a"
+    },
+    "Apps/rf_dsp.h": {
+      "sha256": "71dad410511bba28991f0e99cb88f2931c6262cabc01dbb5d9659e33a3eeee7c",
+      "bytes": 9236,
+      "equal_first_rf_only_source": true,
+      "blob": "a21c22a512ca6bf9f5c49f74e049198f95fdb7a0"
+    },
+    "Apps/rf_identity.h": {
+      "sha256": "068428308352e542f0494afd389f3601e867571c3fd9057c4aec693d70abcb57",
+      "bytes": 4522,
+      "equal_first_rf_only_source": true,
+      "blob": "971d3de6988d68870f19230ed306d5634cc59900"
+    },
+    "Apps/rf_math.h": {
+      "sha256": "bc5723aa8206249f23e5809d3911009582ba83891b9db597cc15a200bb6d3fc8",
+      "bytes": 17644,
+      "equal_first_rf_only_source": true,
+      "blob": "6845554e0625b264232f881e875676c7b97ef52b"
+    },
+    "Apps/rf_neural.h": {
+      "sha256": "b4c22ab1d48bb1c742dc1e88f0de018a79fdb09fa780262a12f91dfb36680799",
+      "bytes": 11910,
+      "equal_first_rf_only_source": true,
+      "blob": "b631ed5aaef033a0e492b103070b9d55ef059726"
+    },
+    "Apps/rf_neural_store.h": {
+      "sha256": "306a42bd54d6e162e6acae03bdb9b99942040d0f303ba053b2bc0b2bddd39769",
+      "bytes": 4806,
+      "equal_first_rf_only_source": true,
+      "blob": "6115ea399dbc0be3b2b5bdd884d9ba3449f0d783"
+    },
+    "Apps/rf_signature_store.h": {
+      "sha256": "2347b304c85eb2618dfd4b819e4acc372d554ba381ad7e3b9b89fdbaddac5a06",
+      "bytes": 1465,
+      "equal_first_rf_only_source": true,
+      "blob": "a0f9ec6ce233a68e83ee0657ca06d59c42bf4cd2"
+    },
+    "Apps/rf_signatures.h": {
+      "sha256": "32cad5efb47468682cabdc0fdb263ecb1c27b701434f691489b1b339b49e9825",
+      "bytes": 9607,
+      "equal_first_rf_only_source": true,
+      "blob": "ac57a147493a6c969098d13f37abb45397680e48"
+    },
+    "Apps/rf_store.h": {
+      "sha256": "faff7237d5873e234bd116e931c5398ed4147fc1a5b05a1b696172bcf1d62e44",
+      "bytes": 4376,
+      "equal_first_rf_only_source": true,
+      "blob": "33112e0e0c6807b88edb40b9af9cf59205fab440"
+    },
+    "Apps/rf_temporal.h": {
+      "sha256": "c4b86bd221c99cb70de997a57c590bdd266a440316d3921471be25491a14a9ab",
+      "bytes": 21215,
+      "equal_first_rf_only_source": true,
+      "blob": "c7f438b25fa07f862c748937e098ee9dea883b01"
+    },
+    "Apps/rf_temporal_store.h": {
+      "sha256": "0d76c52c8831879799c4774daae742d99b8a59e1e7d5996bb71aceb602206370",
+      "bytes": 6271,
+      "equal_first_rf_only_source": true,
+      "blob": "35835c418bb000ac57203c6364d06eb04b066aa3"
+    },
+    "Apps/spectrum_background.h": {
+      "sha256": "891e283010ddd8c9870a7ccb569208140ace08499518a266eee4d3bb8e4aeeff",
+      "bytes": 3879,
+      "equal_first_rf_only_source": true,
+      "blob": "df02c4f65f2ba53898476b8bd59962a10df05582"
+    },
+    "Apps/spectrum_dsp.h": {
+      "sha256": "6f8c9d47562b91dcc00e37b7130bddcdd26327c4697532de9ea8d7d0b2610f98",
+      "bytes": 33820,
+      "equal_first_rf_only_source": true,
+      "blob": "c4da3374182518b37a51f1bc28501c88941a549c"
+    },
+    "Apps/spectrum_neural.h": {
+      "sha256": "fd6bbc9f05d373c0ddfe760c18247781e4d757cdf2374a7d0ca7d87b9e34ea2e",
+      "bytes": 10900,
+      "equal_first_rf_only_source": true,
+      "blob": "4fce602bae964da1c490e9ebd99fc655daac35ad"
+    },
+    "Apps/spectrum_neural_store.h": {
+      "sha256": "110f44e7eba53811d84f2f6ed53ae5ff0f4644d6749881b71a1ae51d2bddebd0",
+      "bytes": 4449,
+      "equal_first_rf_only_source": true,
+      "blob": "3de4ff03e2eea8b059d580b793cd365b342d489f"
+    },
+    "Apps/spectrum_signature_store.h": {
+      "sha256": "1852a24485b4b0032ca0bc165bd8ea69ca4c80a86e6d7a2806f594ecf323a8f2",
+      "bytes": 2256,
+      "equal_first_rf_only_source": true,
+      "blob": "3e307df77dc08357cccd25b92d2e3cf46e4057b5"
+    },
+    "Apps/spectrum_signatures.h": {
+      "sha256": "4b7079f5d53f81b3b64bfe4335397d1151897ee91cf2a6983288fe7df814f741",
+      "bytes": 10979,
+      "equal_first_rf_only_source": true,
+      "blob": "8e8b837e77ff6d3087a1a4229c53c93affe63371"
+    },
+    "Apps/spectrum_store.h": {
+      "sha256": "e42809c8b7c9cf4319824fa11e344100dc55fcbbf6b7d35bc5acf5fee31631c9",
+      "bytes": 4829,
+      "equal_first_rf_only_source": true,
+      "blob": "84fc7933eda2bd12e4b49066cbb5e111eb3bb2dd"
+    },
+    "Apps/spectrum_temporal.h": {
+      "sha256": "af099799d64bbb04ed0c9b52c43c39cbb2c4bd66e5bcc8b45cee731d3705b003",
+      "bytes": 18998,
+      "equal_first_rf_only_source": true,
+      "blob": "976d746573f2ec84683e9e9a719eb3bdede428b8"
+    },
+    "Apps/spectrum_temporal_store.h": {
+      "sha256": "a91e8b044214395f6e3714fd9ba7375179dc9f81b8e0d62d6dbe9091d11b3014",
+      "bytes": 5158,
+      "equal_first_rf_only_source": true,
+      "blob": "0c512aa4180d21f3a492eee57d9e878ada9b3afb"
+    },
+    "Services/contexts/service.c": {
+      "sha256": "c94e9539da6b69e84b16ee800ee6fb36300e9fb66bbc2fe2f44ac95f5e483414",
+      "bytes": 27679,
+      "equal_first_rf_only_source": true,
+      "blob": "d76f98e045e8961bd601b9a505524d0f06683b42"
+    },
+    "Services/contexts/source_profile.h": {
+      "sha256": "713c4d7befffe469447c5b08f328d6ebc504385bc391c54d2c2cdf03d1aacbb4",
+      "bytes": 571,
+      "equal_first_rf_only_source": true,
+      "blob": "97c1ae6e4f1527e2dc4f3abd1e2adafa12dc57ae"
+    },
+    "Services/contexts/temporal_inference.h": {
+      "sha256": "d7ee9050a436e2af81fd8e7e69bc49053757455347a8a25ab0e456296389f737",
+      "bytes": 5195,
+      "equal_first_rf_only_source": true,
+      "blob": "f818ff3810970d8aad876cfde595d8f5c582c520"
+    },
+    "Services/contexts/temporal_models.h": {
+      "sha256": "2d03df41c4ca356c4de169af791d6253f6539c2b5d3e7f2f76588c97b6cc976e",
+      "bytes": 9894,
+      "equal_first_rf_only_source": true,
+      "blob": "69166f05dd9d75defd9fd18bfac95d524d9a579b"
+    },
+    "lib/Contexts/include/ContextsServiceV1.h": {
+      "sha256": "ade2f40d01c7c384c6a71b4ee2a3b077c140ac6af06d7cc69350f02f7be6643d",
+      "bytes": 6542,
+      "equal_first_rf_only_source": true,
+      "blob": "43cd42b6e61b053062d7e89e1dad8b25180c6801"
+    }
+  }
+}
