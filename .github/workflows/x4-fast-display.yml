@@ -8,12 +8,18 @@ on:
       - minimal/drivers/x4pro_uc8279_fast/**
       - minimal/interfaces/**
       - minimal/scripts/build_drivers.py
+      - minimal/scripts/generate_profile.py
       - minimal/scripts/prepare_sdk.py
+      - minimal/test/idle_panel_policy.inc
+      - minimal/test/run_idle_panel_policy_test.py
+      - minimal/test/run_uc8279_fast_cadence_test.py
+      - minimal/test/uc8279_fast_cadence/**
+      - minimal/test/uc8279_fast_profile_test.py
       - minimal/test/uc8279_fast_test.c
       - minimal/test/run_uc8279_fast_test.sh
       - minimal/test/prepare_sdk_test.py
       - minimal/test/ordinary-driver-sources.lock.json
-      - minimal/validation/uc8279-delta-multipulse-0.1.13.json
+      - minimal/validation/uc8279-complementary-directional-overdrive-0.1.14.json
       - .github/workflows/x4-fast-display.yml
   workflow_dispatch:
 
@@ -49,10 +55,12 @@ jobs:
           python-version: '3.11'
       - name: Verify source identity and SDK composition
         run: |
-          grep -q '"version": "0.1.13"' minimal/drivers/x4pro_uc8279_fast/manifest.json
-          grep -q 'fast_lut_frames = 2u' minimal/drivers/x4pro_uc8279_fast/driver.c
-          grep -q 'changed_bounds' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q '"version": "0.1.14"' minimal/drivers/x4pro_uc8279_fast/manifest.json
+          grep -q 'write_directional_overdrive_lut_table' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'const bool old_first = fast_update && directional_overdrive' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'table\[1\] = high; table\[2\] = low' minimal/drivers/x4pro_uc8279_fast/driver.c
           python3 minimal/test/prepare_sdk_test.py
+          python3 minimal/test/uc8279_fast_profile_test.py
       - name: UC8279 host regressions
         env:
           RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
@@ -69,17 +77,17 @@ jobs:
             --reader .shared/reader \
             --source-lock minimal/test/ordinary-driver-sources.lock.json \
             --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" \
-            --output build/x4-uc8279-fast-0.1.13 \
+            --output build/x4-uc8279-fast-0.1.14 \
             --sleep \
             --panel-driver uc8279-fast
-          git rev-parse HEAD > build/x4-uc8279-fast-0.1.13/platform-source-sha.txt
+          git rev-parse HEAD > build/x4-uc8279-fast-0.1.14/platform-source-sha.txt
           sha256sum \
             minimal/drivers/x4pro_uc8279_fast/driver.c \
             minimal/drivers/x4pro_uc8279_fast/manifest.json \
-            > build/x4-uc8279-fast-0.1.13/source-sha256.txt
+            > build/x4-uc8279-fast-0.1.14/source-sha256.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: x4-uc8279-fast-0.1.13-${{ github.sha }}
-          path: build/x4-uc8279-fast-0.1.13/
+          name: x4-uc8279-fast-0.1.14-${{ github.sha }}
+          path: build/x4-uc8279-fast-0.1.14/
           if-no-files-found: error
           retention-days: 14
