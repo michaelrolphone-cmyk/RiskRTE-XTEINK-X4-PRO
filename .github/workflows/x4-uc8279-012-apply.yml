@@ -19,14 +19,15 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/x4-012-overlay/part00 \
-              .github/x4-012-overlay/part01 \
-              .github/x4-012-overlay/part02 \
-              .github/x4-012-overlay/part03 \
-              .github/x4-012-overlay/part04 > /tmp/x4-012-overlay.b64
-          base64 -d /tmp/x4-012-overlay.b64 > /tmp/x4-012-overlay.tar.gz
-          sha256sum /tmp/x4-012-overlay.tar.gz
-          tar -xzf /tmp/x4-012-overlay.tar.gz -C .
+          cat .github/x4-012-overlay-xz/part00 \
+              .github/x4-012-overlay-xz/part01 \
+              .github/x4-012-overlay-xz/part02 \
+              .github/x4-012-overlay-xz/part03 \
+              .github/x4-012-overlay-xz/part04 \
+              .github/x4-012-overlay-xz/part05 > /tmp/x4-012-files.b64
+          base64 -d /tmp/x4-012-files.b64 > /tmp/x4-012-files.tar.xz
+          echo 'e84bbf064a0a6c296401f2dd2780cdf86a9f6a3fda4012dbbe1f8754ed4006b7  /tmp/x4-012-files.tar.xz' | sha256sum -c -
+          tar -xJf /tmp/x4-012-files.tar.xz -C .
 
           echo '653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430  minimal/drivers/x4pro_uc8279_fast/driver.c' | sha256sum -c -
           echo '2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498  minimal/drivers/x4pro_uc8279_fast/manifest.json' | sha256sum -c -
@@ -35,7 +36,7 @@ jobs:
           grep -q '"version": "0.1.12"' minimal/drivers/x4pro_uc8279_fast/manifest.json
           grep -q 'four-frame full-visible absolute redraw' minimal/drivers/x4pro_uc8279_fast/README.md
 
-          rm -rf .github/x4-012-overlay
+          rm -rf .github/x4-012-overlay .github/x4-012-overlay-xz
           rm -f .github/workflows/x4-uc8279-012-apply.yml
           git diff --check
           git config user.name 'github-actions[bot]'
