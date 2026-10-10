@@ -70,6 +70,8 @@ def build(a):
   blob=artifact(row['elf']);meta=artifact(row['manifest']);receipt=json.loads(artifact(row['build_receipt']))
   require(receipt.get('elf_sha256',receipt.get('sha256'))==sha(blob),'Target receipt hash differs: '+ident)
   require(receipt.get('elf_bytes',receipt.get('size_bytes',receipt.get('bytes')))==len(blob),'Target receipt size differs: '+ident)
+  if ident not in ('text-input-host','wifi'):
+   require('-DPORTABLE_RASTER_SNAPSHOT' in receipt.get('build_defines',receipt.get('defines',[])),'Shared raster selection absent: '+ident)
   for proof in row['qualification_receipts']:artifact(proof)
   require(row['qualification_receipts'],'Missing qualification receipt: '+ident)
   manifest=json.loads(meta);before=json.loads(files[row['store_manifest']]);require(before['id']==manifest['id']==ident and manifest['version']==EXPECTED[ident] and before['version']!=manifest['version'],'Wrong module identity/version')

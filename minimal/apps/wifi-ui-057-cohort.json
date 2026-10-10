@@ -1,20 +1,24 @@
 {
   "schema": 1,
-  "status": "proposed source cohort; native .2.2 union and versioned app target closures pending",
+  "status": "native and all22 replacements source-qualified; full image assembly pending",
   "product_version": "0.1.57",
   "base_product": "0.1.55",
   "base_image_sha256": "015f7e3f697081b14c1cccbc08c38fa50f2052b3097e8e290a41f27dfc1ae10e",
   "source_base": "5cc9791e63102725a48a6a0c44e1c2ab0bb358e4",
   "product_reservation_commit": "1a18e286b39cf7ee6a13b4d181e4d526b2d10ded",
   "sources": {
-    "system_qualified": "ac1f1ead8251776692cdd357569a52ebca8a776e",
-    "utilities_qualified": "6f440f6cdd7e621012be8d5d6321b6a090101b5b",
+    "system_qualified": "8a75862929e4e83c8f66b3d58cc1c36d44830c84",
+    "utilities_qualified": "35c2141c68668971dc524d98702109b00c740815",
     "wifi_provider": "a304597bf26491483bb0a567569f0ca0267cdf9c",
     "native_async_slice": "fc05d35827fc0d51be749c6797be4b3a4426ba23",
-    "native_product_union": "pending .2.2 owner",
+    "native_product_union": {
+      "local_commit": "0f17a435f99d02d60ca50df1d1a51fcef123db89",
+      "publication": "tree-equivalent working source mapping pending; exact local source bundle retained"
+    },
     "points_application_base": "ceed9a85ef21c7204ca5b89b46df13de001f69c1",
     "contexts_application_base": "918c730a10c6a80b116a6a3aa01e891641eeadd5",
-    "gameboy": "a579dedd2a76956c7dcd654434cff9a556beb37c"
+    "gameboy": "a579dedd2a76956c7dcd654434cff9a556beb37c",
+    "points_versioned": "72f78ca8ea918c5c6d26acfa2e3935be4b2030dd"
   },
   "native_build_options": {
     "app_policy_rows": 18,
@@ -1564,11 +1568,12 @@
     "board_json": "byte-identical .55",
     "module_roster": "same47 modules/21apps/26providers",
     "storage_namespaces": "preserve .55",
-    "endpoint_or_renderer_additions": []
+    "endpoint_or_renderer_additions": [
+      "qualified explicit --raster-snapshot for20 portable apps; no graph or capability addition"
+    ]
   },
   "excluded": [
     "unfinished WebDAV endpoint",
-    "isolated phase3 renderer",
     "external temporal Contexts application/SDR/Home composition"
   ],
   "verification_required": [
