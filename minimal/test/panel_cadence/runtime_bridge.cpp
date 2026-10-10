@@ -13,6 +13,9 @@ extern "C" void panel_runtime_yield(uint32_t ms) { active_runtime->yield(ms); }
 extern "C" void panel_runtime_poll(uint32_t ms) { panel_cadence_poll(ms); }
 extern "C" void panel_runtime_reset_metrics(void) { wait_calls=wait_ms=max_wait=0; }
 extern "C" void panel_runtime_expect_idle(uint32_t ms) { assert(wait_calls==1&&wait_ms==ms&&max_wait==ms); }
+extern "C" void panel_runtime_expect_idle_sliced(uint32_t ms) {
+    assert(wait_calls==(ms+3)/4&&wait_ms==ms&&max_wait==(ms<4?ms:4));
+}
 extern "C" void panel_runtime_report(void) {
     printf("\"scheduler_waits\":%u,\"scheduler_wait_ms\":%u,\"max_requested_wait_ms\":%u",wait_calls,wait_ms,max_wait);
 }

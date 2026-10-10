@@ -1,0 +1,104 @@
+{
+  "inherited_contexts_070": {
+    "status": "published to existing pull request branches; no merge or release",
+    "branch": "fix/x4-render-performance",
+    "mapping_reason": "The connected GitHub account created commits with different commit metadata. Each published build commit below has the exact same Git tree as the corresponding locally compiled source commit.",
+    "sources": [
+      {
+        "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
+        "local_commit": "2cab22d54a5f2b764c67b9837426cb4f61691309",
+        "published_build_commit": "35ede1f737786ad6dc001efd94bad97702cb042e",
+        "tree": "1641daeba078f332bd35fbcf63f9f66ff9b7725f",
+        "pr": 92
+      },
+      {
+        "repository": "michaelrolphone-cmyk/RiscRTE-Utilities",
+        "local_commit": "411a88a5b8c5f815e8261218f80fd496312cf078",
+        "published_build_commit": "efdc4490b8a591cc8ad2d4890ee2c178585c030f",
+        "tree": "c27f579ccccbcdb542a45150324d0a73efa1919b",
+        "branch_head": "cabbfe191821bb666e9d79c0e5bf79bc36500eb1",
+        "branch_head_tree": "1314a79ff67045db67bb0931db8509634e30aeb3",
+        "branch_head_change": "Only the CI workflow pin changes to the published System Apps commit; compiled application and service inputs are identical.",
+        "pr": 58
+      },
+      {
+        "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+        "local_commit": "4e26c19efe22059fdc0f3894c0ac5a31f835e678",
+        "published_build_commit": "470caa8942d010cae58ae7b182ef108fdb0966ae",
+        "tree": "f0b323960d699e5528ce3516aeb01952f40df3aa",
+        "pr": 25
+      }
+    ]
+  },
+  "unchanged_native_and_other_modules": {
+    "utilities": {
+      "local": "489963e762a70fe664be121c4c9934b0326bc844",
+      "public": "2e8d0530d3faf8299deb8d93707ca7248e9712d9",
+      "tree": "8e079db687c1637147e1641cf4049dc52bc3ba98",
+      "repository": "michaelrolphone-cmyk/RiscRTE-Utilities",
+      "branch": "fix/x4-render-performance"
+    },
+    "runtime": {
+      "local": "21967e5e5e56d3873072aa6d82ea546cfa559cf4",
+      "public": "f541fdfcff26359fd2ca08689c3ad63c1f5f97e2",
+      "tree": "acd607148c8d29271b266c1624b73c33ee0ac499",
+      "repository": "michaelrolphone-cmyk/RiscRTE",
+      "branch": "integrate/x4-app-upgrades-064"
+    },
+    "productivity": {
+      "local": "c7fd7376e83187203b5b9afae775a8f17c87f4f8",
+      "public": "bd613ba150f0bbe1fd39eaf342574a664a50c67a",
+      "tree": "738717c60a84e8d06336d87eaf39d8f4901f444e",
+      "repository": "michaelrolphone-cmyk/RiscRTE-Productivity",
+      "branch": "fix/x4-render-performance"
+    },
+    "drivers": {
+      "local": "ee6bc2ee71535775b9d549477c0cf6ae5e192042",
+      "public": "aac1cb342696e96345d4546e2c69023834c6c8d4",
+      "tree": "e7c25bbd42646278bfc0130dee4ebfe0337c7d60",
+      "repository": "michaelrolphone-cmyk/RiscRTE-Drivers",
+      "branch": "integrate/x4-app-upgrades-064"
+    },
+    "native_platform": {
+      "local": "3592e0aa45f2fa829dceac07820552e86d46584d",
+      "public": "0b641733ee4162df395eab2c7c1b8aa0c3ec292a",
+      "tree": "4751ed45d050157d5125dd6cfd1d274cad4ea2bd",
+      "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO"
+    },
+    "contexts_baseline": {
+      "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+      "public_commit": "dde97468836204a3f9a3ce9aa936d4123dcbc2bd",
+      "tree": "325320eb4db9948e304e76fe6e37b6a9a3ed8c00",
+      "image_sha256": "f7ea07d92b29f105e799765a4fdd42fc6f98d1f220687463a56d3bd8733b1990"
+    }
+  },
+  "system_animation": {
+    "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
+    "local_commit": "1b71325d8aab8b976446eedefa86005e2063919d",
+    "published_build_commit": "83d903c825282e9fd8e6b2387d1eba92d5ce02f4",
+    "tree": "67e063a895494c3d8af2a6fb7aec19ccb41a9cb8",
+    "branch": "fix/x4-render-performance",
+    "pr": 92
+  },
+  "baseline": {
+    "product": "0.1.71",
+    "sha256": "4fbcf55432827d9d8e85a47aac39567064167b5d3ae9efe7ed3e53df9ac44f2a"
+  },
+  "panel": {
+    "commit": "c081eebddad9ac61740b758e3fa74e5c92e325b1",
+    "version": "0.1.12",
+    "files": {
+      "minimal/drivers/x4pro_uc8279_fast/driver.c": "653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430",
+      "minimal/drivers/x4pro_uc8279_fast/manifest.json": "2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498",
+      "minimal/drivers/x4pro_uc8279_fast/README.md": "7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a"
+    },
+    "reason": "User explicitly selected the original 0.1.12 and rejected 0.1.18/0.1.19"
+  },
+  "reader_animation": {
+    "repository": "michaelrolphone-cmyk/T5S3-Reader",
+    "commit": "aac8c06d3221139084acd0cfc64f7b0ba194a97a",
+    "source": "src/components/StartupScreen.cpp",
+    "source_sha256": "da88f61f129160033ab6d48beae3f43ebd19ba1090c61c7b458cc4a6076ae54f",
+    "adaptation": "Original ink sweep, easing, wordmark and loading dots; C logical row-span raster through immutable deferred draw commands; cold boot only; 1650 ms reveal then 150 ms fade, input may skip; no hardware takeover or worker."
+  }
+}

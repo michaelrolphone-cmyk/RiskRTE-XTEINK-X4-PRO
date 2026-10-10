@@ -1,0 +1,15 @@
+{
+  "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+  "commit": "e2cca3d9660011c79c328efb82bd72d13cdf6160",
+  "version": "0.1.16",
+  "reason": "User selected 0.1.16 for next cached-framebuffer test build",
+  "files": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "71e14a9ef94324aa6639fff28d8b02e5d6389827b478f0c02baa1c9cbd5d57a5",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "5baaa37656bcee9af406a98dc82a246e4be4b79f16a68764b0519a3bba444d86",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "6c2b2e2782f6ffb3eadf6550ec45bd9d34a2844c02d54ac42c567edd007c0386",
+    "minimal/test/uc8279_fast_test.c": "832fe36c989e1690ddff995673719dbd00dbb5e20bb66eab4b3a99cf33a665cf",
+    "minimal/test/uc8279_fast_profile_test.py": "20e35a96d1081e591359fe669d3fe1e77992ca2e7d013a97e5a9c285057a8064",
+    "minimal/test/run_idle_panel_policy_test.py": "c44f675497e4f5e0e78d79a5c381fa3d66dd6889d5c01fff2e2e544add99143e",
+    "minimal/validation/uc8279-absolute4-0.1.16.json": "8ccec5873048210e72ba50c0f7dec2c2af7243f14096d44e82335f941dba83cf"
+  }
+}

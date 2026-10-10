@@ -7,6 +7,7 @@
 
 extern const risc_display_output_api_v1 *panel_cadence_start(unsigned);
 extern uint32_t panel_cadence_clock(void);
+extern void panel_cadence_delay(uint32_t);
 extern void panel_cadence_reset_metrics(void);
 extern void panel_cadence_report(const char *);
 extern void panel_cadence_stop(void);
@@ -14,6 +15,7 @@ extern void panel_runtime_yield(uint32_t);
 extern void panel_runtime_reset_metrics(void);
 extern void panel_runtime_report(void);
 extern void panel_runtime_expect_idle(uint32_t);
+extern void panel_runtime_expect_idle_sliced(uint32_t);
 #ifdef PANEL_RESIDENT_SETTLE
 extern bool panel_cadence_settle_active(void);
 extern void panel_cadence_settle_begin(void);
@@ -57,7 +59,11 @@ static void measure_frame(unsigned interval,bool partial) {
     if(partial)v->circle(350,350,2,true);
     present(false);
 #ifndef PANEL_BASELINE_ADAPTER
+#ifdef PORTABLE_RASTER_SNAPSHOT
+    while(!portable_paper_frame_idle()&&!failed){
+#else
     while(paper_token&&!failed){
+#endif
         t5_app_input_t input={0};assert(poll_input(&input,interval));++input_polls;
         const uint32_t now=panel_cadence_clock();
         if(now-last_input_at>max_input_gap)max_input_gap=now-last_input_at;
@@ -74,16 +80,21 @@ static void measure_frame(unsigned interval,bool partial) {
 void panel_adapter_cadence(void) {
     const unsigned interval=(unsigned)atoi(getenv("PANEL_APP_WAIT_MS"));
     const unsigned cost=(unsigned)atoi(getenv("PANEL_GPIO_WRITES_PER_MS"));
+    const char *work_env=getenv("PANEL_SETTLE_WORK_MS");
+    const unsigned settle_work=work_env?(unsigned)atoi(work_env):0;
     real_panel=panel_cadence_start(cost);panel_api=*real_panel;panel_api.struct_size=sizeof(panel_api);panel_api.present_status=cadence_status;
     cadence_touch=fx_touch;cadence_touch.snapshot=cadence_snapshot;
     fx_runtime.health=cadence_health;fx_runtime.yield_ms=panel_runtime_yield;fx_runtime.acquire=cadence_acquire;
     assert(app_module_init()==0);
-    printf("{\"app_wait_ms\":%u,\"gpio_writes_per_ms\":%u,\"frames\":[{",interval,cost);
+    printf("{\"app_wait_ms\":%u,\"gpio_writes_per_ms\":%u,\"settle_work_ms\":%u,\"frames\":[{",interval,cost,settle_work);
     measure_frame(interval,false);printf("},{");measure_frame(interval,true);printf("}],\"idle\":{");
 #ifdef PANEL_RESIDENT_SETTLE
     panel_cadence_settle_begin();panel_runtime_reset_metrics();
     last_input_at=last_touch_at=panel_cadence_clock();input_polls=max_input_gap=touch_samples=max_touch_gap=0;
     for(unsigned n=0;panel_cadence_settle_active()&&n<3000;++n){
+        /* Model synchronous Home work after the first completed image. It
+         * consumes the app's poll interval without advancing providers. */
+        panel_cadence_delay(settle_work);
         assert(!paper_token);t5_app_input_t input={0};assert(poll_input(&input,interval));++input_polls;
         const uint32_t now=panel_cadence_clock();
         if(now-last_input_at>max_input_gap)max_input_gap=now-last_input_at;
@@ -95,7 +106,12 @@ void panel_adapter_cadence(void) {
         input_polls,max_input_gap,touch_samples,max_touch_gap);
 #endif
     panel_runtime_reset_metrics();last_poll_at=panel_cadence_clock();
-    t5_app_input_t input={0};assert(poll_input(&input,interval));panel_runtime_expect_idle(interval);
+    t5_app_input_t input={0};assert(poll_input(&input,interval));
+#ifdef PORTABLE_RASTER_SNAPSHOT
+    panel_runtime_expect_idle_sliced(interval);
+#else
+    panel_runtime_expect_idle(interval);
+#endif
     panel_runtime_report();
 #ifdef PANEL_RESIDENT_MAINTENANCE
     printf("},\"maintenance\":{");

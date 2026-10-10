@@ -66,9 +66,13 @@ def compile_harness(runtime, output, app_data=False, native_elf=None, app_policy
                'src/runtime/drivers/ProviderModuleV2.cpp', 'src/ports/esp32s3/CpuPort.cpp')]
     command = ['c++', '-std=c++17', '-Wall', '-Wextra', '-Werror',
                '-Wno-missing-field-initializers', '-rdynamic']
-    if type(app_policy_rows) is not int or app_policy_rows not in (16, 17, 18):
-        raise ValueError('App policy rows must be exactly 16, 17 or 18')
+    if type(app_policy_rows) is not int or app_policy_rows not in (16, 17, 18, 24):
+        raise ValueError('App policy rows must be exactly 16, 17, 18 or 24')
     marker = b'RISC_APP_POLICY_ROWS:' + str(app_policy_rows).encode() + b'\0'
+    if app_policy_rows == 24:
+        if native_elf is None or marker not in native_elf or b'RISC_APP_REQUIREMENT_ROWS:24\0' not in native_elf:
+            raise ValueError('Policy24 admission requires matching native policy/requirement markers')
+        command += ['-DRISC_APP_REQUIREMENT_ROWS=24']
     if app_policy_rows == 18:
         if native_elf is None or marker not in native_elf or b'RISC_APP_REQUIREMENT_ROWS:17\0' not in native_elf:
             raise ValueError('Policy18 admission requires native policy18/requirements17 markers')
@@ -154,7 +158,15 @@ def compile_harness(runtime, output, app_data=False, native_elf=None, app_policy
         command += ['-DSTORE_ADMISSION_UPDATE_PLATFORMS']
     command += ['-I' + str(p) for p in includes]
     command += [str(p) for p in sources]
-    command += [str(ROOT / 'tests/runtime_store_admission.cpp'), '-ldl', '-o', str(output)]
+    # Preserve the original production-admission fixture, correcting only its
+    # diagnostic selection: failed prepare must report the active Runtime error,
+    # not the never-used candidate's empty error string.
+    fixture = (ROOT / 'tests/runtime_store_admission.cpp').read_text()
+    fixture = fixture.replace('candidate.error(),hardwareCalls',
+                              '(prepared?candidate.error():runtime.error()),hardwareCalls')
+    selected_fixture = output.parent / 'runtime_store_admission.cpp'
+    selected_fixture.write_text(fixture)
+    command += ['-I' + str(ROOT / 'tests'), str(selected_fixture), '-ldl', '-o', str(output)]
     subprocess.run(command, check=True, timeout=180)
     return output
 
@@ -179,7 +191,7 @@ def validate_paths(store):
             raise ValueError('Unsafe store member: ' + name)
 
 
-def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE):
+def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE, *, expected_tool_sha256=None):
     if expected_size not in (BOOTFS_SIZE, 0x510000):
         raise ValueError('Unknown SPIFFS geometry')
     if tool is None:
@@ -187,7 +199,7 @@ def unpack_image(raw, tool=None, expected_size=BOOTFS_SIZE):
         validate_paths(files)
         return files
     tool = Path(tool).resolve()
-    if sha(tool.read_bytes()) != MKSPIFFS_SHA256:
+    if sha(tool.read_bytes()) != (expected_tool_sha256 or MKSPIFFS_SHA256):
         raise ValueError('SPIFFS tool differs from pinned Arduino ESP32 binary')
     if len(raw) != expected_size:
         raise ValueError('Incorrect SPIFFS partition size')
