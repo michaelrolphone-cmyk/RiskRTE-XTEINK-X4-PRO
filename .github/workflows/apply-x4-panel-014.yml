@@ -48,7 +48,7 @@ jobs:
               "grep -q 'changed_bounds' minimal/drivers/x4pro_uc8279_fast/driver.c":
                   "grep -q 'const bool old_first = fast_update && directional_overdrive' minimal/drivers/x4pro_uc8279_fast/driver.c\n          grep -q 'table\\[1\\] = high; table\\[2\\] = low' minimal/drivers/x4pro_uc8279_fast/driver.c",
               'build/x4-uc8279-fast-0.1.13': 'build/x4-uc8279-fast-0.1.14',
-              'x4-uc8279-fast-0.1.13-${{ github.sha }}': 'x4-uc8279-fast-0.1.14-${{ github.sha }}',
+              'x4-uc8279-fast-0.1.13-': 'x4-uc8279-fast-0.1.14-',
           }
           for old, new in replacements.items():
               if old not in text:
