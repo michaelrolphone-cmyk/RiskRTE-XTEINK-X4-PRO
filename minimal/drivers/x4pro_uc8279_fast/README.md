@@ -1,10 +1,27 @@
-# X4 UC8279 fast provider 0.1.14
+# X4 UC8279 fast provider 0.1.15
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
 fallback for both UC8279 and SSD1677. Select the new provider explicitly with
 `--panel uc8279 --panel-driver uc8279-fast` in profile/bundle generation and
 `--panel-driver uc8279-fast` in the provider builder. SSD selection is rejected.
+
+## Hardware-selected mode 1 waveform (0.1.15)
+
+Version 0.1.15 adopts the best overall result from the X4LAB v0.1.9
+directional-balance run: mode 1, complementary directional `2+2` at
+symmetric +/-14 V with factory VCOM. For active changed windows no taller than
+160 rows, each white-to-black and black-to-white phase now occupies two scan
+frames (`0x42`/`0x82`) instead of one (`0x41`/`0x81`). The driver explicitly
+programs POWER_SETTING `{07,17,3A,3A,03}` after reset and again after every PON;
+it does not write VCOM DC, preserving the factory reference.
+
+The hardware comparison found this profile produced the cleanest overall black
+and white block motion. The symmetric +/-15 V control improved white clearing
+but left a solid gray rectangle behind the moving black target, so maximum
+rails are not adopted. Changed-byte windows, truthful DTM1/DTM2 ordering, the
+four-frame endpoint redraw, complete plane reconciliation, and POF behavior are
+unchanged. Broad 480-row motion still uses the existing one-frame absolute bank.
 
 ## Complementary directional overdrive (0.1.14)
 
@@ -90,9 +107,9 @@ OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
 rows). Later DEFAULT/LOW_LATENCY presentations use external A2 at PLL 0x0F.
 Effective windows up to 160 rows use the complementary two-phase differential
-bank. Registers 0x20, 0x21 and 0x24 encode high then low (`0x41,0x81`), register
-0x22 holds low for both phases (`0x81,0x81`), and register 0x23 holds high for
-both (`0x41,0x41`). This makes one transition active only in phase A and the
+bank. Registers 0x20, 0x21 and 0x24 encode high then low (`0x42,0x82`), register
+0x22 holds low for both two-frame phases (`0x82,0x82`), and register 0x23 holds
+high for both (`0x42,0x42`). This makes one transition active only in phase A and the
 other only in phase B while unchanged buckets track VCOM. Broader/full-visible
 motion retains the corrected one-frame absolute bank (`0x81/0x41`).
 

@@ -52,7 +52,7 @@ static void model_command(uint8_t value){
   if(cmd==0x30)assert(data_index==1);
  }
  switch(value){
- case 0x00:case 0x02:case 0x03:case 0x04:case 0x07:
+ case 0x00:case 0x01:case 0x02:case 0x03:case 0x04:case 0x07:
  case 0x10:case 0x12:case 0x13:
  case 0x20:case 0x21:case 0x22:case 0x23:case 0x24:
  case 0x30:case 0x50:case 0x61:case 0x65:case 0x70:case 0x71:
@@ -65,7 +65,8 @@ static void model_command(uint8_t value){
  if(cmd==0x04){
   ++pons; phase=2; busy_from=tick; busy_until=tick+2;
   /* Model PON restoring MTP profile defaults while preserving RAM. */
-  memset(regs[0x00],0,sizeof(regs[0x00])); memset(regs[0x30],0,sizeof(regs[0x30]));
+  memset(regs[0x00],0,sizeof(regs[0x00])); memset(regs[0x01],0,sizeof(regs[0x01]));
+  memset(regs[0x30],0,sizeof(regs[0x30]));
   memset(regs[0x50],0,sizeof(regs[0x50])); memset(regs[0xE0],0,sizeof(regs[0xE0]));
   memset(regs[0xE1],0,sizeof(regs[0xE1])); memset(regs[0xE5],0,sizeof(regs[0xE5]));
   for(unsigned r=0;r<5;++r)memset(regs[0x20+r],0,sizeof(regs[0x20+r]));
@@ -78,9 +79,11 @@ static void model_command(uint8_t value){
   unsigned top=0,height=480,left=0,width=800;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
-   const bool directional=regs[0x20][1]==0x41u&&regs[0x20][2]==0x81u;
+   assert(regs[0x01][0]==0x07u&&regs[0x01][1]==0x17u&&
+          regs[0x01][2]==0x3Au&&regs[0x01][3]==0x3Au&&regs[0x01][4]==0x03u);
+   const bool directional=regs[0x20][1]==0x42u&&regs[0x20][2]==0x82u;
    if(directional){
-    const uint8_t high=0x41u,low=0x81u;
+    const uint8_t high=0x42u,low=0x82u;
     for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){
      uint8_t want=0;if(i==0||i==5||i==6)want=1;
      if(i==1)want=(r==2?low:high);
@@ -156,6 +159,7 @@ static void model_command(uint8_t value){
 static void model_data(uint8_t value){
  /* Every initialization/resume write must preserve normal600-gate geometry,
   * zero gate/source start and selected PLLs, not merely the last refresh. */
+ if(cmd==0x01){const uint8_t power[]={0x07,0x17,0x3A,0x3A,0x03};assert(data_index<sizeof(power)&&value==power[data_index]);}
  if(cmd==0x61){const uint8_t tres[]={0x03,0x20,0x02,0x58};assert(data_index<sizeof(tres)&&value==tres[data_index]);}
  if(cmd==0x65)assert(data_index<4&&value==0);
  if(cmd==0x30)assert(data_index==0&&(value==0x0E||value==0x0F));

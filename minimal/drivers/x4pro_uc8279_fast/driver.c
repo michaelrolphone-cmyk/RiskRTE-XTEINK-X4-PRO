@@ -20,7 +20,10 @@
 #define X4PRO_FINAL_TARGET_FRAMES 4u
 #define X4PRO_STRONG_MOTION_FRAMES 2u
 #define X4PRO_STRONG_MOTION_MAX_ROWS 160u
-#define X4PRO_DIRECTIONAL_PHASE_FRAMES 1u
+#define X4PRO_DIRECTIONAL_PHASE_FRAMES 2u
+#define X4PRO_DIRECTIONAL_POWER_VDH 0x3Au
+#define X4PRO_DIRECTIONAL_POWER_VDL 0x3Au
+#define X4PRO_DIRECTIONAL_POWER_VDHR 0x03u
 /* Role indices are local; physical pads come only from the typed device. */
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
@@ -173,6 +176,13 @@ static void write_register(uint8_t cmd, const uint8_t *bytes, size_t length) {
     (void)end_spi();
 }
 static void reg1(uint8_t cmd, uint8_t value) { write_register(cmd, &value, 1u); }
+static void write_mode1_power_profile(void) {
+    /* Hardware-selected X4LAB v0.1.9 mode 1: symmetric +/-14 V
+     * source rails, 3 V VDHR, and factory VCOM (no 0x82 write). */
+    const uint8_t power[] = {0x07u, 0x17u, X4PRO_DIRECTIONAL_POWER_VDH,
+        X4PRO_DIRECTIONAL_POWER_VDL, X4PRO_DIRECTIONAL_POWER_VDHR};
+    write_register(0x01u, power, sizeof(power));
+}
 static uint64_t now_ms(void) {
     if (!clock_api || !clock_api->monotonic_ms) return UINT64_MAX;
     return clock_api->monotonic_ms(clock_api->context);
@@ -271,6 +281,8 @@ static bool uc_init_panel(void) {
     sleep_ms(50);
     uint64_t now = 0;
     if (!sample_now(&now) || now > UINT64_MAX - 500u || !uc_ready_for("uc reset busy timeout", now + 500u)) return false;
+    write_mode1_power_profile();
+    if (io_failed) return false;
     command(0x00); data1(0x37); data1(0x4D);
     command(0x61); data1(0x03); data1(0x20); data1(0x02); data1(0x58);
     command(0x65); data1(0); data1(0); data1(0); data1(0);
@@ -331,8 +343,10 @@ static void write_directional_overdrive_lut_table(unsigned i) {
     const uint8_t high = (uint8_t)(0x40u | X4PRO_DIRECTIONAL_PHASE_FRAMES);
     const uint8_t low = (uint8_t)(0x80u | X4PRO_DIRECTIONAL_PHASE_FRAMES);
     memset(table, 0, sizeof(table)); table[0] = table[5] = table[6] = 1u;
-    /* Two complementary phases preserve the two-frame active budget while
-     * maximizing source-to-VCOM field only for the selected transition:
+    /* Hardware-selected X4LAB v0.1.9 mode 1 uses two complementary
+     * phases with two scan frames per direction (2+2) at symmetric
+     * +/-14 V, maximizing source-to-VCOM field only for the selected
+     * transition:
      *
      * phase A: VCOM=high; 01 bucket=low (overdrive), 10/WW/BB track high
      * phase B: VCOM=low;  10 bucket=high (overdrive), 01/WW/BB track low
@@ -806,7 +820,11 @@ static void poll_present_locked(uint32_t budget_ms) {
                 break;
             }
             screen_powered = true;
-            /* PON may restore MTP defaults. Close any pre-PON partial
+            /* PON may restore MTP defaults, including source rails.
+             * Reassert the selected mode-1 +/-14 V profile before DRF. */
+            write_mode1_power_profile();
+            if (io_failed) goto failed;
+            /* Close any pre-PON partial
              * window and replay the selected profile before DRF. */
             if (fast_update) { command(0x92); if (io_failed) goto failed; }
             setup_step = 0; async_stage = UC_ASYNC_SETUP;

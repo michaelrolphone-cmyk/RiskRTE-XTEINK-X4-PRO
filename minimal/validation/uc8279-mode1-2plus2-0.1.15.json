@@ -1,0 +1,47 @@
+{
+  "schema": "x4.uc8279.mode1-2plus2-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T19:19:38.488117+00:00",
+  "baseline": {
+    "branch": "recovery/x4-sd-state-0214-20261010",
+    "commit": "879ebef75b47f723655253ec04428f7a48e487b2",
+    "driver_version": "0.1.14"
+  },
+  "candidate": {
+    "driver_version": "0.1.15"
+  },
+  "hardware_source": {
+    "repository": "michaelrolphone-cmyk/T5S3-Reader",
+    "commit": "002880584caa0763484c4e058a64790def28307a",
+    "pull_request": 474,
+    "mode": 1,
+    "profile": "complementary directional 2+2, 200 Hz, symmetric +/-14 V, factory VCOM",
+    "observation": "best overall clean and sharp black/white block motion; +/-15 V left a solid gray black-target trail"
+  },
+  "implementation": {
+    "scope": "DEFAULT/LOW_LATENCY effective windows up to 160 rows",
+    "phase_frames_per_direction": 2,
+    "power_setting_hex": "07 17 3A 3A 03",
+    "vcom": "factory; no VCOM-DC write",
+    "unchanged": [
+      "changed-byte horizontal windows",
+      "40/80/160/480 row quantization",
+      "truthful DTM1 OLD then DTM2 NEW",
+      "broad 480-row one-frame absolute motion",
+      "four-frame final-target endpoint redraw",
+      "complete DTM1/DTM2 reconciliation and POF"
+    ]
+  },
+  "software_validation": {
+    "status": "pending exact-head GitHub Actions qualification",
+    "workflow": ".github/workflows/x4-fast-display.yml"
+  },
+  "integrated_driver_hardware_tested": false,
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "9d51c7c40f5aea918ffd0911f81a960020b08d66bdd04d6a733741bf60d05f61",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "f52678d3af785c17e8b17f03a05e843b4f11aef16a768ecdeac2320b23939fee",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "03922f3a116260db58a9f62fd17f647445429aafefa6c4df9288fc03eb460861",
+    "minimal/test/uc8279_fast_test.c": "91f7011bbbc7409c2bd40919c5c25f81a83234e926556a02615a7787a78c6625",
+    "minimal/test/uc8279_fast_profile_test.py": "4426f9f3fb90e4fd8c9cf8fd96641fc314f0d4dbf3b9b2e93165a6e8d2f5ca06"
+  }
+}
