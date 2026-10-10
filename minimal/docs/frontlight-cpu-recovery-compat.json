@@ -1,0 +1,16 @@
+{
+  "scope": "Test fixture API-prefix compatibility only; no production provider change",
+  "failure": "CI Runtime aaa77ad uses garden_gpio_v1 directly; recovered .100 uses tagged risc_gpio_sdmmc_api_v1.base",
+  "fix": "Overloaded test-only gpioBase accessor accepts either real Runtime layout without casts",
+  "tested_runtime_commits": [
+    "aaa77ad11fc66b42430254ab7065590d33fd1fca",
+    "615fb236b591bc6974a35ae23c7b2b785c0a5016"
+  ],
+  "reader_sdk_commit": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
+  "normal_sanitized_runs": 4,
+  "cases_per_run": 6,
+  "asan_ubsan": true,
+  "lsan": false,
+  "fixture_sha256": "ac53bde0a64a8264dc732458386b5ee046dd40d37a1036ad4b886612acbb4cb3",
+  "hardware": false
+}
