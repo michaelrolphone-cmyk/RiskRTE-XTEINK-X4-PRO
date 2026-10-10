@@ -1,7 +1,7 @@
 /* X4 hardware one-bit SDMMC transport, provider ABI2.
  * Legacy GPIO is available only in explicitly selected compatibility tests.
  * Protocol derived from Drivers/x4pro_sd/driver.c at Reader 34d8e694.
- * Filesystem implementation remains shared in Reader storage_fatfs/volume.c.
+ * Filesystem implementation is shared by all consumers in RiscRTE-Drivers StorageFatFs.
  * GPIO authority and synchronization are scoped to this hardware.device. */
 #ifndef X4PRO_SD_ALLOW_LEGACY_GPIO
 #define X4PRO_SD_ALLOW_LEGACY_GPIO 0
@@ -11,7 +11,7 @@
 #include <RiscProviderSyncV1.h>
 #include <RiscDiagnosticSourceV1.h>
 #include <RiscStorageExportV1.h>
-#include <RiscStorageVolumeStateV1.h>
+#include <RiscStorageVolumeFsV1.h>
 #include <GardenPlatformV1.h>
 #include <RiscGpioSdmmcV1.h>
 #include "../x4pro_board_power/PowerReadyV1.h"
@@ -557,7 +557,7 @@ static bool quiesce(void) {
 static void stop(void) { /* Successful quiesce has completed all fallible work. */ }
 static const risc_driver_service_v2 driver = {{{{
     RISC_PROVIDER_DRIVER_ABI_V2, sizeof(driver), "x4pro-sd",
-    "storage.volume", 1, &logging_api, start, stop, quiesce
+    "storage.volume", 1, &filesystem_api, start, stop, quiesce
 }, bootlog_descriptor_error, NULL}, NULL}, RISC_DRIVER_SERVICE_TAG_V1,
 RISC_DRIVER_SERVICE_VERSION_V1, bootlog_service};
 __attribute__((visibility("default")))
@@ -565,7 +565,7 @@ const risc_driver_v2 *t5_driver_get(uint32_t abi) {
     if (abi != RISC_PROVIDER_DRIVER_ABI_V2) return NULL;
     if (!logging_api.prepared.base.sleep.terminal.power.volume.base.api_version) {
         logging_api.prepared.base.sleep = api;
-        logging_api.prepared.base.sleep.terminal.power.volume.base.struct_size = sizeof(logging_api);
+        logging_api.prepared.base.sleep.terminal.power.volume.base.struct_size = sizeof(filesystem_api);
         logging_api.prepared.base.sleep.terminal.power.volume.base.last_error = bootlog_last_error;
         logging_api.prepared.base.export_tag = RISC_STORAGE_EXPORT_TAG;
         logging_api.prepared.base.export_version = 1u;
@@ -581,6 +581,10 @@ const risc_driver_v2 *t5_driver_get(uint32_t abi) {
         logging_api.state_tag = RISC_STORAGE_STATE_TAG;
         logging_api.state_version = 1u;
         logging_api.observe = observe_state;
+        filesystem_api.fs_tag=RISC_STORAGE_FS_TAG;filesystem_api.fs_version=1;
+        filesystem_api.dir_tell=fs_dir_tell;filesystem_api.dir_seek=fs_dir_seek;
+        filesystem_api.metadata=fs_metadata;filesystem_api.file_truncate=fs_truncate;
+        filesystem_api.replace_file=fs_replace_file;filesystem_api.recover_replace=fs_recover_replace;
     }
     return &driver.poll.streams.driver;
 }
