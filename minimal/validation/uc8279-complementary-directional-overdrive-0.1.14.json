@@ -1,0 +1,68 @@
+{
+  "schema": "x4.uc8279.complementary-directional-overdrive-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T14:27:07.535972+00:00",
+  "baseline": {
+    "branch": "recovery/x4-sd-state-0214-20261010",
+    "commit": "d5fdc8bae639a216340b4b5cbee49b1167d6eb69",
+    "driver_version": "0.1.13"
+  },
+  "candidate": {
+    "driver_version": "0.1.14",
+    "source_sha256": "1dd623d2770772cd86ca3c01fd92e31be02c92c9a018ef07e56652036fc991c9",
+    "manifest_sha256": "5710b6d02fb7d5d59dbbea909b1a7e58b0df3ab2364a0fb2201162b667666a4d",
+    "readme_sha256": "e3289c5dacded2a163853f5618a8e45dd5a103b2dcce0456c557ecb5991226a2"
+  },
+  "waveform": {
+    "scope": "active DEFAULT/LOW_LATENCY effective windows up to 160 rows",
+    "plane_order": [
+      "DTM1 truthful previous target",
+      "DTM2 new target"
+    ],
+    "phase_a": {
+      "vcom": "high 0x41",
+      "register_0x22": "low 0x81 active",
+      "register_0x23": "high 0x41 tracking",
+      "unchanged": "high 0x41 tracking"
+    },
+    "phase_b": {
+      "vcom": "low 0x81",
+      "register_0x23": "high 0x41 active",
+      "register_0x22": "low 0x81 tracking",
+      "unchanged": "low 0x81 tracking"
+    },
+    "broad_motion": "480-row updates retain one-frame corrected absolute A2",
+    "endpoint": "unchanged four-frame full-target absolute redraw, full DTM1/DTM2 reconciliation, POF"
+  },
+  "changes": [
+    "upload truthful narrow-window OLD and NEW planes before active refresh",
+    "use opposite VCOM/source rails for one optical transition in each of two complementary phases",
+    "make unchanged transition buckets track VCOM in both phases",
+    "retain resident repeated DRF settling with DTM1 as pre-refresh target",
+    "retain 0.1.13 changed-byte windows and 0.1.12 endpoint finalization"
+  ],
+  "software_validation": {
+    "status": "pending GitHub Actions exact-head qualification",
+    "workflow": ".github/workflows/x4-fast-display.yml",
+    "expected_suites": [
+      "normal provider regression",
+      "ASan/UBSan provider regression",
+      "profile selection",
+      "Xtensa provider ELF build"
+    ]
+  },
+  "hardware_tested": false,
+  "scope": "driver source, host oracle/tests, documentation, manifest and exact-head workflow; no firmware image assembled",
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "1dd623d2770772cd86ca3c01fd92e31be02c92c9a018ef07e56652036fc991c9",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "5710b6d02fb7d5d59dbbea909b1a7e58b0df3ab2364a0fb2201162b667666a4d",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "e3289c5dacded2a163853f5618a8e45dd5a103b2dcce0456c557ecb5991226a2",
+    "minimal/test/uc8279_fast_test.c": "3dd754db2226a59429e0584bdbe34bf8f04620c0409e8efe995bde6f964a42f2",
+    "minimal/test/uc8279_fast_cadence/panel_model.c": "f4585e2bf62c8dce4afaf1117c1950cdf76e2a66421b48e80908ca405744cac3",
+    "minimal/test/run_uc8279_fast_cadence_test.py": "d45e98501f57c520b9c5f1c3ad2b5e1b3c427b2b44c7a4627901aeca2c47e35c",
+    "minimal/test/uc8279_fast_profile_test.py": "70755f8b23bb143c40af306d12a7c5810e390b87453afbd72fa75bf62b1c3f13",
+    "minimal/test/run_idle_panel_policy_test.py": "a753e95dba36f94bb69364f5c448399f1e9bddda0ca7da3b82ad3cb9a55f8ddb",
+    "minimal/test/idle_panel_policy.inc": "50e2bd0c6a68e971747f82e3549e41b96a8dd2b9b8323ba9defebeb260fc2be8",
+    ".github/workflows/x4-fast-display.yml": "f941e2091e7d7b65cf853b72c96f6ccbf99b1337062d2e3394c3d4f051e3025e"
+  }
+}
