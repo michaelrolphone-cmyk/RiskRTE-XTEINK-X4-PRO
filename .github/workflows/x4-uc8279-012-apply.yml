@@ -1,0 +1,45 @@
+name: Apply X4 0.1.53 panel 0.1.12 source
+on:
+  push:
+    branches: [integrate/x4-resident-loader-repair-046]
+    paths:
+      - '.github/workflows/x4-uc8279-012-apply.yml'
+permissions:
+  contents: write
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: integrate/x4-resident-loader-repair-046
+          fetch-depth: 0
+      - name: Install exact patched 0.1.53 panel source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/x4-012-overlay/part00 \
+              .github/x4-012-overlay/part01 \
+              .github/x4-012-overlay/part02 \
+              .github/x4-012-overlay/part03 \
+              .github/x4-012-overlay/part04 > /tmp/x4-012-overlay.b64
+          base64 -d /tmp/x4-012-overlay.b64 > /tmp/x4-012-overlay.tar.gz
+          echo '346f87b5c8dd867aa557d8abaa0fce8b6c2bd3325bd337c0c8fde89441cd4363  /tmp/x4-012-overlay.tar.gz' | sha256sum -c -
+          tar -xzf /tmp/x4-012-overlay.tar.gz -C .
+
+          echo '653d861f198b650d1a7ba1b85af9cd7b0929337e3f9ba42e7e2a2bdeafe3a430  minimal/drivers/x4pro_uc8279_fast/driver.c' | sha256sum -c -
+          echo '2ee9755680d4c83b35f30dc3ac6c27d795d57f760887e68032b47a3638ff4498  minimal/drivers/x4pro_uc8279_fast/manifest.json' | sha256sum -c -
+          echo '7019cba4aa511acf9bec96435974b1c169ddfd4fea747c1605ad80d8c6536a4a  minimal/drivers/x4pro_uc8279_fast/README.md' | sha256sum -c -
+          echo '69acfc1e01b45c71788ddc49b5cd5323cebbe99340d021d0c81d7a322844d9d8  minimal/validation/uc8279-endpoint-redraw-0.1.12.json' | sha256sum -c -
+          grep -q '"version": "0.1.12"' minimal/drivers/x4pro_uc8279_fast/manifest.json
+          grep -q 'four-frame full-visible absolute redraw' minimal/drivers/x4pro_uc8279_fast/README.md
+
+          rm -rf .github/x4-012-overlay
+          rm -f .github/workflows/x4-uc8279-012-apply.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(x4): strengthen UC8279 motion and final target redraw'
+          git push origin HEAD:integrate/x4-resident-loader-repair-046
