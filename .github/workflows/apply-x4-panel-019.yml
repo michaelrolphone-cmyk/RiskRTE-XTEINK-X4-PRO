@@ -1,0 +1,124 @@
+name: Apply X4 panel 0.1.19 real sleep
+
+on:
+  push:
+    branches:
+      - experiment/x4-panel-012-selective-nopof-018
+    paths:
+      - .github/workflows/apply-x4-panel-019.yml
+
+permissions:
+  contents: write
+
+env:
+  PLATFORMIO_SETTING_ENABLE_TELEMETRY: "No"
+
+jobs:
+  apply-and-qualify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/x4-panel-012-selective-nopof-018
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/RiscRTE
+          ref: aaa77ad11fc66b42430254ab7065590d33fd1fca
+          path: .shared/runtime
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: michaelrolphone-cmyk/T5S3-Reader
+          ref: 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          path: .shared/reader
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Remove sleep refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 minimal/scripts/apply_x4_panel_019.py
+          rm minimal/scripts/apply_x4_panel_019.py .github/workflows/apply-x4-panel-019.yml
+          git diff --check
+          test "$(python3 -c 'import json; print(json.load(open("minimal/drivers/x4pro_uc8279_fast/manifest.json"))["version"])')" = '0.1.19'
+          grep -q 'RISC_DISPLAY_INFO_QUIESCE_SLEEP' minimal/drivers/x4pro_uc8279_fast/driver.c
+          grep -q 'command(0x02)' minimal/drivers/x4pro_uc8279_fast/driver.c
+          ! grep -q 'if (screen_powered) return RISC_DISPLAY_POWER_BUSY' minimal/drivers/x4pro_uc8279_fast/driver.c
+          python3 -m json.tool minimal/validation/uc8279-012-selective-realsleep-0.1.19.json >/dev/null
+          python3 minimal/test/prepare_sdk_test.py
+          python3 minimal/test/uc8279_fast_profile_test.py
+
+      - name: Focused real-world lifecycle tests
+        shell: bash
+        env:
+          RISCRTE_RUNTIME_ROOT: ${{ github.workspace }}/.shared/runtime
+          RISCRTE_READER_ROOT: ${{ github.workspace }}/.shared/reader
+        run: |
+          set -euo pipefail
+          build="$(mktemp -d)"
+          python3 minimal/scripts/prepare_sdk.py \
+            --runtime "$RISCRTE_RUNTIME_ROOT" \
+            --reader "$RISCRTE_READER_ROOT" \
+            --output "$build/sdk"
+          for sanitize in 0 1; do
+            flags=(-std=c11 -Wall -Wextra -Werror -Wno-misleading-indentation -pedantic)
+            if [[ "$sanitize" == 1 ]]; then
+              flags+=(-fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer -no-pie)
+            fi
+            cc "${flags[@]}" -I"$build/sdk" minimal/test/uc8279_fast_test.c -o "$build/test-$sanitize"
+            for scenario in validation selective-nopof snapshot tone-lifecycle; do
+              "$build/test-$sanitize" "$scenario"
+            done
+          done
+
+      - name: Commit corrected source
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          rm -rf .shared
+          git add -A
+          git commit -m 'fix(x4): restore real sleep lifecycle in selective panel driver'
+          sha="$(git rev-parse HEAD)"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          git push origin HEAD:experiment/x4-panel-012-selective-nopof-018
+
+      - run: pip install platformio==6.1.19 pyelftools==0.32
+      - name: Build only the panel provider
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/michaelrolphone-cmyk/RiscRTE.git .shared/runtime-build
+          git -C .shared/runtime-build fetch --depth 1 origin aaa77ad11fc66b42430254ab7065590d33fd1fca
+          git -C .shared/runtime-build checkout aaa77ad11fc66b42430254ab7065590d33fd1fca
+          git clone --depth 1 https://github.com/michaelrolphone-cmyk/T5S3-Reader.git .shared/reader-build
+          git -C .shared/reader-build fetch --depth 1 origin 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          git -C .shared/reader-build checkout 29276b4e1cff7819af065a77cf64805f6d5a12ce
+          pio pkg install --global --tool 'espressif/toolchain-xtensa-esp32s3@8.4.0+2021r2-patch5'
+          python3 minimal/scripts/build_drivers.py \
+            --runtime .shared/runtime-build \
+            --reader .shared/reader-build \
+            --source-lock minimal/test/ordinary-driver-sources.lock.json \
+            --cc "$HOME/.platformio/packages/toolchain-xtensa-esp32s3/bin/xtensa-esp32s3-elf-gcc" \
+            --output build/x4-uc8279-fast-0.1.19 \
+            --sleep \
+            --panel-driver uc8279-fast
+          printf '%s\n' '${{ steps.source.outputs.sha }}' > build/x4-uc8279-fast-0.1.19/platform-source-sha.txt
+          sha256sum \
+            minimal/drivers/x4pro_uc8279_fast/driver.c \
+            minimal/drivers/x4pro_uc8279_fast/manifest.json \
+            > build/x4-uc8279-fast-0.1.19/source-sha256.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: x4-uc8279-fast-0.1.19-${{ steps.source.outputs.sha }}
+          path: build/x4-uc8279-fast-0.1.19/
+          if-no-files-found: error
+          retention-days: 14
