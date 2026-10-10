@@ -637,6 +637,7 @@ static void preparation_flow_case(bool capacity_stress) {
 }
 #include "sd_export_test.inc"
 #include "sdmmc_storage_test.inc"
+#include "sd_filesystem_extensions.inc"
 int main(int argc,char **argv){
     assert(argc==2);const char *scenario=argv[1];format(!strcmp(scenario,"mbr"));
     const char*materialized=getenv("X4_SD_TYPED_CONFIG");
@@ -672,6 +673,7 @@ int main(int argc,char **argv){
     if(!strncmp(scenario,"sleep-",6)){sleep_cases(scenario);goto done;}
     if(!strcmp(scenario,"absent")){assert(!ready(NULL));char text[80];assert(last_error_api(NULL,text,sizeof(text)) && !strcmp(text,"CMD8 no response"));assert(refresh(NULL));assert(now_ms==400 && clock_edges<2000);verify_cleanup();goto done;}
     assert(ready(NULL));
+    if(!strcmp(scenario,"filesystem-extensions")){filesystem_extensions();goto done;}
     if(!strcmp(scenario,"files-paths")){files_paths();goto done;}
     if(!strcmp(scenario,"nonowner")){owner=false;rejected_calls();owner=true;verify_cleanup();goto done;}
     if(!strcmp(scenario,"destroy-fail")){fail_destroy=true;const uint64_t lock=operation_mutex;assert(!quiesce() && quiescing && operation_mutex==lock);assert(!refresh(NULL));fail_destroy=false;verify_cleanup();goto done;}

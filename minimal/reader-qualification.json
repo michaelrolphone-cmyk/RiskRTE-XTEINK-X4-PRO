@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "scope": "Source, host and target-build qualification; no device action",
+  "reader_elf": {
+    "bytes": 1851676,
+    "sha256": "704c4319f67bbd73147755288f03b3e944048bef920d646a4a348990db892b9a",
+    "mapped_relocations": 10636,
+    "imports": [
+      "__errno",
+      "calloc",
+      "free",
+      "isalpha",
+      "longjmp",
+      "malloc",
+      "memchr",
+      "memcmp",
+      "memcpy",
+      "memmove",
+      "memset",
+      "qsort",
+      "realloc",
+      "risc_runtime_get_api",
+      "setjmp",
+      "snprintf",
+      "strcat",
+      "strchr",
+      "strcmp",
+      "strcpy",
+      "strlen",
+      "strncasecmp",
+      "strncmp",
+      "strncpy",
+      "strrchr",
+      "strstr",
+      "strtod",
+      "strtof",
+      "strtol",
+      "tolower",
+      "vsnprintf"
+    ],
+    "source_trees": {
+      "runtime": "0da9576286e4567c84d08de489e66efceb3b1ddc",
+      "system": "f063cc974087150691c377d2561c4898a10526a7",
+      "productivity": "2abc908b5ad78ac0a123c01ed912c7755da4c80e"
+    },
+    "tracked_source_dirty": {
+      "runtime": false,
+      "system": false,
+      "productivity": false
+    }
+  },
+  "upstream": {
+    "schema": 1,
+    "repository": "https://github.com/crosspoint-reader/crosspoint-reader.git",
+    "commit": "3607ea7bb95d65b4cf3edf1aa89b2b0970985793",
+    "sdk_commit": "425d200a8ea447326b4b9696e4e47dc84ad9d7f6",
+    "submodule": "third_party/crosspoint",
+    "patches": [
+      "reader/patches/0001-riscrte-port.patch"
+    ],
+    "dependencies": {
+      "png": {
+        "repository": "https://github.com/bitbank2/PNGdec.git",
+        "commit": "9a9c585fd39d148c5517597b02ce490e0fdb1bb4"
+      },
+      "jpeg": {
+        "repository": "https://github.com/bitbank2/JPEGDEC.git",
+        "commit": "86282979224c8a32fd51e091ed5a35b0c699a52b"
+      }
+    }
+  },
+  "font_assets": {
+    "sd/fonts/Noto Sans/NotoSans-Bold.ttf": "13a813c49624ae3ba3c5c6e72c5ebffc4b9e1e6ea32f421c04069b037c6ad431",
+    "sd/fonts/Noto Sans/NotoSans-BoldItalic.ttf": "7e34616e092593c340449baf9a259075a054c6419511ccf21ff0d83a1c9dd0d0",
+    "sd/fonts/Noto Sans/NotoSans-Italic.ttf": "feb3e57888ce3acb604f270c278cfb304c674306518771619ddbdefca42a066b",
+    "sd/fonts/Noto Sans/NotoSans-Regular.ttf": "fe8c022f48d8dd29f17b744d16f9346f4357e16f7d4f7be58b000ae7c291b614",
+    "sd/fonts/Noto Sans/OFL.txt": "be2f3f8727ac2e18b714ad1c4336d4ddb3f3adbeb9a7f70bfab74d21f4d2b3fb",
+    "sd/fonts/Noto Serif/NotoSerif-Bold.ttf": "1b941681106aae26ead3a24c6f15b51f994b1b26adce8742a37ce96648f0fe0a",
+    "sd/fonts/Noto Serif/NotoSerif-BoldItalic.ttf": "2400339667ad2701320aa671e337d1632731e56b397564afe14e981124b899c6",
+    "sd/fonts/Noto Serif/NotoSerif-Italic.ttf": "15d5f8050fc1f142545e7a26a50bd07a0434eca535d4d98aad9d5e8f03741e43",
+    "sd/fonts/Noto Serif/NotoSerif-Regular.ttf": "a7e8ea1ab7e7d368b001c892d6148325fffc849a46e030e55e1bdc597bbe939d",
+    "sd/fonts/Noto Serif/OFL.txt": "be2f3f8727ac2e18b714ad1c4336d4ddb3f3adbeb9a7f70bfab74d21f4d2b3fb"
+  },
+  "native_admission": {
+    "verification_script_sha256": "80233b87dc179943d3992a313e1a72f2b78aa73319a325ade7bf983810ac6091",
+    "modules": {
+      "reader": {
+        "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
+        "native_elf_sha256": "088e1e279e5410e88a50a4473a99b962152cb9c73703d9f7c937b415b5685c96",
+        "app_elf_sha256": "704c4319f67bbd73147755288f03b3e944048bef920d646a4a348990db892b9a",
+        "imports": [
+          "__errno",
+          "calloc",
+          "free",
+          "isalpha",
+          "longjmp",
+          "malloc",
+          "memchr",
+          "memcmp",
+          "memcpy",
+          "memmove",
+          "memset",
+          "qsort",
+          "realloc",
+          "risc_runtime_get_api",
+          "setjmp",
+          "snprintf",
+          "strcat",
+          "strchr",
+          "strcmp",
+          "strcpy",
+          "strlen",
+          "strncasecmp",
+          "strncmp",
+          "strncpy",
+          "strrchr",
+          "strstr",
+          "strtod",
+          "strtof",
+          "strtol",
+          "tolower",
+          "vsnprintf"
+        ],
+        "production_native_admission": true,
+        "all_imports_defined_in_native_candidate": true,
+        "compiled_public_exports": {
+          "__errno": "0x420d55f8",
+          "calloc": "0x420375d8",
+          "free": "0x4038a644",
+          "isalpha": "0x40001290",
+          "longjmp": "0x420ebaf0",
+          "malloc": "0x42037614",
+          "memchr": "0x40001344",
+          "memcmp": "0x4000120c",
+          "memcpy": "0x400011f4",
+          "memmove": "0x40001200",
+          "memset": "0x400011e8",
+          "qsort": "0x40001488",
+          "realloc": "0x42037644",
+          "risc_runtime_get_api": "0x4200be20",
+          "setjmp": "0x4000144c",
+          "snprintf": "0x420d7758",
+          "strcat": "0x40001374",
+          "strchr": "0x4000138c",
+          "strcmp": "0x40001230",
+          "strcpy": "0x40001218",
+          "strlen": "0x40001248",
+          "strncasecmp": "0x400013d4",
+          "strncmp": "0x4000123c",
+          "strncpy": "0x40001224",
+          "strrchr": "0x40001404",
+          "strstr": "0x40001254",
+          "strtod": "0x420d94c4",
+          "strtof": "0x420d9580",
+          "strtol": "0x400014e8",
+          "tolower": "0x40001320",
+          "vsnprintf": "0x420e090c"
+        },
+        "each_missing_import_rejected": true,
+        "provider": false,
+        "target_instructions_executed": false,
+        "target_symbol_resolver_host_executed": false
+      },
+      "scene": {
+        "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
+        "native_elf_sha256": "088e1e279e5410e88a50a4473a99b962152cb9c73703d9f7c937b415b5685c96",
+        "app_elf_sha256": "729746da59698a76f73bbcca2f2617879856afd7193a396c311becb4d840d1ec",
+        "imports": [
+          "free",
+          "malloc",
+          "memchr",
+          "memcmp",
+          "memcpy",
+          "memset",
+          "risc_runtime_get_api",
+          "snprintf",
+          "strcmp",
+          "strlen"
+        ],
+        "production_native_admission": true,
+        "all_imports_defined_in_native_candidate": true,
+        "compiled_public_exports": {
+          "free": "0x4038a644",
+          "malloc": "0x42037614",
+          "memchr": "0x40001344",
+          "memcmp": "0x4000120c",
+          "memcpy": "0x400011f4",
+          "memset": "0x400011e8",
+          "risc_runtime_get_api": "0x4200be20",
+          "snprintf": "0x420d7758",
+          "strcmp": "0x40001230",
+          "strlen": "0x40001248"
+        },
+        "each_missing_import_rejected": true,
+        "provider": true,
+        "target_instructions_executed": false,
+        "target_symbol_resolver_host_executed": false
+      },
+      "storage": {
+        "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
+        "native_elf_sha256": "088e1e279e5410e88a50a4473a99b962152cb9c73703d9f7c937b415b5685c96",
+        "app_elf_sha256": "b1f7dbe55740c78ca83f311dcef0f6b30bffb8524399dab33e389c36599d1e38",
+        "imports": [
+          "memcmp",
+          "memcpy",
+          "memset",
+          "strchr",
+          "strlen",
+          "strrchr"
+        ],
+        "production_native_admission": true,
+        "all_imports_defined_in_native_candidate": true,
+        "compiled_public_exports": {
+          "memcmp": "0x4000120c",
+          "memcpy": "0x400011f4",
+          "memset": "0x400011e8",
+          "strchr": "0x4000138c",
+          "strlen": "0x40001248",
+          "strrchr": "0x40001404"
+        },
+        "each_missing_import_rejected": true,
+        "provider": true,
+        "target_instructions_executed": false,
+        "target_symbol_resolver_host_executed": false
+      }
+    }
+  },
+  "x4_capacity": {
+    "schema": 1,
+    "store_payload_bytes": 6704743,
+    "store_partition_bytes": 5308416,
+    "payload_fits_before_filesystem_overhead": false,
+    "app_policies": 23,
+    "provider_count": 27,
+    "native_runtime_required": "0.2.4 with Reader shared capabilities",
+    "complete_flash_image": false,
+    "hardware_qualified": false,
+    "native_admission": "Reader, current scene and storage provider modules admitted; complete cohort is not packaged because it does not fit",
+    "baseline_product": "X4 0.1.65"
+  },
+  "qualification_logs": {
+    "qualification.log": {
+      "sha256": "c35d797009aed0e0e1ecea9c3d0ba5a181fa49b68e8996db7be7e2a8cba5e022",
+      "tail": "/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample.epub Portable Reader 0%  |  CH 1  |  1 / 56\n/Books/sample-ncx.epub toc 1 spine 0 anchor start\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Failed to load CSS from cache\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/SCT: Deserialization failed: Parameters do not match\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\nReader/TTF: Auto hinting unavailable (FREEINK_FONT_ENABLE_AUTOHINT not compiled)\n/Books/sample-ncx.epub Portable Reader 0%  |  CH 1  |  1 / 129\n/Books/sample.txt sample 0%  |  CH 1  |  1 / 206\n/Books/sample.md sample 0%  |  CH 1  |  1 / 139\nReader open, pagination, layout anchors, bookmark persistence, library and short I/O tests passed\n"
+    },
+    "memory-tests.log": {
+      "sha256": "136c3b0f7778252ab1b594195474a86f881b9bab9283a049cb58bea53ea9f061",
+      "tail": "Volatile scratch wipe: full fixed buffer, all early/success exits, bounds and unique scope ownership PASS\nShared random.bytes and memory.heap admission, snapshots, unsupported classes, ownership and grant revocation PASS\n"
+    },
+    "fs-check.log": {
+      "sha256": "3376fd667634259f0927bbb0dab144c7f02cb503ed3aac76f5e1e71a1b49906e",
+      "tail": "Shared filesystem directory seek/tell, metadata, truncate, replacement and reset recovery PASS\nminimal X4 SD filesystem-extensions PASS\nminimal X4 SD files-paths PASS\nminimal X4 SD nonowner PASS\nminimal X4 SD generation PASS\nminimal X4 SD unlock-fail PASS\nminimal X4 SD write-rejected PASS\nminimal X4 SD busy-timeout PASS\nminimal X4 SD export-ready PASS\nminimal X4 SD sleep-ready PASS\n"
+    },
+    "scene-tests.log": {
+      "sha256": "c2995bbc6ef543c9c6a148530ec7c4e9a1822de2edadee28249df18ac20ff2cf",
+      "tail": "Shared NOVA component scrolling, control targets, validation watch PASS\nShared NOVA component scrolling, control targets, validation paper PASS\nCopied page bitmap, navigation intents, revision validation and component return PASS\n"
+    },
+    "native-build.log": {
+      "sha256": "236969dd6e8308c6c84943fdcecc4928892d55ee024795c235f0420acbff5327",
+      "tail": ".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/storage/AppDataFiles.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/storage/ScopedUserVolume.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/storage/ScopedUserVolumeBinding.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/streams/AppStreamSessions.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/streams/ProviderQueueHost.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/update/PairedBank.cpp.o\", \".pio/build/esp32s3-16mb-appdata-iq-stage/src/runtime/update/StoreAudit.cpp.o\"])\nVerified IQ bank reservation and DRAM/IRAM alias exclusion: 0x3fcb0000\nRetrieving maximum program size .pio/build/esp32s3-16mb-appdata-iq-stage/firmware.elf\nChecking size .pio/build/esp32s3-16mb-appdata-iq-stage/firmware.elf\nAdvanced Memory Usage is available via \"PlatformIO Home > Project Inspect\"\nRAM:   [==        ]  24.4% (used 79824 bytes from 327680 bytes)\nFlash: [======    ]  55.7% (used 1386397 bytes from 2490368 bytes)\nBuilding .pio/build/esp32s3-16mb-appdata-iq-stage/firmware.bin with action:\n  \"$PYTHONEXE\" \"$OBJCOPY\" --chip esp32s3 elf2image --flash_mode ${__get_board_flash_mode(__env__)} --flash_freq ${__get_board_f_image(__env__)} --flash_size 16MB --elf-sha256-offset 0xb0 -o $TARGET $SOURCES\nBuilding .pio/build/esp32s3-16mb-appdata-iq-stage/firmware.bin\nesptool.py v4.11.0\nCreating esp32s3 image...\nMerged 3 ELF sections\nSuccessfully created esp32s3 image.\n========================= [SUCCESS] Took 47.72 seconds =========================\n\nEnvironment                    Status    Duration\n-----------------------------  --------  ------------\nesp32s3-16mb-appdata-iq-stage  SUCCESS   00:00:47.723\n========================= 1 succeeded in 00:00:47.723 =========================\n"
+    },
+    "admission.log": {
+      "sha256": "087430a2d7e58154192625f5dcf4a9c97e90509b87fcff76d1259622f425939c",
+      "tail": "Reader, scene and storage pass production native admission and missing-import rejection.\n"
+    }
+  },
+  "hardware_tested": false,
+  "full_x4_image_ready": false,
+  "public_sources": {
+    "runtime": {
+      "repository": "michaelrolphone-cmyk/RiscRTE",
+      "commit": "536e01a36461d2e66bdfa735186c1d02267b3fb7"
+    },
+    "drivers": {
+      "repository": "michaelrolphone-cmyk/RiscRTE-Drivers",
+      "commit": "605a407f5aba0116dad35be123075298eff77e3c"
+    },
+    "system": {
+      "repository": "michaelrolphone-cmyk/RiscRTE-System-Apps",
+      "commit": "7bc645832c5b394b25924076a5f519e69951663e"
+    },
+    "productivity": {
+      "repository": "michaelrolphone-cmyk/RiscRTE-Productivity",
+      "commit": "bccfcfc22bc856574eb741d8112389abedd528ee"
+    },
+    "x4": {
+      "repository": "michaelrolphone-cmyk/RiskRTE-XTEINK-X4-PRO",
+      "commit": "e7ca2a7e8fc1d0ac5b4024214ffa6b301c541c1a"
+    }
+  },
+  "scene_version": "0.3.1",
+  "native_build_source": {
+    "commit": "8e89385d9a3b5db4e5638f7a0b6fe84606a28b29",
+    "repository": "michaelrolphone-cmyk/RiscRTE",
+    "source_date_epoch": 1791670074,
+    "tree": "0da9576286e4567c84d08de489e66efceb3b1ddc",
+    "version": "0.2.4",
+    "public_commit": "536e01a36461d2e66bdfa735186c1d02267b3fb7",
+    "public_tree_equal": true
+  },
+  "draft_reviews": {
+    "runtime": "https://github.com/michaelrolphone-cmyk/RiscRTE/pull/65",
+    "drivers": "https://github.com/michaelrolphone-cmyk/RiscRTE-Drivers/pull/23",
+    "system": "https://github.com/michaelrolphone-cmyk/RiscRTE-System-Apps/pull/95",
+    "reader": "https://github.com/michaelrolphone-cmyk/RiscRTE-Productivity/pull/20"
+  }
+}

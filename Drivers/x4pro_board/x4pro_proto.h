@@ -25,7 +25,7 @@ static inline bool x4pro_gt911_map(const uint8_t raw[8], uint16_t *x, uint16_t *
     return true;
 }
 
-#include "../storage_fatfs/sd_protocol.h"
+#include <sd_protocol.h>
 #define x4pro_crc7 risc_sd_crc7
 #define x4pro_sd_command risc_sd_command
 #define x4pro_sd_crc16 risc_sd_crc16
