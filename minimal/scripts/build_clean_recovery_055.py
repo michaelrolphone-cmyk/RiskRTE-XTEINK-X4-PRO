@@ -2,7 +2,7 @@
 """Execute a frozen source-only recovery plan into a new output tree.
 
 This runner does not flash, publish or accept previous product outputs. Final
-assembly consumes its signed-by-hash build ledger in a separate checked step.
+assembly consumes its hash-recorded build ledger in a separate checked step.
 """
 import argparse,datetime,hashlib,json,os,subprocess,time
 from pathlib import Path
@@ -34,9 +34,18 @@ def validate(plan,root):
         require(git(p,'rev-parse','HEAD^{tree}')==row['tree'],'Source tree changed: '+name)
         require(not git(p,'status','--porcelain','--untracked-files=no'),'Modified tracked source: '+name)
         sources[name]=str(p)
+    for name,row in plan.get('snapshots',{}).items():
+        p=Path(row['path']).resolve(strict=True)
+        require(not root.is_relative_to(p) and not p.is_relative_to(root),'Snapshot/output overlap')
+        require(row['files'],'Empty snapshot input inventory')
+        for relative,digest in row['files'].items():
+            f=inside(p,relative)
+            require(f.suffix.lower() not in ('.elf','.o','.bin','.a','.so'),'Product binary listed as source: '+relative)
+            require(f.is_file() and not f.is_symlink() and sha(f)==digest,'Snapshot source changed: '+name+'/'+relative)
+        sources[name]=str(p)
     for path,digest in plan.get('source_files',{}).items():
         p=Path(path).resolve(strict=True)
-        require(p.suffix.lower() not in ('.elf','.o','.bin','.a'),'Product binary cannot be a source input: '+path)
+        require(p.suffix.lower() not in ('.elf','.o','.bin','.a','.so'),'Product binary cannot be a source input: '+path)
         require(sha(p)==digest,'Source/recipe/SDK changed: '+path)
     producers={};ids=set()
     for step in plan['steps']:
@@ -58,7 +67,7 @@ def build(plan_path,output):
     epoch=time.time_ns();stamp=datetime.datetime.now(datetime.timezone.utc).isoformat()
     root.mkdir(parents=True);(root/'logs').mkdir();(root/'plan.json').write_bytes(encoded(plan))
     values=dict(sources,build=str(root),**plan.get('tools',{}))
-    ledger={'schema':'x4.clean-recovery-ledger','schema_version':1,'product_version':'0.1.55','started_utc':stamp,'epoch_ns':epoch,'build_root':str(root),'plan_sha256':sha(plan_path),'plan':plan,'steps':[],'artifacts':{},'completed':False,'hardware_tested':False}
+    ledger={'schema':'x4.clean-recovery-ledger','schema_version':1,'product_version':'0.1.55','started_utc':stamp,'epoch_ns':epoch,'build_root':str(root),'plan_sha256':sha(root/'plan.json'),'input_plan_sha256':sha(plan_path),'plan':plan,'steps':[],'artifacts':{},'completed':False,'hardware_tested':False}
     def save():(root/'build-ledger.json').write_bytes(encoded(ledger))
     save()
     for step in plan['steps']:

@@ -1,0 +1,312 @@
+{
+  "board_id": "xteink-x4-pro",
+  "buses": [
+    {
+      "controller": 0,
+      "controller_namespace": "esp32.peripheral",
+      "frequency_hz": 400000,
+      "instance_id": 100,
+      "kind": "i2c",
+      "mode": 0,
+      "pins": {
+        "scl": 38,
+        "sda": 39
+      }
+    },
+    {
+      "controller": 2,
+      "controller_namespace": "esp32.peripheral",
+      "frequency_hz": 20000000,
+      "instance_id": 101,
+      "kind": "spi",
+      "mode": 0,
+      "pins": {
+        "miso": -1,
+        "mosi": 11,
+        "sclk": 12
+      }
+    }
+  ],
+  "devices": [
+    {
+      "chip": {
+        "model": "x4-pro-peripheral-enable",
+        "revision": "unspecified",
+        "vendor": "xteink"
+      },
+      "compatible": "xteink,x4-pro-peripheral-enable",
+      "config": {
+        "active_high": true,
+        "click_min_us": 0,
+        "debounce_us": 0,
+        "long_press_us": 0,
+        "pins": [
+          1
+        ],
+        "pull_up": false
+      },
+      "config_type": "gpio.bank",
+      "config_version": 1,
+      "instance_id": 1
+    },
+    {
+      "bindings": {
+        "board.power.ready": 1
+      },
+      "chip": {
+        "model": "esp32s3-i2c",
+        "revision": "unspecified",
+        "vendor": "espressif"
+      },
+      "compatible": "espressif,esp32s3-i2c",
+      "config": {
+        "bus_instance_id": 100
+      },
+      "config_type": "controller.i2c",
+      "config_version": 1,
+      "instance_id": 2
+    },
+    {
+      "bindings": {
+        "board.power.ready": 1,
+        "display.frontlight": 5
+      },
+      "chip": {
+        "model": "uc8279",
+        "revision": "unspecified",
+        "vendor": "ultrachip"
+      },
+      "compatible": "ultrachip,uc8279",
+      "config": {
+        "backlight": -1,
+        "backlight_active_high": false,
+        "bus_instance_id": 101,
+        "busy": 6,
+        "busy_active_high": false,
+        "cs": 13,
+        "dc": 18,
+        "height": 480,
+        "offset_x": 0,
+        "offset_y": 120,
+        "power_active_high": [],
+        "power_pins": [],
+        "reset": 14,
+        "reset_active_high": false,
+        "reset_assert_ms": 50,
+        "reset_recovery_ms": 50,
+        "rotation": 0,
+        "width": 800
+      },
+      "config_type": "display.spi",
+      "config_version": 1,
+      "instance_id": 3
+    },
+    {
+      "bindings": {
+        "board.power.ready": 1,
+        "i2c.bus": 2
+      },
+      "chip": {
+        "model": "gt911",
+        "revision": "unspecified",
+        "vendor": "goodix"
+      },
+      "compatible": "goodix,gt911",
+      "config": {
+        "address": 93,
+        "alternate_address": 20,
+        "bus_instance_id": 100,
+        "height": 800,
+        "irq": 10,
+        "irq_active_high": false,
+        "irq_output": true,
+        "irq_pull_up": false,
+        "power": 2,
+        "power_active_high": false,
+        "reset": 4,
+        "reset_active_high": false,
+        "reset_assert_ms": 10,
+        "reset_recovery_ms": 10,
+        "width": 480
+      },
+      "config_type": "touch.i2c",
+      "config_version": 2,
+      "instance_id": 4
+    },
+    {
+      "chip": {
+        "model": "x4-pro-frontlight",
+        "revision": "unspecified",
+        "vendor": "xteink"
+      },
+      "compatible": "xteink,x4-pro-frontlight",
+      "config": {
+        "active_high": true,
+        "click_min_us": 0,
+        "debounce_us": 0,
+        "long_press_us": 0,
+        "pins": [
+          8,
+          9
+        ],
+        "pull_up": false
+      },
+      "config_type": "gpio.bank",
+      "config_version": 1,
+      "instance_id": 5
+    },
+    {
+      "bindings": {
+        "x4.power": 17
+      },
+      "chip": {
+        "model": "x4-pro-buttons",
+        "revision": "unspecified",
+        "vendor": "xteink"
+      },
+      "compatible": "xteink,x4-pro-buttons",
+      "config": {
+        "active_high": false,
+        "click_min_us": 0,
+        "debounce_us": 0,
+        "long_press_us": 1000000,
+        "pins": [
+          0,
+          7
+        ],
+        "pull_up": true
+      },
+      "config_type": "gpio.bank",
+      "config_version": 1,
+      "instance_id": 6
+    },
+    {
+      "bindings": {
+        "board.power.ready": 1
+      },
+      "chip": {
+        "model": "x4-pro-power-key",
+        "revision": "unspecified",
+        "vendor": "xteink"
+      },
+      "compatible": "xteink,x4-pro-power-key",
+      "config": {
+        "active_high": false,
+        "click_min_us": 0,
+        "debounce_us": 0,
+        "long_press_us": 0,
+        "pins": [
+          3
+        ],
+        "pull_up": true
+      },
+      "config_type": "gpio.bank",
+      "config_version": 1,
+      "instance_id": 17
+    },
+    {
+      "bindings": {
+        "i2c.bus": 2
+      },
+      "chip": {
+        "model": "cw2017-readonly-gauge",
+        "revision": "unspecified",
+        "vendor": "cellwise"
+      },
+      "compatible": "cellwise,cw2017-readonly-gauge",
+      "config": {
+        "address": 99,
+        "bus_instance_id": 100,
+        "chip_id": 0,
+        "irq": 21,
+        "irq_active_high": true,
+        "irq_pull_up": false
+      },
+      "config_type": "peripheral.i2c",
+      "config_version": 1,
+      "instance_id": 7
+    },
+    {
+      "bindings": {
+        "i2c.bus": 2
+      },
+      "chip": {
+        "model": "pcf8563-compatible-rtc",
+        "revision": "unspecified",
+        "vendor": "riscrte"
+      },
+      "compatible": "riscrte,pcf8563-compatible-rtc",
+      "config": {
+        "address": 81,
+        "bus_instance_id": 100,
+        "chip_id": 0,
+        "irq": -1,
+        "irq_active_high": false,
+        "irq_pull_up": false
+      },
+      "config_type": "peripheral.i2c",
+      "config_version": 1,
+      "instance_id": 8
+    },
+    {
+      "bindings": {
+        "board.power.ready": 1
+      },
+      "chip": {
+        "model": "x4-pro-sd-native1",
+        "revision": "unspecified",
+        "vendor": "xteink"
+      },
+      "compatible": "xteink,x4-pro-sd-native1",
+      "config": {
+        "active_high": true,
+        "click_min_us": 0,
+        "debounce_us": 0,
+        "long_press_us": 0,
+        "pins": [
+          5,
+          41,
+          42,
+          40
+        ],
+        "pull_up": true
+      },
+      "config_type": "gpio.bank",
+      "config_version": 1,
+      "instance_id": 9
+    },
+    {
+      "chip": {
+        "model": "esp32s3-ble",
+        "revision": "unspecified",
+        "vendor": "espressif"
+      },
+      "compatible": "espressif,esp32s3-ble",
+      "config": {
+        "features": 1,
+        "unit": 0
+      },
+      "config_type": "radio.integrated",
+      "config_version": 1,
+      "instance_id": 16
+    },
+    {
+      "chip": {
+        "model": "esp32s3-wifi",
+        "revision": "unspecified",
+        "vendor": "espressif"
+      },
+      "compatible": "espressif,esp32s3-wifi",
+      "config": {
+        "features": 1,
+        "unit": 0
+      },
+      "config_type": "radio.integrated",
+      "config_version": 1,
+      "instance_id": 15
+    }
+  ],
+  "revision": "unspecified",
+  "schema": "riscrte.board-hardware",
+  "schema_version": 1
+}
