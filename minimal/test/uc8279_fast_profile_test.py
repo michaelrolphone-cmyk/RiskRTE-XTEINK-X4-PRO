@@ -17,7 +17,7 @@ for sleep in [False,True]:
         profile.stage('uc8279',tmp,sleep,'uc8279-fast')
         folder=Path(tmp);board=json.loads((folder/'board.json').read_text());manifest=json.loads((folder/'panel/manifest.json').read_text())
         assert board['buses'][1]['frequency_hz']==20000000
-        assert manifest['id']=='x4pro-uc8279-fast' and manifest['version']=='0.1.18'
+        assert manifest['id']=='x4pro-uc8279-fast' and manifest['version']=='0.1.12'
         assert {'capability':'spi.bus','api':1} in manifest['requires']
         assert [x['compatible'] for x in manifest['hardware_compatibility']]==['ultrachip,uc8279']
         assert len(json.loads((folder/'boot.json').read_text())['drivers'])==(10 if sleep else 9)

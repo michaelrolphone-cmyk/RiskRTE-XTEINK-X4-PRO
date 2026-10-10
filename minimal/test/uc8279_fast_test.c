@@ -78,7 +78,7 @@ static void model_command(uint8_t value){
   unsigned top=0,height=480,left=0,width=800;
   if(regs[0x00][0]==0x37){
    assert(ptin&&regs[0x30][0]==0x0F&&regs[0x50][0]==0xD7);
-   const uint8_t frames=regs[0x20][1];assert(frames==1||frames==2||frames==3||frames==X4PRO_FINAL_TARGET_FRAMES);
+   const uint8_t frames=regs[0x20][1];assert(frames==1||frames==2||frames==X4PRO_FINAL_TARGET_FRAMES);
    if(frames==X4PRO_FINAL_TARGET_FRAMES)++final_target_refreshes;
    const bool absolute=(regs[0x21][1]&0xC0u)!=0;
    for(unsigned r=0;r<5;++r)for(unsigned i=0;i<42;++i){
@@ -600,38 +600,11 @@ int main(int argc,char**argv){
  if(!strcmp(s,"probe-spi-fail")){fail_spi_exchange=true;assert(!d->start(deps,7)&&!d->quiesce()&&!model_bus_held);goto done;}
  assert(d->start(deps,7)&&probe_reads==2);assert(!d->start(deps,7));
  assert(reset_assertions==2&&commands[0x61]==1&&commands[0x65]==1&&regs[0x30][0]==0x0E);
- risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==11000&&info.typical_present_latency_us==90000&&!(info.flags&RISC_DISPLAY_INFO_QUIESCE_SLEEP));
+ risc_display_info_v1 info={0};assert(output->get_info(NULL,&info)&&!(info.flags&RISC_DISPLAY_INFO_CLEAN_PRESENT));assert(info.nominal_refresh_millihz==10000&&info.typical_present_latency_us==100000);
  if(!strncmp(s,"storage-",8)){test_storage_gap(s);goto done;}
  if(!strncmp(s,"tone-",5)){test_tone(s,&tone_api);goto done;}
  if(!strcmp(s,"quality-cold")){test_quality_cold();goto done;}
  if(!strcmp(s,"quality-seeded-cold")){test_quality_seeded_cold();goto done;}baseline();
- if(!strcmp(s,"selective-nopof")){
-  const unsigned initial_pof=pofs,initial_sleep=sleeps,initial_final=final_target_refreshes;
-  const unsigned old1=commands[0x10],old2=commands[0x13];
-  risc_display_surface_v1 f=acquire_frame();memcpy(f.pixels,previous_frame,FRAME_BYTES);
-  const unsigned index=220u*100u+2u;((uint8_t*)f.pixels)[index]^=0xFFu;
-  const risc_display_rect_v1 damage={16,220,8,1};uint64_t token=submit_frame(f,&damage,1,false);
-  assert(fast_update&&!absolute_update&&fast_lut_frames==3u);complete_frame(token);
-  assert(dtm1_synced&&settle_stage==SETTLE_WAIT&&screen_powered);
-  assert(commands[0x10]==old1+1&&commands[0x13]==old2+1&&bytes_sent==8000u);
-  assert(pofs==initial_pof&&sleeps==initial_sleep);
-  assert(!memcmp(old_ram+12000,ram+12000,FRAME_BYTES));
-  assert(visible[index]==ram[index+12000]);
-  const uint8_t unchanged=visible[index-1u];
-  drain_settle();
-  assert(screen_powered&&dtm1_synced&&pofs==initial_pof&&sleeps==initial_sleep);
-  assert(final_target_refreshes==initial_final+1&&visible[index-1u]==unchanged);
-  f=acquire_frame();memset(f.pixels,0x33,FRAME_BYTES);
-  const unsigned broad1=commands[0x10],broad2=commands[0x13];
-  token=submit_frame(f,NULL,0,false);assert(fast_update&&!absolute_update&&fast_lut_frames==2u);complete_frame(token);
-  assert(commands[0x10]==broad1+1&&commands[0x13]==broad2+1&&bytes_sent==96000u&&dtm1_synced);
-  drain_settle();assert(screen_powered&&pofs==initial_pof&&sleeps==initial_sleep);
-  const risc_display_output_api_v1_power *panel_power=risc_display_output_power(output);assert(panel_power);
-  assert(panel_power->prepare(NULL,1500)==RISC_DISPLAY_POWER_BUSY);
-  assert(panel_power->resume(NULL,1500)==RISC_DISPLAY_POWER_OK);
-  assert(screen_powered&&pofs==initial_pof&&sleeps==initial_sleep&&!d->quiesce());
-  goto done;
- }
 #ifdef TEST_X4_IDLE_POLICY
  if(!strncmp(s,"policy-",7)){idle_policy_panel(s);goto done;}
 #endif

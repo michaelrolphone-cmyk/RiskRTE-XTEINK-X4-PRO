@@ -10,7 +10,7 @@ shutil.copytree(a.candidate/'idle-sdk/include',include,dirs_exist_ok=True)
 for path in a.provider_sdk.glob('*.h'):
  if path.name not in ('RiscStorageVolumeV1.h','RiscTouchV1.h','RiscTouchPowerV1.h'):shutil.copyfile(path,include/path.name)
 version=json.loads((r/'minimal/drivers/x4pro_uc8279_fast/manifest.json').read_text())['version']
-assert version in ('0.1.16','0.1.18')
+assert version in ('0.1.12','0.1.16','0.1.18')
 for san in (False,True):
  flags=['-std=c11','-O1','-g','-Wall','-Wextra','-Werror','-Wno-misleading-indentation','-DTEST_X4_IDLE_POLICY','-DPORTABLE_X4_IDLE_POLICY','-DPORTABLE_ALARM_CLIENT','-DALARM_SERVICE_TAGGED_V2']
  if san:flags+=['-fsanitize=address,undefined','-fno-sanitize-recover=all','-fno-omit-frame-pointer','-no-pie']

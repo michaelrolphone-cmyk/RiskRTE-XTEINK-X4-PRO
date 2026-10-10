@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.18
+# X4 UC8279 fast provider 0.1.12
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -349,29 +349,3 @@ can cancel before the endpoint DRF, or after an already-started DRF completes.
 The 30-second no-upload maintenance refresh remains removed. PON profile replay,
 uncertain-state invalidation, frontlight tone, and the token-bound sleep-settle
 contract are retained.
-
-## Transition-selective powered-retention experiment (0.1.18)
-
-This candidate is based directly on the exact 0.1.12 source cohort. It retains
-0.1.12's controller setup and full-width 40/80/160/480-row gate windows, but
-changes the physical active and resting policies identified by device testing.
-
-Interactive updates use truthful DTM1 OLD and DTM2 NEW planes. Unchanged white
-and unchanged black transition buckets are electrically idle; only W->B and
-B->W pixels are driven. Localized windows up to 160 rows receive one three-frame
-differential DRF. Broad 480-row motion receives one two-frame differential DRF.
-After BUSY completes, the new target is immediately copied into DTM1 before the
-presentation completes. No resident replay reinforces an obsolete animation
-frame.
-
-After the 2.3-second quiet period, the existing four-frame exact-target endpoint
-redraw and dual-plane reconciliation still run. The panel then remains powered:
-automatic POF is removed, the sleep capability flag is not advertised, and an
-explicit power-prepare request returns BUSY once an image is established. This
-intentionally trades idle power for a direct test of the observed POF-triggered
-relaxation and old-image bleed.
-
-The driver still accepts MONO1. Content grayscale dithering therefore remains
-upstream; the Game Boy producer's stable 2x2 Bayer mapping must remain enabled.
-The driver contribution is electrical transition selectivity, not replacement
-of the producer's grayscale quantization.
