@@ -44,6 +44,11 @@ jobs:
           set -euo pipefail
           test "$(python3 -c 'import json; print(json.load(open("minimal/drivers/x4pro_uc8279_fast/manifest.json"))["version"])')" = '0.1.12'
           python3 minimal/scripts/apply_x4_panel_018.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('minimal/drivers/x4pro_uc8279_fast/README.md')
+          path.write_text(path.read_text().rstrip() + '\n')
+          PY
           rm minimal/scripts/apply_x4_panel_018.py \
              .github/workflows/qualify-x4-panel-018.yml
           git diff --check
