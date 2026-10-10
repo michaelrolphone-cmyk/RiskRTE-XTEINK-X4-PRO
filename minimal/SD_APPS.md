@@ -26,6 +26,14 @@ Adding a new identity/grant still needs a platform policy update. Flash-only
 App Store updates deliberately reject external apps; replace their SD files.
 SD executables are never placed in the immutable internal image cache.
 
+The follow-up SD-only patch supplies Hollow Trail 1.2.1 (black letterbox bands)
+and Reader 0.1.1 (open its initial scene before querying page geometry).
+Merge its `Apps/` tree over the existing card while these apps are closed.
+No firmware or font replacement is needed. `sd-apps-073-hotfix.json` records
+the exact replacement ELFs, source commits and checks. Use those app versions
+in subsequent assemblies; the firmware's static version labels update with
+its next build. Hollow Trail's full original story and aspect ratio are retained.
+
 `sd-apps-073-qualification.json` records exact artifacts, source-tree publication
 mappings, capacity and gate results. Tests cover normal/sanitized runtime
 launch/return, image replacement, absent/busy/removed media, positive short

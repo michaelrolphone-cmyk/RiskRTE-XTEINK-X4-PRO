@@ -1,0 +1,45 @@
+{
+  "firmware": "0.1.73",
+  "panel_driver": "x4pro-uc8279-fast 0.1.12",
+  "firmware_flash_required": false,
+  "apps": [
+    {
+      "id": "hollow_trail",
+      "version": "1.2.1",
+      "path": "Apps/hollow_trail/hollow_trail.elf",
+      "bytes": 449584,
+      "sha256": "77e1bd9ee703dde60d6a48f67b147ac13281a3ca5720e32f681fdf5198952de7",
+      "source_repository": "RiscRTE-Utilities",
+      "public_source_commit": "f43241c2caf6cebde08b6aa43b90d8fc707e110f",
+      "source_tree": "773fce34316a440b78bde8d6c783cc1ba64284bd",
+      "pull_request": "https://github.com/michaelrolphone-cmyk/RiscRTE-Utilities/pull/59"
+    },
+    {
+      "id": "ebook-reader",
+      "version": "0.1.1",
+      "path": "Apps/ebook-reader/ebook_reader.elf",
+      "bytes": 1851784,
+      "sha256": "52bcce6ba6228307f7eeb70338b4b2f8aa94cf417ac559ac1e8e0b3542a766e2",
+      "source_repository": "RiscRTE-Productivity",
+      "public_source_commit": "e425b117f5103132e5a705d9c633af65ef69764f",
+      "source_tree": "ba2bd71e7433718ac6a4de38894c759d71745038",
+      "pull_request": "https://github.com/michaelrolphone-cmyk/RiscRTE-Productivity/pull/20"
+    }
+  ],
+  "archive": {
+    "name": "X4-0.1.73-SD-Fixes-Reader-0.1.1-Hollow-Trail-1.2.1.zip",
+    "bytes": 1287667,
+    "sha256": "7cf266081adef4830291b301fbde80788090e41207caf1b068bf0d7410bcbef5"
+  },
+  "native_elf_sha256": "3b0605d518288202c9154ca192acfe638dadd861caf305b970cdd029f46a05cb",
+  "validation": {
+    "hollow_real_entry_gameplay_notes_cleanup_asan_ubsan": "pass",
+    "hollow_letterbox_pixels": "black",
+    "reader_real_entry_production_scene_cold_start_library_cleanup_ubsan": "pass",
+    "reader_previous_source_same_test": "fails before opening scene",
+    "both_target_elf_native_admission": "pass",
+    "capability_requirements_unchanged": true,
+    "archive_readback": "pass",
+    "physical_testing": "pending"
+  }
+}
