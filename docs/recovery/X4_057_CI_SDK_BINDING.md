@@ -1,0 +1,9 @@
+# Ordinary-driver CI SDK binding after X4 0.1.57
+
+The ordinary-driver workflow still selected Runtime 0.1.81 (`aaa77ad11fc66b42430254ab7065590d33fd1fca`). Its canonical SDK has no `RiscGpioSdmmcV1.h`. The current SD source includes that header at line 16, so both the reported CI failure and a local compile against those exact old SDK bytes fail before any device or storage operation.
+
+The CI workflow and its separate ordinary-driver source lock now select public Runtime 0.2.2 `b25b1d467a557e8d693211cff2eff959eb9c79de`. Its complete tree is identical to the `0f17a435f99d02d60ca50df1d1a51fcef123db89` Runtime source embedded in delivered X4 0.1.57. Reader and System fixture source pins remain unchanged. The product lock and delivered image are unchanged.
+
+The existing SDK composition copies the canonical Runtime header directly and still rejects conflicting shared headers. Tests now check SDMMC header provenance and bytes, the configured Runtime's required header, and agreement between workflow checkout pins and the CI lock. Two private CPU fixtures now reach the GPIO base prefix through the same overload/template pattern already used by the frontlight fixture. This supports both a bare legacy GPIO table and the current tagged SDMMC table without changing provider behavior or weakening assertions.
+
+Qualification uses the actual workflow source pins and official GCC 8.4.0 esp-2021r2-patch5. All eleven ordinary provider ELFs compile and pass import/export, Xtensa relocation and forbidden-instruction checks. The focused CPU/GPIO/SD and remaining provider host regressions run with the current Runtime. Local ASan/UBSan runs disable LeakSanitizer because this executor uses ptrace; the original LSan environment failure is retained in the local proof. This is a CI/source-binding repair, not a newly built product or a hardware result. The selected product panel remains fast 0.1.13.

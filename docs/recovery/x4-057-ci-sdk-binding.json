@@ -1,0 +1,100 @@
+{
+  "schema": 1,
+  "scope": "CI workflow/source lock and private host fixtures only; delivered X4 0.1.57 unchanged",
+  "source_base_local": "78e8c508ec06a783f209ffd8683ccaa5055aa273",
+  "runtime": {
+    "commit": "b25b1d467a557e8d693211cff2eff959eb9c79de",
+    "tree": "74a0284e1f72e0c568197ba0ed6b25be7ee3d58b"
+  },
+  "reader_commit": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
+  "apps_commit": "a78723d2eefa9f865049c0e492b62c276d61d1ee",
+  "before": {
+    "runtime": "aaa77ad11fc66b42430254ab7065590d33fd1fca",
+    "result": "compile fails at SD driver line16: RiscGpioSdmmcV1.h missing",
+    "log_sha256": "f6ff83985ec327a9059fb2afd86896a1dc29c45b1da93aa7c5080f1d691cba50"
+  },
+  "sdk_tests": 4,
+  "normal_and_asan_ubsan": [
+    "native_gpio_readback",
+    "board_keepalive_cpu",
+    "frontlight_cpu_port",
+    "sd"
+  ],
+  "additional_asan_ubsan": [
+    "board_power",
+    "i2c",
+    "panel",
+    "frontlight",
+    "buttons",
+    "rtc",
+    "battery",
+    "gt911",
+    "power",
+    "power_navigation",
+    "clock_sleep",
+    "desk_clock_sleep",
+    "desk_clock_typed_app"
+  ],
+  "leak_sanitizer": "disabled for local ptrace executor; not claimed",
+  "hardware_tested": false,
+  "sdk_header_sha256": "00d7788c381be557deec18a959b55d474bad7edc0331ae8331b878a618b9818f",
+  "source_lock_sha256": "7f15d8c4287fbb0b280e323a0d21f485d102dfe20714f22ee0a5a8b179abf547",
+  "ordinary_targets": [
+    {
+      "id": "x4pro-board-power",
+      "version": "0.1.3",
+      "sha256": "9e59dbad8ff29af8016fe464d16ba96454efb0e2f3b1f3d32467ed576ee3cbfd"
+    },
+    {
+      "id": "x4pro-i2c",
+      "version": "0.1.5",
+      "sha256": "09d69148d760a5f3b0af8df82f4b10cb87d89342054c3719d40a3ca8f52dca02"
+    },
+    {
+      "id": "x4pro-panel",
+      "version": "0.1.22",
+      "sha256": "10ab802a15572c32ad06bde898795138af74766a78c45a3cdb94700a037aabb0"
+    },
+    {
+      "id": "x4pro-frontlight",
+      "version": "0.1.6",
+      "sha256": "ade1fb2960bffb0d6e56ec76dac4f505f29e04199e95ee914ce0ad94f63cbb35"
+    },
+    {
+      "id": "x4pro-buttons",
+      "version": "0.1.8",
+      "sha256": "43de5df84eaaa82b3b5b2081d4f2cbde1999808323938efcfcaf60b8ae7f5e91"
+    },
+    {
+      "id": "x4pro-rtc",
+      "version": "0.1.1",
+      "sha256": "77bba7376d1306fe4066dd69f6b7460fb92909d34e6e204b10ee4e32445f2db8"
+    },
+    {
+      "id": "x4pro-sd",
+      "version": "0.2.14",
+      "sha256": "54ebac7f52e53b9e9089848dc06eea8f58295235020f28088d70dcea7178e1d8"
+    },
+    {
+      "id": "x4pro-battery",
+      "version": "0.1.3",
+      "sha256": "fa82fa0f050d6ae6fe83e532a51ac00c5d880192ffc5d4157471a7fda981afff"
+    },
+    {
+      "id": "x4pro-gt911",
+      "version": "0.1.9",
+      "sha256": "d35def1c97411fae9e976ab7d1bd18d8289d99d343f2d39bdf93e74c8e0a9ee0"
+    },
+    {
+      "id": "x4pro-power",
+      "version": "0.1.2",
+      "sha256": "b2c63d87d57f5570b24c3e6a69acef218fd75a9174d448e17677c74feb654a8e"
+    },
+    {
+      "id": "x4pro-power-buttons",
+      "version": "0.1.0",
+      "sha256": "9fe1d193ab1256828e906ef6719bd78b69f2e3587ed9c4a6cf69538e03a8878c"
+    }
+  ],
+  "full_qualification_sha256": "81dd4bd49604f4281b54b1c2ae5127a34b5a0d1b50407a64df3dfe566a300524"
+}
