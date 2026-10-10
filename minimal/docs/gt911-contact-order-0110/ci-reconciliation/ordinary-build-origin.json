@@ -1,0 +1,19 @@
+{
+  "source_fixture": false,
+  "sources": {
+    "runtime": {
+      "commit": "b25b1d467a557e8d693211cff2eff959eb9c79de",
+      "dirty": false,
+      "expected": "b25b1d467a557e8d693211cff2eff959eb9c79de"
+    },
+    "shared": {
+      "commit": "29276b4e1cff7819af065a77cf64805f6d5a12ce",
+      "dirty": false,
+      "expected": "29276b4e1cff7819af065a77cf64805f6d5a12ce"
+    }
+  },
+  "source_lock": {
+    "path": "/workspace/shared/x4-gt911-down-before-move-20261010/minimal/test/ordinary-driver-sources.lock.json",
+    "sha256": "7f15d8c4287fbb0b280e323a0d21f485d102dfe20714f22ee0a5a8b179abf547"
+  }
+}
