@@ -24,6 +24,16 @@ jobs:
         run: |
           set -euo pipefail
           test "$(python3 -c 'import json; print(json.load(open("minimal/drivers/x4pro_uc8279_fast/manifest.json"))["version"])')" = '0.1.12'
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('minimal/scripts/apply_x4_panel_017.py')
+          text = path.read_text()
+          old = 'readme.write_text(text + section)'
+          new = 'readme.write_text((text + section).rstrip() + "\\n")'
+          if text.count(old) != 1:
+              raise SystemExit('README write site missing')
+          path.write_text(text.replace(old, new, 1))
+          PY
           python3 minimal/scripts/apply_x4_panel_017.py
           rm minimal/scripts/apply_x4_panel_017.py .github/workflows/apply-x4-panel-017.yml
           git diff --check
