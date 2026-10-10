@@ -1,0 +1,39 @@
+{
+  "schema": "x4.uc8279.selective-nopof-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T22:23:19.426479+00:00",
+  "baseline": {
+    "commit": "befc6f0e57eadd70c7b8ad195907e6678309fd1c",
+    "driver_version": "0.1.12",
+    "hardware_result": "preferred all-around baseline before later active-drive experiments"
+  },
+  "candidate": {
+    "driver_version": "0.1.18"
+  },
+  "implementation": {
+    "window_geometry": "0.1.12 full-width 40/80/160/480-row",
+    "active_drive": "truthful differential A2",
+    "localized_frames": 3,
+    "broad_frames": 2,
+    "unchanged_transition_buckets": "idle",
+    "old_plane": "synchronized immediately after every completed active DRF",
+    "resident_replay": false,
+    "endpoint": "four-frame exact-target redraw plus dual-plane reconciliation",
+    "automatic_pof": false,
+    "sleep_after_display": "refused with BUSY; panel remains powered",
+    "content_dither": "producer-owned MONO1; preserve static Game Boy 2x2 Bayer"
+  },
+  "lab_basis": {
+    "two_frame_differential_160_row_fps": 13.01,
+    "three_frame_160_row_reference_fps": 11.21,
+    "selection": "three selective frames balance additional transition drive with accepted cadence"
+  },
+  "integrated_driver_hardware_tested": false,
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "69033700d421211354cbbd64646a68dc751727b52f376f4a050be870476ad11a",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "1c1993e319b9b1e9f86f8f5e0eb18ce15ba3e0591e55246b59122e64a181ca48",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "c3415b795a303c501e64c8204d1a0e3f38311292caa6cdd614fdb64023ab8f5e",
+    "minimal/test/uc8279_fast_test.c": "2cfe8682fa3994fe9ba43b11935ee5f37e0ae673dbac17bf9f3eb4a72b026443",
+    "minimal/test/uc8279_fast_profile_test.py": "9df093f8ca2ada60e7360a49e3f95f2b4a36bfea7b305bfd2c5ff437929c4a4d"
+  }
+}

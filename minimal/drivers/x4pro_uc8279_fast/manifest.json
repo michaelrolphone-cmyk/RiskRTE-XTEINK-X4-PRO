@@ -1,7 +1,7 @@
 {
   "type": "driver",
   "id": "x4pro-uc8279-fast",
-  "version": "0.1.12",
+  "version": "0.1.18",
   "driver_abi": 2,
   "architecture": "xtensa-esp32s3",
   "file_name": "driver.elf",

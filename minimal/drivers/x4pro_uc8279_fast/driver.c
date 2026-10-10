@@ -17,6 +17,9 @@
 #define X4PRO_PANEL_WIDTH 800u
 #define X4PRO_PANEL_HEIGHT 480u
 #define X4PRO_FINAL_TARGET_FRAMES 4u
+#define X4PRO_ACTIVE_LOCAL_FRAMES 3u
+#define X4PRO_ACTIVE_BROAD_FRAMES 2u
+#define X4PRO_ACTIVE_LOCAL_MAX_ROWS 160u
 /* Role indices are local; physical pads come only from the typed device. */
 enum { X4PRO_PIN_EPD_BUSY, X4PRO_PIN_EPD_DC, X4PRO_PIN_EPD_RST, PANEL_PINS };
 static const garden_gpio_v1 *gpio;
@@ -103,7 +106,7 @@ enum { SETTLE_NONE, SETTLE_WAIT, SETTLE_READY, SETTLE_WINDOW, SETTLE_REFRESH,
        SETTLE_ASSERT, SETTLE_DONE, SETTLE_CLOSE, SETTLE_FINAL_NEW,
        SETTLE_FINAL_SETUP, SETTLE_FINAL_REFRESH, SETTLE_FINAL_ASSERT,
        SETTLE_FINAL_DONE, SETTLE_FINAL_CLOSE, SETTLE_SYNC_OLD,
-       SETTLE_SYNC_NEW, SETTLE_POF, SETTLE_POF_ASSERT, SETTLE_POF_DONE };
+       SETTLE_SYNC_NEW };
 static uint8_t settle_stage;
 static bool settle_stop, settle_coverage_valid;
 static risc_display_rect_v1 settle_area;
@@ -396,7 +399,9 @@ static bool arm_settle(void) {
     settle_until = busy_done_ms + 2300u;
     settle_stop = false; settle_refreshes = settle_completed = 0;
     settle_sync_offset = 0; settle_setup_step = 0; settle_power_ms = 0;
-    settle_stage = absolute_update ? SETTLE_READY : SETTLE_WAIT;
+    /* One accepted frame receives one complete differential DRF. Normal
+     * quiet time never replays an intermediate animation target. */
+    settle_stage = SETTLE_WAIT;
     return true;
 }
 static void poll_settle_locked(uint32_t budget_ms) {
@@ -537,34 +542,11 @@ static void poll_settle_locked(uint32_t budget_ms) {
         } else if (settle_stage == SETTLE_SYNC_NEW) {
             if (!settle_sync_chunk(&work)) goto failed;
             if (settle_sync_offset == 60000u) {
+                /* Keep the reconciled panel powered. POF was observed to
+                 * trigger rapid relaxation and re-expression of old pixels. */
                 dtm1_synced = true; absolute_frames = 0; absolute_started_ms = UINT64_MAX;
-                if (cancel) settle_stage = SETTLE_NONE;
-                else settle_stage = SETTLE_POF;
+                settle_stage = SETTLE_NONE;
             }
-        } else if (settle_stage == SETTLE_POF) {
-            if (cancel) settle_stage = SETTLE_NONE;
-            else {
-                if (!panel_pin_read(X4PRO_PIN_EPD_BUSY)) { set_reason("idle power busy active"); goto failed; }
-                if (!sample_now(&settle_power_ms)) goto failed;
-                command(0x02);
-                if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) {
-                    settle_phase_deadline = settle_power_ms + 100u; settle_stage = SETTLE_POF_ASSERT;
-                } else {
-                    settle_phase_deadline = settle_power_ms + 1500u; settle_stage = SETTLE_POF_DONE;
-                }
-            }
-        } else if (settle_stage == SETTLE_POF_ASSERT) {
-            if (now >= settle_phase_deadline) { set_reason("idle power busy never asserted"); goto failed; }
-            if (panel_pin_read(X4PRO_PIN_EPD_BUSY)) break;
-            settle_phase_deadline = settle_power_ms + 1500u; settle_stage = SETTLE_POF_DONE;
-        } else if (settle_stage == SETTLE_POF_DONE) {
-            const bool complete = panel_pin_read(X4PRO_PIN_EPD_BUSY);
-            if (io_failed) goto failed;
-            if (!complete) {
-                if (now >= settle_phase_deadline) { set_reason("idle power completion timeout"); goto failed; }
-                break;
-            }
-            screen_powered = false; settle_stage = SETTLE_NONE;
         } else { set_reason("invalid settle state"); goto failed; }
         if (io_failed || !sample_now(&now)) goto failed;
         if (now >= slice_end || work >= 16384u) break;
@@ -647,6 +629,10 @@ static void poll_present_locked(uint32_t budget_ms) {
                     if (!begin_plane(0x10)) goto failed;
                     async_stage = UC_ASYNC_OLD;
                 } else if (async_stage == UC_ASYNC_SYNC) {
+                    /* Differential OLD synchronization must use the same PTIN
+                     * window and RAM cursor as the NEW upload. Close PTIN only
+                     * after DTM1 contains the physically completed target. */
+                    if (fast_update) { command(0x92); if (io_failed) goto failed; }
                     settle_coverage_valid = false;
                     if (!fast_update) remember_completed_frame();
                     dtm1_synced = true;
@@ -752,7 +738,10 @@ static void poll_present_locked(uint32_t budget_ms) {
             }
             if (!sample_metric(&busy_done_ms, RISC_DISPLAY_METRICS_BUSY_DONE)) goto failed;
             if (fast_update) {
-                command(0x92); if (io_failed) goto failed;
+                /* Absolute updates end PTIN here because they intentionally do
+                 * not synchronize OLD. Differential updates retain PTIN until
+                 * the matching DTM1 window has been copied. */
+                if (absolute_update) { command(0x92); if (io_failed) goto failed; }
                 remember_completed_frame();
                 if (absolute_update && !settle_update) {
                     dtm1_synced = false;
@@ -801,15 +790,17 @@ static bool get_info_impl(void *context, risc_display_info_v1 *out) {
     out->supported_formats = RISC_DISPLAY_FORMAT_BIT(RISC_DISPLAY_FORMAT_MONO1);
     out->preferred_format = RISC_DISPLAY_FORMAT_MONO1;
     out->supported_rotations = RISC_DISPLAY_ROTATION_0;
-    out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE | RISC_DISPLAY_INFO_QUIESCE_SLEEP;
+    /* This diagnostic profile deliberately retains panel power and refuses
+     * normal sleep preparation after the first physical frame. */
+    out->flags = RISC_DISPLAY_INFO_RETAINS_IMAGE | RISC_DISPLAY_INFO_PARTIAL_DAMAGE;
     if (frontlight && frontlight->set_level) out->flags |= RISC_DISPLAY_INFO_BRIGHTNESS;
     if (controller == PROBE_UC8279) out->flags |= RISC_DISPLAY_INFO_ASYNC_PRESENT;
     out->damage_x_alignment = 8;
     out->damage_width_alignment = 8;
     out->damage_y_alignment = 1;
     out->damage_height_alignment = 1;
-    out->nominal_refresh_millihz = 10000; /* Selected lab mode scheduling hint. */
-    out->typical_present_latency_us = 100000; /* Integrated timing remains unqualified. */
+    out->nominal_refresh_millihz = 11000; /* Three-frame differential reference. */
+    out->typical_present_latency_us = 90000; /* Approximately 89 ms at 160 rows. */
     return true;
 }
 static bool acquire_impl(void *context, uint32_t format, risc_display_surface_v1 *out) {
@@ -840,11 +831,9 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
     fast_update = completed_history && (intent == RISC_DISPLAY_PRESENT_DEFAULT || intent == RISC_DISPLAY_PRESENT_LOW_LATENCY);
     absolute_update = settle_update = false; fast_lut_frames = 1u; sync_full = false;
     if (fast_update) {
-        /* Hardware 0.1.52/0.1.53 testing showed that one-frame differential
-         * DEFAULT updates were visibly under-driven. Restore the known-working
-         * absolute motion path for both interactive intents. DTM1 is reconciled
-         * only after the target-ending full-frame redraw. */
-        absolute_update = true;
+        /* Truthful DTM1 OLD plus DTM2 NEW makes unchanged 00/11 pixels idle.
+         * Only actual W->B and B->W transitions receive the bounded pulse. */
+        absolute_update = false;
     }
     partial_update = count && (fast_update || quality_partial);
     update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
@@ -865,9 +854,11 @@ static bool submit_impl(void *context, risc_display_frame_v1 frame_id, const ris
         update_area = (risc_display_rect_v1){(int32_t)left, (int32_t)top, right - left, bottom - top};
     }
     if (fast_update) {
-        /* Use the source's tested gate-window heights. Preserve completed
-         * pixels in both dimensions when damage needs a wider/taller band. */
+        /* Keep exact 0.1.12 full-width 40/80/160/480-row geometry while
+         * making unchanged pixels electrically idle. */
         update_area = tested_window((uint32_t)update_area.y, (uint32_t)update_area.y + update_area.height);
+        fast_lut_frames = update_area.height <= X4PRO_ACTIVE_LOCAL_MAX_ROWS ?
+            X4PRO_ACTIVE_LOCAL_FRAMES : X4PRO_ACTIVE_BROAD_FRAMES;
     } else if (!quality_partial) update_area = (risc_display_rect_v1){0, 0, X4PRO_PANEL_WIDTH, X4PRO_PANEL_HEIGHT};
     if (token_serial == UINT64_MAX) return false;
     ++token_serial;
@@ -1037,7 +1028,7 @@ static bool request_settle(void *context, risc_display_present_token_v1 token) {
     const bool valid = started && !shutdown_stage && !presentation_fault && !held &&
         token && token == pending_token && present_state == PRESENT_COMPLETE &&
         completed_history && !previous_seeded;
-    if (valid && absolute_update && settle_stage == SETTLE_WAIT) settle_stage = SETTLE_READY;
+    if (valid && settle_stage == SETTLE_WAIT) settle_stage = SETTLE_READY;
     return leave() && valid;
 }
 static int32_t settled_status(void *context, risc_display_present_token_v1 token) {
@@ -1189,9 +1180,9 @@ static bool start(const risc_provider_dependency_v1 *deps, size_t count) {
 }
 /* Each operation has a total owner-admission deadline, at most 1500 ms and
  * 150 ten-ms readiness polls. Single commands are finite (at most 6 bytes),
- * completed before deadline sampling so retries never replay partial POF/DSLP.
- * A pending fast-frame settle is finalized physically before POF; an already
- * settled or quality frame adds no display work to this lifecycle. */
+ * completed before deadline sampling. Once the panel has displayed an image,
+ * this diagnostic profile refuses sleep preparation rather than issuing POF
+ * or DSLP and allowing inactive-region relaxation. */
 static int32_t power_checkpoint(uint64_t deadline) {
     uint64_t now = 0;
     if (retained || io_failed) return RISC_DISPLAY_POWER_RETAINED;
@@ -1264,17 +1255,12 @@ static int32_t prepare_power_impl(uint64_t deadline) {
         const bool busy = !panel_pin_read(X4PRO_PIN_EPD_BUSY);
         if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
         if (busy) return RISC_DISPLAY_POWER_BUSY;
+        /* Refuse sleep before invalidating any live state. A BUSY result must
+         * leave started/history/planes intact so normal rendering can continue. */
+        if (screen_powered) return RISC_DISPLAY_POWER_BUSY;
         started = false; previous_seeded = completed_history = dtm1_synced = false;
         absolute_frames = 0; absolute_started_ms = UINT64_MAX;
-        if (screen_powered) {
-            command(0x02);
-            if (io_failed) return RISC_DISPLAY_POWER_RETAINED;
-            shutdown_stage = 1u; screen_powered = false;
-            /* Start settling after the completed command, not before its GPIO I/O. */
-            result = power_checkpoint(deadline);
-            shutdown_not_before = last_sample_ms + (controller == PROBE_UC8279 ? 1u : 200u);
-            if (result) return result;
-        } else shutdown_stage = 2u;
+        shutdown_stage = 2u;
     }
     if (shutdown_stage == 1u) {
         result = power_ready(deadline);
@@ -1332,7 +1318,7 @@ static int32_t resume_power_impl(uint64_t deadline) {
     shutdown_stage = 5u; started = false; previous_seeded = completed_history = false;
     shutdown_not_before = 0;
     /* The same controller register setup as initial start, but without probe,
-     * frame clear, PON or refresh. RESET recovers partial POF/DSLP/refusals. */
+     * frame clear, PON or refresh. RESET recovers pre-display DSLP/refusals. */
     panel_pin_output(X4PRO_PIN_EPD_RST, false);
     result = power_delay(deadline, controller == PROBE_UC8279 ? 50u : 10u);
     if (result) return result;
@@ -1443,7 +1429,7 @@ static bool last_error(char *destination, size_t capacity) {
     uint64_t now = now_ms();
     size_t used = 0;
     destination[0] = 0;
-    append(destination, capacity, &used, "v=0.1.12 cause=");
+    append(destination, capacity, &used, "v=0.1.18 cause=");
     append(destination, capacity, &used, last_error_text[0]?last_error_text:reason);
     append(destination, capacity, &used, " ");
     append(destination, capacity, &used, probe_text);
