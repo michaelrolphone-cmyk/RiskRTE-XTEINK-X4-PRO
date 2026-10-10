@@ -1,0 +1,51 @@
+{
+  "schema": "x4.uc8279.absolute4-validation",
+  "schema_version": 1,
+  "created_at_utc": "2026-10-10T20:38:07.336714+00:00",
+  "baseline": {
+    "commit": "d5fdc8bae639a216340b4b5cbee49b1167d6eb69",
+    "driver_version": "0.1.13",
+    "hardware_result": "last good usable product driver; low active-frame contrast"
+  },
+  "candidate": {
+    "driver_version": "0.1.16"
+  },
+  "implementation": {
+    "active_path": "absolute A2 only",
+    "localized_max_rows": 160,
+    "localized_frames": 4,
+    "broad_frames": 2,
+    "single_drf_per_accepted_target": true,
+    "electrical_profile": "unchanged from 0.1.13; no explicit voltage or VCOM override",
+    "lifecycle": "restored from exact 0.1.13",
+    "unchanged": [
+      "byte-level changed-region detection",
+      "byte-aligned horizontal windows",
+      "40/80/160/480 row quantization",
+      "absolute active refresh",
+      "resident endpoint settling",
+      "four-frame full-target endpoint redraw",
+      "complete DTM1/DTM2 reconciliation and POF"
+    ]
+  },
+  "lab_basis": {
+    "four_frame_160_row_total_us": 100859,
+    "four_frame_160_row_fps": 9.91,
+    "five_frame_160_row_total_us": 112586,
+    "five_frame_160_row_fps": 8.88,
+    "selection": "four frames chosen for the best first test balance of contrast and cadence"
+  },
+  "software_validation": {
+    "status": "pending exact-head GitHub Actions qualification",
+    "workflow": ".github/workflows/x4-fast-display.yml"
+  },
+  "integrated_driver_hardware_tested": false,
+  "files_sha256": {
+    "minimal/drivers/x4pro_uc8279_fast/driver.c": "71e14a9ef94324aa6639fff28d8b02e5d6389827b478f0c02baa1c9cbd5d57a5",
+    "minimal/drivers/x4pro_uc8279_fast/manifest.json": "5baaa37656bcee9af406a98dc82a246e4be4b79f16a68764b0519a3bba444d86",
+    "minimal/drivers/x4pro_uc8279_fast/README.md": "6c2b2e2782f6ffb3eadf6550ec45bd9d34a2844c02d54ac42c567edd007c0386",
+    "minimal/test/uc8279_fast_test.c": "57ffa21048c6e5a02f08532170a51f7959a6383db21c3c07d58be015ff869547",
+    "minimal/test/uc8279_fast_profile_test.py": "20e35a96d1081e591359fe669d3fe1e77992ca2e7d013a97e5a9c285057a8064",
+    "minimal/test/run_idle_panel_policy_test.py": "c44f675497e4f5e0e78d79a5c381fa3d66dd6889d5c01fff2e2e544add99143e"
+  }
+}

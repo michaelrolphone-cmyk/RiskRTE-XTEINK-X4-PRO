@@ -111,5 +111,5 @@ static void idle_policy_panel(const char *scenario) {
  assert(ip_lights==1&&ip_resumes==1&&!ip_live&&started&&!reset_held&&!settle_stage&&!screen_powered);
  unsigned e=exchanges,r=refreshes;tick+=90000;owner_poll(8);assert(exchanges==e&&refreshes==r);
  assert(t5_driver_get(2)->quiesce());
- puts("Actual fast0.1.14 panel + automatic Light: settling/finalized-off/pending frame readiness PASS");
+ puts("Actual fast0.1.13 panel + automatic Light: settling/finalized-off/pending frame readiness PASS");
 }

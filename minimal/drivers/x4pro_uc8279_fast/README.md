@@ -1,4 +1,4 @@
-# X4 UC8279 fast provider 0.1.15
+# X4 UC8279 fast provider 0.1.16
 
 This separate opt-in provider implements `display.output@1` for the 800×480
 UC8279 ZHX panel at 20 MHz. `x4pro-panel` remains unchanged and is the default
@@ -6,53 +6,22 @@ fallback for both UC8279 and SSD1677. Select the new provider explicitly with
 `--panel uc8279 --panel-driver uc8279-fast` in profile/bundle generation and
 `--panel-driver uc8279-fast` in the provider builder. SSD selection is rejected.
 
-## Hardware-selected mode 1 waveform (0.1.15)
+## Longer absolute active drive (0.1.16)
 
-Version 0.1.15 adopts the best overall result from the X4LAB v0.1.9
-directional-balance run: mode 1, complementary directional `2+2` at
-symmetric +/-14 V with factory VCOM. For active changed windows no taller than
-160 rows, each white-to-black and black-to-white phase now occupies two scan
-frames (`0x42`/`0x82`) instead of one (`0x41`/`0x81`). The driver explicitly
-programs POWER_SETTING `{07,17,3A,3A,03}` after reset and again after every PON;
-it does not write VCOM DC, preserving the factory reference.
+Version 0.1.16 returns exactly to the hardware-confirmed 0.1.13 absolute-A2
+implementation and changes only active pulse duration and its scheduling metadata.
+Byte-level changed-region detection, byte-aligned horizontal windows, the
+40/80/160/480-row gate choices, absolute OLD-plane policy, resident endpoint
+settling, four-frame final-target redraw, complete DTM1/DTM2 reconciliation,
+and POF lifecycle are inherited from 0.1.13.
 
-The hardware comparison found this profile produced the cleanest overall black
-and white block motion. The symmetric +/-15 V control improved white clearing
-but left a solid gray rectangle behind the moving black target, so maximum
-rails are not adopted. Changed-byte windows, truthful DTM1/DTM2 ordering, the
-four-frame endpoint redraw, complete plane reconciliation, and POF behavior are
-unchanged. Broad 480-row motion still uses the existing one-frame absolute bank.
-
-## Complementary directional overdrive (0.1.14)
-
-Version 0.1.14 preserves the 0.1.13 changed-byte windows and the 0.1.12
-four-frame full-target endpoint redraw. For active windows no taller than 160
-rows, it replaces two identical absolute target frames with a two-phase
-differential overdrive while retaining the same two-phase scan budget:
-
-- uploads the last physically completed target to DTM1 for the exact effective
-  window, then uploads the new target to DTM2;
-- phase A places VCOM on the high rail and the controller `01` transition bucket
-  on the low rail; all other buckets track the high rail;
-- phase B places VCOM on the low rail and the controller `10` transition bucket
-  on the high rail; all other buckets track the low rail;
-- unchanged `00` and `11` pixels track VCOM during both phases and therefore
-  receive only the small matched-rail residual rather than the full transition
-  field;
-- each transition direction receives one opposite-rail source-to-VCOM impulse,
-  rather than sharing two identical source-to-ground-style absolute pulses;
-- DTM1 deliberately remains the pre-refresh target during resident settling so
-  repeated DRF operations reinforce the same completed transition. The next
-  active frame always uploads a fresh truthful OLD plane before its NEW plane.
-
-Broader 480-row motion retains the one-frame absolute profile to avoid doubling
-a full-screen payload and reducing broad-transition cadence. The 2.3-second
-settle, four-frame exact-target endpoint redraw, complete DTM1/DTM2
-reconciliation and POF sequence remain unchanged.
-
-This waveform intentionally increases the effective transition field by using
-opposite VCOM and source rails. Hardware contrast, current, temperature and
-long-run panel behavior remain device-test results rather than host-test claims.
+Changed regions no taller than 160 rows now receive one four-frame absolute DRF.
+Broad 480-row motion receives one two-frame absolute DRF. No differential or
+complementary LUT is used, no source-rail or VCOM override is programmed, and no
+second active DRF is added. The additional time is therefore spent driving the
+current target within one coherent refresh rather than replaying an intermediate
+transition. The 160-row laboratory measurement for the four-frame profile was
+approximately 100.9 ms total, or 9.91 FPS.
 
 ## Tight changed-pixel windows and stronger motion (0.1.13)
 
@@ -105,26 +74,24 @@ qualification, even though the subsequent selected lab protocol was tested.
 After reset, a presentation without reconstructed history and every explicit CLEAN use the source's
 OTP full-clean baseline: white DTM1, new DTM2, genuine BUSY assertion/completion,
 and new DTM1 synchronization (three 60 KB controller planes including 120 blank
-rows). Later DEFAULT/LOW_LATENCY presentations use external A2 at PLL 0x0F.
-Effective windows up to 160 rows use the complementary two-phase differential
-bank. Registers 0x20, 0x21 and 0x24 encode high then low (`0x42,0x82`), register
-0x22 holds low for both two-frame phases (`0x82,0x82`), and register 0x23 holds
-high for both (`0x42,0x42`). This makes one transition active only in phase A and the
-other only in phase B while unchanged buckets track VCOM. Broader/full-visible
-motion retains the corrected one-frame absolute bank (`0x81/0x41`).
+rows). Later DEFAULT/LOW_LATENCY presentations use an absolute target LUT at PLL
+0x0F. Effective windows up to 160 rows use four scan frames (white-target entries
+0x84, black-target entries 0x44); broader/full-visible motion uses two frames
+(0x82/0x42). VCOM remains 0x01. Version 0.1.2 corrected registers 0x21/0x24
+relative to the laboratory. No old-plane transfer occurs in active fast mode.
+Payload is the byte-aligned effective width multiplied by the selected
+40/80/160/480-row gate height and divided by eight.
 
 PTIN/PTL establishes the XOR-derived, byte-aligned horizontal window and the
-smallest tested 40/80/160/480-row vertical window. Complementary overdrive
-uploads DTM1 OLD and DTM2 NEW inside that same window; broad absolute motion
-uploads DTM2 only. PTOUT closes the RAM phase before external PSR, PFS, gate
-scan, CDI, CCSET, TSSET, LUT, PON-if-needed and DRF. Narrow/medium payload is
-twice the effective window bytes; broad absolute payload is one plane. Bytes in
-the expanded gate window but outside submitted damage come from the physically
-completed image, preventing unrelated caller edits from becoming visible. Only
-accepted, completed pixels become history. Caller seeding does not qualify an
-unshown image for the fast mode. Resume clears inferred history; a validated
-caller reconstruction can seed an OTP QUALITY partial, otherwise the next frame
-uses a full baseline.
+smallest tested 40/80/160/480-row vertical window before DTM2; PTOUT closes the
+RAM phase. The source's PTIN/PTL, external PSR, PFS, gate scan, CDI, CCSET, TSSET,
+LUT, PON-if-needed, DRF and PTOUT sequence follows. Bytes in the expanded gate
+window but outside submitted damage come from the physically completed image,
+preventing unrelated caller edits from becoming visible. Only accepted,
+completed pixels become history. Caller seeding does not qualify an unshown
+image for the fast mode. Resume clears inferred history; a validated caller
+reconstruction can seed an OTP QUALITY partial, otherwise the next frame uses a
+full baseline.
 
 ## Ownership, timing and failure behavior
 
@@ -174,12 +141,9 @@ transfer, DRF, BUSY assertion/completion, payload counts and completed tokens.
 Exercise narrow horizontal windows and 40/80/160-row bands at several locations,
 full frames, identical no-op targets, CLEAN, long repeated updates, failed/missed
 BUSY, touch during transfers, power refusal, sleep/resume and fallback selection.
-Confirm small/medium windows upload one OLD and one NEW plane, emit the
-`41/81` complementary VCOM bank, select one direction per phase, and retain the
-same two-phase BUSY cadence. Confirm broad windows retain one-frame absolute
-DTM2-only operation and that endpoint redraw/POF behavior remains unchanged.
-Record transition contrast in both optical directions, temperature and supply
-current in addition to UI text and motion quality.
+Confirm small windows select four LUT frames, broad windows select two, normal
+fast frames have no DTM1 sync, and image quality is acceptable for actual UI text
+and transitions.
 No hardware was accessed or firmware flashed for this change.
 
 ## Completed-image snapshot (0.1.1)

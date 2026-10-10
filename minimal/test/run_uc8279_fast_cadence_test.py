@@ -70,11 +70,7 @@ def main():
                     for frame in data['frames']:
                         metrics=frame.get('full',frame.get('partial'))
                         assert metrics['state']==3
-                        if metrics['partial']:
-                            planes=2 if metrics.get('directional') else 1
-                            assert metrics['bytes']==planes*(metrics['damage'][2]//8)*metrics['damage'][3]
-                        else:
-                            assert metrics['bytes']==180000
+                        assert metrics['bytes']==((metrics['damage'][2]//8)*metrics['damage'][3] if metrics['partial'] else 180000)
                         assert metrics['max_slice_bytes']<=16384 and metrics['max_slice_ms']<=8
                         assert metrics['gpio_writes']<200
                         assert frame['max_requested_wait_ms']==1
