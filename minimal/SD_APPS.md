@@ -30,9 +30,18 @@ The follow-up SD-only patch supplies Hollow Trail 1.2.1 (black letterbox bands)
 and Reader 0.1.1 (open its initial scene before querying page geometry).
 Merge its `Apps/` tree over the existing card while these apps are closed.
 No firmware or font replacement is needed. `sd-apps-073-hotfix.json` records
-the exact replacement ELFs, source commits and checks. Use those app versions
-in subsequent assemblies; the firmware's static version labels update with
-its next build. Hollow Trail's full original story and aspect ratio are retained.
+that first patch. Hollow Trail's full original story and aspect ratio are retained.
+
+Reader **0.1.2** supersedes 0.1.1 after the device exposed a `loopTask` stack
+overflow during book pagination. Resetting reading state in place reduces
+`Engine::open`'s Xtensa frame from 5,744 to 128 bytes; bookmark edits retain
+only one bookmark for rollback. Replace only `Apps/ebook-reader/ebook_reader.elf`
+while Reader is closed. No firmware, font or JSON replacement is needed.
+`sd-apps-073-reader-012.json` records the exact ELF, source, compiler stack
+reports and native admission against 0.1.73. Real app-entry host tests now
+render EPUB3, EPUB2, TXT and Markdown through the file-open handoff. Device
+retesting remains pending. Use Reader 0.1.2 and Hollow Trail 1.2.1 in subsequent
+assemblies; firmware static version labels update with the next firmware build.
 
 `sd-apps-073-qualification.json` records exact artifacts, source-tree publication
 mappings, capacity and gate results. Tests cover normal/sanitized runtime
