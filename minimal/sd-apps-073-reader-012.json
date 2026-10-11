@@ -1,0 +1,143 @@
+{
+  "firmware": "0.1.73",
+  "panel_driver": "x4pro-uc8279-fast 0.1.12",
+  "firmware_flash_required": false,
+  "app": {
+    "id": "ebook-reader",
+    "version": "0.1.2",
+    "path": "Apps/ebook-reader/ebook_reader.elf",
+    "bytes": 1851668,
+    "sha256": "bdd89b48c2afb306f343c2c9c4e130521c9cf80dbefeee1a51efb75eaea6b0e0",
+    "source_repository": "RiscRTE-Productivity",
+    "public_source_commit": "2dbd9c579301eadc608c0b0e0cde77bb96f74e5e",
+    "source_tree": "840f36a0c678f483c2d57176bb825ec3c1372622",
+    "pull_request": "https://github.com/michaelrolphone-cmyk/RiscRTE-Productivity/pull/20"
+  },
+  "root_cause": {
+    "exception": "loopTask stack canary while opening a book",
+    "native_task_stack_bytes": 16384,
+    "book_state_temporary_bytes": 5644,
+    "engine_open_frame_before_bytes": 5744,
+    "engine_open_frame_after_bytes": 128,
+    "freetype_rasterizer_frame_bytes": 4400
+  },
+  "target_stack_frames": {
+    "Engine::open(": {
+      "function": "bool reader::Engine::open(const string&)",
+      "bytes": 128,
+      "kind": "static",
+      "limit_bytes": 512
+    },
+    "Engine::toggleBookmark(": {
+      "function": "bool reader::Engine::toggleBookmark()",
+      "bytes": 144,
+      "kind": "static",
+      "limit_bytes": 512
+    },
+    "Engine::removeBookmark(": {
+      "function": "bool reader::Engine::removeBookmark(unsigned int)",
+      "bytes": 144,
+      "kind": "static",
+      "limit_bytes": 512
+    },
+    "Engine::renameBookmark(": {
+      "function": "bool reader::Engine::renameBookmark(unsigned int, const char*)",
+      "bytes": 128,
+      "kind": "static",
+      "limit_bytes": 512
+    },
+    "app_main(": {
+      "function": "void app_main()",
+      "bytes": 1136,
+      "kind": "static",
+      "limit_bytes": 1536
+    }
+  },
+  "native_admission": {
+    "native_bank_source_sha256": "1ae5a6798d0ee019aea1beea9b7f94921d0e9a2cc5e3293fc747b913e370b19d",
+    "native_elf_sha256": "3b0605d518288202c9154ca192acfe638dadd861caf305b970cdd029f46a05cb",
+    "app_elf_sha256": "bdd89b48c2afb306f343c2c9c4e130521c9cf80dbefeee1a51efb75eaea6b0e0",
+    "imports": [
+      "__errno",
+      "calloc",
+      "free",
+      "isalpha",
+      "longjmp",
+      "malloc",
+      "memchr",
+      "memcmp",
+      "memcpy",
+      "memmove",
+      "memset",
+      "qsort",
+      "realloc",
+      "risc_runtime_get_api",
+      "setjmp",
+      "snprintf",
+      "strcat",
+      "strchr",
+      "strcmp",
+      "strcpy",
+      "strlen",
+      "strncasecmp",
+      "strncmp",
+      "strncpy",
+      "strrchr",
+      "strstr",
+      "strtod",
+      "strtof",
+      "strtol",
+      "tolower",
+      "vsnprintf"
+    ],
+    "production_native_admission": true,
+    "all_imports_defined_in_native_candidate": true,
+    "compiled_public_exports": {
+      "__errno": "0x420d5cdc",
+      "calloc": "0x42037cbc",
+      "free": "0x4038a644",
+      "isalpha": "0x40001290",
+      "longjmp": "0x420ec1f0",
+      "malloc": "0x42037cf8",
+      "memchr": "0x40001344",
+      "memcmp": "0x4000120c",
+      "memcpy": "0x400011f4",
+      "memmove": "0x40001200",
+      "memset": "0x400011e8",
+      "qsort": "0x40001488",
+      "realloc": "0x42037d28",
+      "risc_runtime_get_api": "0x4200bef4",
+      "setjmp": "0x4000144c",
+      "snprintf": "0x420d7e3c",
+      "strcat": "0x40001374",
+      "strchr": "0x4000138c",
+      "strcmp": "0x40001230",
+      "strcpy": "0x40001218",
+      "strlen": "0x40001248",
+      "strncasecmp": "0x400013d4",
+      "strncmp": "0x4000123c",
+      "strncpy": "0x40001224",
+      "strrchr": "0x40001404",
+      "strstr": "0x40001254",
+      "strtod": "0x420d9ba8",
+      "strtof": "0x420d9c64",
+      "strtol": "0x400014e8",
+      "tolower": "0x40001320",
+      "vsnprintf": "0x420e0ff0"
+    },
+    "each_missing_import_rejected": true,
+    "provider": false,
+    "target_instructions_executed": false,
+    "target_symbol_resolver_host_executed": false
+  },
+  "validation": {
+    "target_build_and_stack_budgets": "pass",
+    "reader_engine_epub3_epub2_txt_markdown_pagination_fonts_layout_bookmarks_short_io": "pass",
+    "failed_bookmark_add_toggle_remove_first_middle_last_rename_full_state_rollback": "pass",
+    "real_app_entry_production_scene_library_and_four_file_open_formats_32KiB_host_stack": "pass",
+    "capability_requirements_unchanged": true,
+    "physical_testing": "pending",
+    "limitations": "Host execution and target frame reports do not prove every parser/font path fits the device task stack."
+  },
+  "installation": "Close Reader, then replace Apps/ebook-reader/ebook_reader.elf on the SD card. No firmware, fonts, or JSON replacement is required. The firmware static version label updates with the next firmware assembly."
+}

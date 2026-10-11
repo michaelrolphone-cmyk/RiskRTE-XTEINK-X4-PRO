@@ -164,6 +164,19 @@ def compile_harness(runtime, output, app_data=False, native_elf=None, app_policy
     fixture = (ROOT / 'tests/runtime_store_admission.cpp').read_text()
     fixture = fixture.replace('candidate.error(),hardwareCalls',
                               '(prepared?candidate.error():runtime.error()),hardwareCalls')
+    # Reader's native compute capabilities are populated only when their actual
+    # implementations exist in the matched target ELF. Admission must never
+    # call either backend, so these sentinels count any attempted native I/O.
+    if native_elf is not None and 'memoryHeap' in (runtime/'src/bootstrap/Runtime.h').read_text():
+        from elftools.elf.elffile import ELFFile
+        symbols = ELFFile(io.BytesIO(native_elf)).get_section_by_name('.symtab')
+        defined = {s.name for s in symbols.iter_symbols() if s['st_shndx'] != 'SHN_UNDEF'}
+        if not any('RiscCpu10memoryHeap' in n for n in defined) or not any('RiscCpu11randomBytes' in n for n in defined):
+            raise ValueError('Native compute implementations absent from selected firmware')
+        fixture = fixture.replace('  RiscBoot::Runtime runtime(runtimePort);',
+            '  runtimePort.memoryHeap=[](risc_memory_heap_snapshot_v1*) -> int32_t {++hardwareCalls;return -1;};\n'
+            '  runtimePort.randomBytes=[](void*,uint32_t) -> int32_t {++hardwareCalls;return -1;};\n'
+            '  RiscBoot::Runtime runtime(runtimePort);')
     selected_fixture = output.parent / 'runtime_store_admission.cpp'
     selected_fixture.write_text(fixture)
     command += ['-I' + str(ROOT / 'tests'), str(selected_fixture), '-ldl', '-o', str(output)]
